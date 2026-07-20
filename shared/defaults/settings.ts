@@ -86,8 +86,12 @@ export const defaultSystemConfig: SystemConfig = {
     doubleLine: true,
     showTranslation: true,
     showCover: true,
+    separateCoverAndLyric: false,
     wordByWord: true,
+    autoGenerateWordByWord: true,
     fontSize: 14,
+    fontWeight: 400,
+    translationFontWeight: 400,
     fontFamily: "",
   },
   lyric: {

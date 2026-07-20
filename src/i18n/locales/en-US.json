@@ -1288,6 +1288,22 @@
       "label": "Word by Word",
       "description": "Render highlight progress per word"
     },
+    "taskbarLyricFontWeight": {
+      "label": "Lyric Weight",
+      "description": "Set the weight of the primary and next lyric lines"
+    },
+    "taskbarLyricTranslationFontWeight": {
+      "label": "Translation Weight",
+      "description": "Set the taskbar translation lyric weight separately"
+    },
+    "taskbarLyricSeparateCoverAndLyric": {
+      "label": "Separate Lyric & Cover",
+      "description": "Let pointer input pass through lyrics while keeping the cover and controls interactive"
+    },
+    "taskbarLyricAutoGenerateWordByWord": {
+      "label": "Generate Word Effect",
+      "description": "Generate a sweep for line-timed lyrics; disable to animate only lyrics with real word timing"
+    },
     "playerBgType": {
       "label": "Player Background",
       "description": "Background type of the full-screen player",

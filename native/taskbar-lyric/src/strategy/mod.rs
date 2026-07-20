@@ -2,8 +2,8 @@ use windows::Win32::{
     Foundation::HWND,
     UI::WindowsAndMessaging::{
         GWL_EXSTYLE, GWL_STYLE, SetParent, WINDOW_EX_STYLE, WINDOW_STYLE, WS_CAPTION,
-        WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
-        WS_SYSMENU, WS_THICKFRAME,
+        WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_MAXIMIZEBOX,
+        WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
     },
 };
 
@@ -35,6 +35,21 @@ pub(super) fn embed_child_window(child_wnd: HWND, parent_wnd: HWND) -> bool {
         });
     }
     true
+}
+
+/// 切换嵌入窗口的原生鼠标穿透样式
+pub(crate) fn set_window_mouse_passthrough(window: HWND, ignore: bool) {
+    // SAFETY: window 已由 take_valid_hwnd 校验，修改的扩展样式只影响鼠标命中。
+    unsafe {
+        modify_window_long(window, GWL_EXSTYLE, |raw_style| {
+            let style = WINDOW_EX_STYLE(raw_style);
+            if ignore {
+                (style | WS_EX_TRANSPARENT).0
+            } else {
+                (style & !WS_EX_TRANSPARENT).0
+            }
+        });
+    }
 }
 
 pub use win10::LegacyStrategy;

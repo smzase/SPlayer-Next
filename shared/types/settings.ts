@@ -194,10 +194,18 @@ export interface TaskbarLyricSettings {
   showTranslation: boolean;
   /** 显示封面 */
   showCover: boolean;
+  /** 歌词与封面交互分离：歌词区域穿透，仅封面和控制区响应鼠标 */
+  separateCoverAndLyric: boolean;
   /** 逐字高亮 */
   wordByWord: boolean;
+  /** 为无逐字时间的歌词自动生成整行扫光 */
+  autoGenerateWordByWord: boolean;
   /** 字号（逻辑像素） */
   fontSize: number;
+  /** 主歌词字重 */
+  fontWeight: number;
+  /** 翻译歌词字重 */
+  translationFontWeight: number;
   /** 字体 */
   fontFamily: string;
 }

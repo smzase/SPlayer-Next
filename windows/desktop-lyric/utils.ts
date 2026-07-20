@@ -1,6 +1,8 @@
 import type { LyricLine } from "@shared/types/lyrics";
 import type { DesktopLyricAlign, DesktopLyricSettings } from "@shared/types/settings";
 
+import { hasRealWordTiming } from "@shared/utils/lyricSync";
+
 /** 待渲染行的数据载体 */
 export interface DisplayItem {
   key: string;
@@ -10,16 +12,6 @@ export interface DisplayItem {
   isPlaceholder?: boolean;
   isNext?: boolean;
 }
-
-/**
- * 是否带真实逐字时间
- * @param line 歌词行
- */
-export const hasRealWordTiming = (line: LyricLine): boolean => {
-  if (line.words.length <= 1) return false;
-  const first = line.words[0];
-  return first.endTime > first.startTime;
-};
 
 /**
  * 构造占位歌词行

@@ -49,7 +49,15 @@ export {
   closeTaskbarLyricWindow,
   toggleTaskbarLyricWindow,
   getTaskbarLyricWindow,
+  getTaskbarQueueWindow,
   applyTaskbarLyricLayout,
+  applyTaskbarLyricSeparation,
+  applyTaskbarLyricMouseIgnore,
+  closeTaskbarQueueWindow,
+  toggleTaskbarQueueWindow,
+  getTaskbarPlaybackSnapshot,
+  requestTaskbarPlaybackSnapshot,
+  updateTaskbarPlaybackSnapshot,
 } from "./taskbarLyric";
 
 /** 恢复歌词相关窗口 */

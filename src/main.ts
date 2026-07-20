@@ -1,4 +1,4 @@
-import "virtual:uno.css";
+import "@/styles/uno";
 import "@/styles/global.css";
 
 import piniaPersistedstate from "pinia-plugin-persistedstate";

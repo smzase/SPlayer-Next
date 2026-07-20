@@ -1,4 +1,5 @@
 import type { DesktopLyricSettings, DynamicIslandSettings, TaskbarLyricSettings } from "./settings";
+import type { TaskbarPlaybackSnapshot } from "./taskbarLyric";
 
 /** 窗口管理 API */
 export interface WindowApi {
@@ -77,6 +78,26 @@ export interface TaskbarLyricApi {
   onLayout: (callback: (data: TaskbarLyricLayoutEvent) => void) => () => void;
   /** 订阅配置变化 */
   onConfigChange: (callback: (config: TaskbarLyricSettings) => void) => () => void;
+  /** 主渲染进程同步轻量播放状态 */
+  syncPlayback: (snapshot: TaskbarPlaybackSnapshot) => void;
+  /** 任务栏窗口拉取轻量播放状态 */
+  requestPlayback: () => Promise<TaskbarPlaybackSnapshot>;
+  /** 主渲染进程订阅快照请求 */
+  onPlaybackRequest: (callback: () => void) => () => void;
+  /** 任务栏窗口订阅轻量播放状态 */
+  onPlaybackChange: (callback: (snapshot: TaskbarPlaybackSnapshot) => void) => () => void;
+  /** 切换紧凑播放列表 */
+  toggleQueue: () => void;
+  /** 关闭紧凑播放列表 */
+  closeQueue: () => void;
+  /** 播放队列中的指定歌曲 */
+  playTrack: (trackId: string) => void;
+  /** 循环切换任务栏四态播放模式 */
+  cyclePlayMode: () => void;
+  /** 分离模式下切换任务栏窗口鼠标穿透 */
+  setMouseIgnore: (ignore: boolean) => void;
+  /** 订阅主进程检测到的封面进入状态 */
+  onCoverHover: (callback: (hovered: boolean) => void) => () => void;
 }
 
 /** 灵动岛 API */

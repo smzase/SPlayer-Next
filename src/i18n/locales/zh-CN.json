@@ -1276,6 +1276,22 @@
       "label": "逐字高亮",
       "description": "按单词进度逐字渲染高亮"
     },
+    "taskbarLyricFontWeight": {
+      "label": "歌词字重",
+      "description": "设置任务栏主歌词和下一行歌词的字重"
+    },
+    "taskbarLyricTranslationFontWeight": {
+      "label": "翻译字重",
+      "description": "单独设置任务栏翻译歌词的字重"
+    },
+    "taskbarLyricSeparateCoverAndLyric": {
+      "label": "歌词 & 封面分离",
+      "description": "歌词区域允许鼠标穿透，仅封面与展开的控制按钮可交互"
+    },
+    "taskbarLyricAutoGenerateWordByWord": {
+      "label": "自动生成逐字效果",
+      "description": "为只有整行时间的歌词生成逐字扫光；关闭后仅显示真实逐字歌词效果"
+    },
     "playerBgType": {
       "label": "播放器背景",
       "description": "全屏播放器的背景类型",

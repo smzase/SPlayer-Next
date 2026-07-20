@@ -19,6 +19,8 @@ export declare class TaskbarService {
   constructor(callback: (layout: JsTaskbarLayout) => void)
   /** 嵌入窗口到任务栏。传入 Electron BrowserWindow 的 native handle (Buffer → usize) */
   embedWindowByPtr(hwndPtr: number): void
+  /** 切换嵌入窗口的原生鼠标穿透样式 */
+  setMousePassthrough(ignore: boolean): void
   /** 更新歌词显示宽度，触发重新计算布局 */
   update(lyricWidth: number): void
   /** 通知服务重建策略（explorer.exe 重启时由 JS 层调用） */

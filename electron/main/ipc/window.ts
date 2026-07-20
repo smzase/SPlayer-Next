@@ -19,6 +19,14 @@ import {
   toggleTaskbarLyricWindow,
   closeTaskbarLyricWindow,
   getTaskbarLyricWindow,
+  getTaskbarQueueWindow,
+  getMainWindow,
+  applyTaskbarLyricMouseIgnore,
+  closeTaskbarQueueWindow,
+  toggleTaskbarQueueWindow,
+  getTaskbarPlaybackSnapshot,
+  requestTaskbarPlaybackSnapshot,
+  updateTaskbarPlaybackSnapshot,
   minimizeMainWindow,
   toggleMaximizeMainWindow,
   isMainWindowMaximized,
@@ -26,6 +34,8 @@ import {
   isMainWindowFullscreen,
   hideMainWindow,
 } from "@main/window";
+import { sendToMain } from "@main/utils/broadcast";
+import type { TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
 
 /** 窗口管理 IPC */
 export const registerWindowIpc = (): void => {
@@ -101,10 +111,41 @@ export const registerWindowIpc = (): void => {
     ipcMain.handle("window:closeTaskbarLyric", () => closeTaskbarLyricWindow());
     // 查询任务栏歌词窗口是否打开
     ipcMain.handle("window:isTaskbarLyricOpen", () => !!getTaskbarLyricWindow());
+    ipcMain.on("taskbarLyric:syncPlayback", (event, snapshot: TaskbarPlaybackSnapshot) => {
+      if (event.sender !== getMainWindow()?.webContents) return;
+      updateTaskbarPlaybackSnapshot(snapshot);
+    });
+    ipcMain.handle("taskbarLyric:requestPlayback", () => {
+      requestTaskbarPlaybackSnapshot();
+      return getTaskbarPlaybackSnapshot();
+    });
+    ipcMain.on("taskbarLyric:toggleQueue", (event) => {
+      if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
+      toggleTaskbarQueueWindow();
+    });
+    ipcMain.on("taskbarLyric:closeQueue", (event) => {
+      if (event.sender !== getTaskbarQueueWindow()?.webContents) return;
+      closeTaskbarQueueWindow();
+    });
+    ipcMain.on("taskbarLyric:playTrack", (event, trackId: string) => {
+      const taskbarSender = event.sender === getTaskbarLyricWindow()?.webContents;
+      const queueSender = event.sender === getTaskbarQueueWindow()?.webContents;
+      if ((!taskbarSender && !queueSender) || typeof trackId !== "string") return;
+      sendToMain("player:event", { type: "playQueueTrack", data: { trackId } });
+    });
+    ipcMain.on("taskbarLyric:cyclePlayMode", (event) => {
+      if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
+      sendToMain("player:event", { type: "cycleTaskbarPlayMode" });
+    });
+    ipcMain.on("taskbarLyric:setMouseIgnore", (event, ignore: boolean) => {
+      if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
+      applyTaskbarLyricMouseIgnore(!!ignore);
+    });
   } else {
     ipcMain.handle("window:toggleTaskbarLyric", () => false);
     ipcMain.handle("window:closeTaskbarLyric", () => undefined);
     ipcMain.handle("window:isTaskbarLyricOpen", () => false);
+    ipcMain.handle("taskbarLyric:requestPlayback", () => getTaskbarPlaybackSnapshot());
   }
 
   // 主窗口控制

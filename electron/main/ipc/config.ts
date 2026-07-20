@@ -25,6 +25,7 @@ import {
   applyDynamicIslandNotchFusion,
   applyDynamicIslandNonOcclusive,
   applyTaskbarLyricLayout,
+  applyTaskbarLyricSeparation,
 } from "@main/window";
 import { broadcast } from "@main/utils/broadcast";
 import { isWin } from "@main/utils/config";
@@ -100,6 +101,10 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
     case "taskbarLyric.leftMargin":
     case "taskbarLyric.rightMargin":
       if (isWin) applyTaskbarLyricLayout();
+      break;
+    case "taskbarLyric.showCover":
+    case "taskbarLyric.separateCoverAndLyric":
+      if (isWin) applyTaskbarLyricSeparation();
       break;
   }
   // 桌面歌词配置变更广播到所有窗口

@@ -3,11 +3,16 @@
 //! 单后台线程接收 NAPI 命令，按 win10/win11 策略管理任务栏嵌入和 UIA 重扫，
 //! 自带去抖（聚合连续 Update）和 UIA 冷启动重试
 
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    mpsc::{self, Receiver, RecvTimeoutError, Sender},
+};
 use std::thread;
 use std::time::Duration;
 
-use crate::strategy::{LayoutParams, LegacyStrategy, TaskbarStrategy, Win11Strategy};
+use crate::strategy::{
+    LayoutParams, LegacyStrategy, TaskbarStrategy, Win11Strategy, set_window_mouse_passthrough,
+};
 use crate::utils::{ComApartmentGuard, get_windows_build_number};
 use crate::{JsTaskbarLayout, take_valid_hwnd};
 use napi::{
@@ -35,6 +40,7 @@ enum TaskbarCommand {
 #[napi]
 pub struct TaskbarService {
     sender: Sender<TaskbarCommand>,
+    hwnd_ptr: AtomicUsize,
 }
 
 #[napi]
@@ -55,15 +61,28 @@ impl TaskbarService {
             worker_loop(&rx, &tsfn);
         });
 
-        Ok(Self { sender: tx })
+        Ok(Self {
+            sender: tx,
+            hwnd_ptr: AtomicUsize::new(0),
+        })
     }
 
     /// 嵌入窗口到任务栏。传入 Electron BrowserWindow 的 native handle (Buffer → usize)
     #[napi]
     pub fn embed_window_by_ptr(&self, hwnd_ptr: f64) {
+        self.hwnd_ptr.store(hwnd_ptr as usize, Ordering::Release);
         let _ = self.sender.send(TaskbarCommand::Embed {
             hwnd_ptr: hwnd_ptr as usize,
         });
+    }
+
+    /// 切换嵌入窗口的原生鼠标穿透样式
+    #[napi]
+    pub fn set_mouse_passthrough(&self, ignore: bool) {
+        let hwnd_ptr = self.hwnd_ptr.load(Ordering::Acquire);
+        if let Some(hwnd) = take_valid_hwnd(hwnd_ptr) {
+            set_window_mouse_passthrough(hwnd, ignore);
+        }
     }
 
     /// 更新歌词显示宽度，触发重新计算布局

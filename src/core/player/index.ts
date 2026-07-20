@@ -1,10 +1,17 @@
 import type { Track } from "@shared/types/player";
+import type { TaskbarPlayMode, TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
+import {
+  nextTaskbarPlayMode,
+  resolveTaskbarPlayMode,
+  resolveTaskbarPlayModeState,
+} from "@shared/utils/taskbarLyric";
 import type { TagEditRequest, TagWriteOutcome } from "@shared/types/tagEditor";
 import { handleEvent } from "./events";
 import type { RepeatMode, ShuffleMode } from "@/stores/status";
 import { useMediaStore } from "@/stores/media";
 import { useSettingsStore } from "@/stores/settings";
 import { useStatusStore } from "@/stores/status";
+import { useThemeStore } from "@/stores/theme";
 import { useStreamingStore } from "@/stores/streaming";
 import { usePluginsStore } from "@/stores/plugins";
 import { useHistoryStore } from "@/stores/history";
@@ -721,6 +728,16 @@ export const playAtIndex = async (index: number): Promise<void> => {
   await loadTrack(status.currentTrack);
 };
 
+/**
+ * 按歌曲 ID 跳到队列中的曲目并播放
+ * @param trackId - 队列曲目 ID
+ */
+export const playQueueTrack = async (trackId: string): Promise<void> => {
+  const index = queue.findTrackIndex(trackId);
+  if (index === -1) return;
+  await playAtIndex(index);
+};
+
 /** 播放上一首，首位时回绕到末尾 */
 export const prevTrack = async (): Promise<void> => {
   const status = useStatusStore();
@@ -745,6 +762,47 @@ const onQueueEnded = async (): Promise<void> => {
 const syncPlayMode = (): void => {
   const status = useStatusStore();
   window.api.player.syncPlayMode(status.repeatMode, status.shuffleMode);
+};
+
+const TASKBAR_MODE_TO_I18N: Record<TaskbarPlayMode, string> = {
+  "repeat-list": "player.repeatMode.list",
+  "repeat-one": "player.repeatMode.one",
+  shuffle: "player.shuffleMode.on",
+  sequential: "player.shuffleMode.off",
+};
+
+/**
+ * 原子切换任务栏四态播放模式
+ * @param mode - 目标统一播放模式
+ */
+export const setTaskbarPlayMode = (mode: TaskbarPlayMode): void => {
+  const status = useStatusStore();
+  if (status.fmMode) return;
+
+  const currentTrackId = status.currentTrack?.id ?? "";
+  const target = resolveTaskbarPlayModeState(mode);
+  status.heartMode = false;
+
+  if (status.shuffleMode === "on" && target.shuffleMode === "off") {
+    const restoredIndex = queue.unshuffleQueue(currentTrackId);
+    status.playIndex = queue.queueLength.value > 0 ? restoredIndex : -1;
+  } else if (status.shuffleMode === "off" && target.shuffleMode === "on") {
+    queue.shuffleQueue(status.playIndex);
+    if (queue.queueLength.value > 0) status.playIndex = 0;
+  }
+
+  status.repeatMode = target.repeatMode;
+  status.shuffleMode = target.shuffleMode;
+  syncPlayMode();
+  toast.info(i18n.global.t(TASKBAR_MODE_TO_I18N[mode]), { icon: false });
+};
+
+/** 循环切换任务栏四态播放模式 */
+export const cycleTaskbarPlayMode = (): void => {
+  const status = useStatusStore();
+  if (status.fmMode) return;
+  const current = resolveTaskbarPlayMode(status.repeatMode, status.shuffleMode);
+  setTaskbarPlayMode(nextTaskbarPlayMode(current));
 };
 
 /**
@@ -927,6 +985,8 @@ export const moveInQueue = (fromIndex: number, toIndex: number): void => {
 };
 
 let unsubscribe: (() => void) | null = null;
+let stopTaskbarPlaybackWatch: (() => void) | null = null;
+let unsubscribeTaskbarPlaybackRequest: (() => void) | null = null;
 let initialized = false;
 
 /** 初始化播放器 */
@@ -943,6 +1003,65 @@ export const initPlayer = async (): Promise<void> => {
   void usePluginsStore().load();
   await queue.restoreQueue();
   const status = useStatusStore();
+  if (navigator.platform.startsWith("Win")) {
+    const taskbarMedia = useMediaStore();
+    const theme = useThemeStore();
+    const pushTaskbarPlayback = (): void => {
+      const rootStyle = getComputedStyle(document.documentElement);
+      const snapshot: TaskbarPlaybackSnapshot = {
+        items: queue.queue.value.map((track) => ({
+          id: track.id,
+          title: track.title,
+          artists: track.artists.map((artist) => artist.name).join(" / "),
+          cover: track.cover,
+        })),
+        currentTrackId: taskbarMedia.track?.id ?? null,
+        playMode: resolveTaskbarPlayMode(status.repeatMode, status.shuffleMode),
+        playModeDisabled: status.fmMode,
+        locale: settings.locale,
+        theme: {
+          isDark: theme.isDark,
+          appearanceStyle: theme.effectiveStyle,
+          primary: rootStyle.getPropertyValue("--s-primary").trim(),
+          primaryContainer: rootStyle.getPropertyValue("--s-primary-container").trim(),
+          surface: rootStyle.getPropertyValue("--s-surface").trim(),
+          surfaceAlt: rootStyle.getPropertyValue("--s-surface-alt").trim(),
+          surfacePanel: rootStyle.getPropertyValue("--s-surface-panel").trim(),
+          surfaceBright: rootStyle.getPropertyValue("--s-surface-bright").trim(),
+          onSurface: rootStyle.getPropertyValue("--s-on-surface").trim(),
+          onSurfaceVariant: rootStyle.getPropertyValue("--s-on-surface-variant").trim(),
+          outline: rootStyle.getPropertyValue("--s-outline").trim(),
+          outlineVariant: rootStyle.getPropertyValue("--s-outline-variant").trim(),
+        },
+      };
+      window.api.taskbarLyric.syncPlayback(snapshot);
+    };
+
+    stopTaskbarPlaybackWatch?.();
+    stopTaskbarPlaybackWatch = watch(
+      [
+        () => queue.queue.value,
+        () => status.playIndex,
+        () => taskbarMedia.track?.id,
+        () => status.repeatMode,
+        () => status.shuffleMode,
+        () => status.fmMode,
+        () => settings.locale,
+        () => theme.isDark,
+        () => theme.source,
+        () => theme.customColor,
+        () => theme.globalTint,
+        () => theme.coverColor,
+        () => theme.imageBackgroundColor,
+        () => theme.effectiveStyle,
+      ],
+      pushTaskbarPlayback,
+      { immediate: true },
+    );
+    unsubscribeTaskbarPlaybackRequest?.();
+    unsubscribeTaskbarPlaybackRequest =
+      window.api.taskbarLyric.onPlaybackRequest(pushTaskbarPlayback);
+  }
   // 恢复上次的音量和播放模式到主进程
   await window.api.player.setVolume(status.volume);
   syncPlayMode();
@@ -1018,4 +1137,8 @@ export const disposePlayer = (): void => {
     unsubscribe();
     unsubscribe = null;
   }
+  stopTaskbarPlaybackWatch?.();
+  stopTaskbarPlaybackWatch = null;
+  unsubscribeTaskbarPlaybackRequest?.();
+  unsubscribeTaskbarPlaybackRequest = null;
 };

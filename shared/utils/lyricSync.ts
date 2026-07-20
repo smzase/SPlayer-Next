@@ -112,3 +112,13 @@ export const clampLastLineEnd = (lines: LyricLine[], trackDurationMs?: number): 
   };
   return [...lines.slice(0, -1), clamped];
 };
+
+/**
+ * 判断歌词行是否包含真实逐字时间
+ * @param line - 歌词行
+ */
+export const hasRealWordTiming = (line: LyricLine): boolean => {
+  if (line.words.length <= 1) return false;
+  const first = line.words[0];
+  return first.endTime > first.startTime;
+};

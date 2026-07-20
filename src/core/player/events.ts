@@ -15,12 +15,14 @@ import {
   nextTrack,
   pause,
   play,
+  playQueueTrack,
   prevTrack,
   recoverFromSourceFailure,
   refreshDevices,
   seek,
   setRepeatMode,
   setShuffleMode,
+  cycleTaskbarPlayMode,
 } from "./index";
 
 /** 防止 ended 事件重入 */
@@ -125,6 +127,12 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "setRepeat":
       setRepeatMode(event.data.mode);
+      break;
+    case "playQueueTrack":
+      await playQueueTrack(event.data.trackId);
+      break;
+    case "cycleTaskbarPlayMode":
+      cycleTaskbarPlayMode();
       break;
     case "toggleLike":
       await useFavorite().toggle(useMediaStore().track);

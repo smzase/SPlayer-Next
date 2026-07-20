@@ -79,6 +79,7 @@ let resizeObserver: ResizeObserver | null = null;
 let rafId = 0;
 let lastTransform = "";
 let lastWordProgress: string[] = [];
+const needsRaf = computed(() => useKaraoke.value || isOverflow.value);
 
 const resetRenderCache = (): void => {
   lastTransform = "";
@@ -87,6 +88,10 @@ const resetRenderCache = (): void => {
 };
 
 const renderFrame = (): void => {
+  if (!needsRaf.value || document.hidden) {
+    rafId = 0;
+    return;
+  }
   const currentMs = getNowPlayingCurrentMs();
 
   if (contentRef.value) {
@@ -112,6 +117,19 @@ const renderFrame = (): void => {
   rafId = requestAnimationFrame(renderFrame);
 };
 
+const startRenderLoop = (): void => {
+  if (rafId === 0 && needsRaf.value && !document.hidden) {
+    rafId = requestAnimationFrame(renderFrame);
+  }
+};
+
+const stopRenderLoop = (): void => {
+  if (rafId !== 0) {
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+};
+
 watch(
   () => props.line,
   () => {
@@ -123,20 +141,28 @@ watch(
   () => props.text,
   () => nextTick(measure),
 );
+watch(needsRaf, (enabled) => {
+  if (enabled) startRenderLoop();
+  else stopRenderLoop();
+});
+
+const handleVisibilityChange = (): void => {
+  if (document.hidden) stopRenderLoop();
+  else startRenderLoop();
+};
 
 onMounted(() => {
   resizeObserver = new ResizeObserver(measure);
   if (wrapperRef.value) resizeObserver.observe(wrapperRef.value);
   if (contentRef.value) resizeObserver.observe(contentRef.value);
   measure();
-  rafId = requestAnimationFrame(renderFrame);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  startRenderLoop();
 });
 
 onBeforeUnmount(() => {
-  if (rafId !== 0) {
-    cancelAnimationFrame(rafId);
-    rafId = 0;
-  }
+  stopRenderLoop();
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
   resizeObserver?.disconnect();
   resizeObserver = null;
 });
@@ -157,7 +183,8 @@ onBeforeUnmount(() => {
           :ref="(el) => setWordRef(el, i)"
           class="tb-word"
         >
-          {{ word.word }}
+          <span class="tb-word-unplayed">{{ word.word }}</span>
+          <span class="tb-word-played" aria-hidden="true">{{ word.word }}</span>
         </span>
       </template>
       <span v-else>{{ plainText }}</span>
@@ -178,21 +205,26 @@ onBeforeUnmount(() => {
 }
 .scroll-content {
   display: inline-block;
+  font-family: inherit;
+  font-weight: inherit;
   will-change: transform;
 }
 .tb-word {
   --p: 0%;
-  display: inline;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  background: linear-gradient(
-    90deg,
-    var(--tbl-played) 0%,
-    var(--tbl-played) calc(var(--p) - 2px),
-    var(--tbl-unplayed) calc(var(--p) + 2px),
-    var(--tbl-unplayed) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
+  display: inline-grid;
+  font-family: inherit;
+  font-weight: inherit;
+}
+.tb-word-unplayed,
+.tb-word-played {
+  grid-area: 1 / 1;
+  font: inherit;
+}
+.tb-word-unplayed {
+  color: var(--tbl-unplayed);
+}
+.tb-word-played {
+  color: var(--tbl-played);
+  clip-path: inset(0 calc(100% - var(--p)) 0 0);
 }
 </style>

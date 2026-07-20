@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { TaskbarLyricSettings } from "@shared/types/settings";
+import type { TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
 import type {
   PluginInfo,
   PluginResolveUrlArgs,
@@ -292,6 +293,31 @@ const api = {
     // 订阅任务栏歌词配置变化
     onConfigChange: (callback: (config: TaskbarLyricSettings) => void) =>
       subscribe<TaskbarLyricSettings>("taskbarLyric:configChange", callback),
+    // 主渲染进程同步轻量播放状态
+    syncPlayback: (snapshot: TaskbarPlaybackSnapshot) =>
+      ipcRenderer.send("taskbarLyric:syncPlayback", snapshot),
+    // 任务栏窗口拉取轻量播放状态
+    requestPlayback: (): Promise<TaskbarPlaybackSnapshot> =>
+      ipcRenderer.invoke("taskbarLyric:requestPlayback"),
+    // 主渲染进程响应任务栏快照请求
+    onPlaybackRequest: (callback: () => void) =>
+      subscribe<void>("taskbarLyric:playbackRequest", callback),
+    // 任务栏窗口订阅轻量播放状态
+    onPlaybackChange: (callback: (snapshot: TaskbarPlaybackSnapshot) => void) =>
+      subscribe<TaskbarPlaybackSnapshot>("taskbarLyric:playbackChange", callback),
+    // 切换紧凑播放列表
+    toggleQueue: () => ipcRenderer.send("taskbarLyric:toggleQueue"),
+    // 关闭紧凑播放列表
+    closeQueue: () => ipcRenderer.send("taskbarLyric:closeQueue"),
+    // 播放队列中的指定歌曲
+    playTrack: (trackId: string) => ipcRenderer.send("taskbarLyric:playTrack", trackId),
+    // 循环切换任务栏四态播放模式
+    cyclePlayMode: () => ipcRenderer.send("taskbarLyric:cyclePlayMode"),
+    // 分离模式下切换鼠标穿透
+    setMouseIgnore: (ignore: boolean) => ipcRenderer.send("taskbarLyric:setMouseIgnore", ignore),
+    // 主进程检测到鼠标进入封面时通知渲染端
+    onCoverHover: (callback: (hovered: boolean) => void) =>
+      subscribe<boolean>("taskbarLyric:coverHover", callback),
   },
   plugins: {
     // 列出所有已安装插件

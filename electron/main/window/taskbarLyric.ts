@@ -3,7 +3,7 @@ import { join } from "path";
 import { is } from "@electron-toolkit/utils";
 import { createWindow } from "./create";
 import { loadNativeModule } from "@main/utils/nativeLoader";
-import { broadcast } from "@main/utils/broadcast";
+import { broadcast, sendToMain } from "@main/utils/broadcast";
 import { setTrayTaskbarLyric } from "@main/services/tray";
 import { store } from "@main/store";
 import { isAppQuitting } from "@main/utils/lifecycle";
@@ -18,6 +18,9 @@ import type {
   UiaWatcher,
 } from "@splayer/taskbar-lyric";
 import { taskbarLog } from "@main/utils/logger";
+import { getLocale } from "@main/utils/i18n";
+import type { TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
+import type { TaskbarLyricLayoutEvent } from "@shared/types/window";
 
 type TaskbarLyricNative = typeof import("@splayer/taskbar-lyric");
 
@@ -33,6 +36,7 @@ interface PickedSpace {
 }
 
 let taskbarLyricWindow: BrowserWindow | null = null;
+let taskbarQueueWindow: BrowserWindow | null = null;
 let nativeModule: TaskbarLyricNative | null = null;
 let service: TaskbarService | null = null;
 let advancedRegWatcher: RegistryWatcher | null = null;
@@ -40,6 +44,21 @@ let themeRegWatcher: RegistryWatcher | null = null;
 let uiaWatcher: UiaWatcher | null = null;
 let trayWatcher: TrayWatcher | null = null;
 let taskbarCreatedWatcher: TaskbarCreatedWatcher | null = null;
+let lastLayoutEvent: TaskbarLyricLayoutEvent | null = null;
+let playbackSnapshot: TaskbarPlaybackSnapshot | null = null;
+
+/** 封面区域光标轮询间隔 */
+const CURSOR_POLL_MS = 150;
+/** 紧凑播放列表窗口尺寸 */
+const QUEUE_WINDOW_WIDTH = 340;
+const QUEUE_WINDOW_HEIGHT = 420;
+const QUEUE_WINDOW_GAP = 8;
+const CONTROL_BUTTON_COUNT = 5;
+const CONTROL_BUTTON_GAP = 4;
+const CONTROL_PADDING = 4;
+let cursorPollTimer: NodeJS.Timeout | null = null;
+let mouseIgnored = false;
+let coverHovered = false;
 
 /** 从设置读取当前歌词宽度（Win10 据此从 tasklist 划空间，Win11 忽略） */
 const resolveLyricWidth = (): number => {
@@ -67,6 +86,195 @@ const MIN_LYRIC_WIDTH_DIP = 120;
 /** 获取任务栏歌词窗口实例（未创建或已销毁时返回 null） */
 export const getTaskbarLyricWindow = (): BrowserWindow | null =>
   taskbarLyricWindow && !taskbarLyricWindow.isDestroyed() ? taskbarLyricWindow : null;
+
+/** 获取任务栏紧凑播放列表窗口 */
+export const getTaskbarQueueWindow = (): BrowserWindow | null =>
+  taskbarQueueWindow && !taskbarQueueWindow.isDestroyed() ? taskbarQueueWindow : null;
+
+/** 获取当前任务栏播放快照 */
+export const getTaskbarPlaybackSnapshot = (): TaskbarPlaybackSnapshot =>
+  playbackSnapshot ?? {
+    items: [],
+    currentTrackId: null,
+    playMode: "repeat-list",
+    playModeDisabled: true,
+    locale: getLocale(),
+    theme: {
+      isDark: true,
+      appearanceStyle: "solid",
+      primary: "244 244 245",
+      primaryContainer: "63 63 70",
+      surface: "16 16 20",
+      surfaceAlt: "39 39 42",
+      surfacePanel: "24 24 28",
+      surfaceBright: "72 72 78",
+      onSurface: "244 244 245",
+      onSurfaceVariant: "161 161 170",
+      outline: "82 82 91",
+      outlineVariant: "63 63 70",
+    },
+  };
+
+/** 请求主渲染进程重新同步任务栏播放快照 */
+export const requestTaskbarPlaybackSnapshot = (): void => {
+  sendToMain("taskbarLyric:playbackRequest");
+};
+
+/**
+ * 更新任务栏播放快照
+ * @param snapshot - 主渲染进程生成的轻量播放状态
+ */
+export const updateTaskbarPlaybackSnapshot = (snapshot: TaskbarPlaybackSnapshot): void => {
+  if (!getTaskbarLyricWindow() && !getTaskbarQueueWindow()) return;
+  playbackSnapshot = snapshot;
+  getTaskbarLyricWindow()?.webContents.send("taskbarLyric:playbackChange", snapshot);
+  getTaskbarQueueWindow()?.webContents.send("taskbarLyric:playbackChange", snapshot);
+};
+
+/** 没有任务栏相关窗口时释放播放快照 */
+const releasePlaybackSnapshot = (): void => {
+  if (!getTaskbarLyricWindow() && !getTaskbarQueueWindow()) playbackSnapshot = null;
+};
+
+/** 切换任务栏歌词窗口鼠标穿透 */
+const setMouseIgnore = (ignore: boolean): void => {
+  const win = getTaskbarLyricWindow();
+  if (!win || mouseIgnored === ignore) return;
+  mouseIgnored = ignore;
+  service?.setMousePassthrough(ignore);
+};
+
+/** 向任务栏歌词渲染端同步封面悬停状态 */
+const setCoverHovered = (hovered: boolean): void => {
+  if (coverHovered === hovered) return;
+  coverHovered = hovered;
+  getTaskbarLyricWindow()?.webContents.send("taskbarLyric:coverHover", hovered);
+};
+
+/** 判断光标是否落在指定窗口矩形内 */
+const isCursorInside = (bounds: Electron.Rectangle): boolean => {
+  const cursor = screen.getCursorScreenPoint();
+  return (
+    cursor.x >= bounds.x &&
+    cursor.x < bounds.x + bounds.width &&
+    cursor.y >= bounds.y &&
+    cursor.y < bounds.y + bounds.height
+  );
+};
+
+/** 计算封面在屏幕坐标中的交互区域 */
+const getCoverBounds = (): Electron.Rectangle | null => {
+  const win = getTaskbarLyricWindow();
+  if (!win || !lastLayoutEvent || !store.get("taskbarLyric.showCover")) return null;
+  const bounds = win.getBounds();
+  const size = Math.max(0, bounds.height - 8);
+  const x = lastLayoutEvent.anchor === "right" ? bounds.x + bounds.width - 6 - size : bounds.x + 6;
+  return { x, y: bounds.y + 4, width: size, height: size };
+};
+
+/** 计算封面和展开控制栏在屏幕坐标中的完整交互区域 */
+const getExpandedInteractionBounds = (
+  coverBounds: Electron.Rectangle,
+): Electron.Rectangle | null => {
+  const win = getTaskbarLyricWindow();
+  if (!win || !lastLayoutEvent) return null;
+  const winBounds = win.getBounds();
+  const buttonSize = Math.max(0, winBounds.height - 16);
+  const controlsWidth =
+    CONTROL_BUTTON_COUNT * buttonSize +
+    (CONTROL_BUTTON_COUNT - 1) * CONTROL_BUTTON_GAP +
+    CONTROL_PADDING * 2;
+  const rawX = lastLayoutEvent.anchor === "right" ? coverBounds.x - controlsWidth : coverBounds.x;
+  const rawRight =
+    lastLayoutEvent.anchor === "right"
+      ? coverBounds.x + coverBounds.width
+      : coverBounds.x + coverBounds.width + controlsWidth;
+  const x = Math.max(winBounds.x, rawX);
+  const right = Math.min(winBounds.x + winBounds.width, rawRight);
+  if (right <= x) return null;
+  return { x, y: coverBounds.y, width: right - x, height: coverBounds.height };
+};
+
+/** 计算播放列表按钮在屏幕坐标中的交互区域 */
+const getQueueButtonBounds = (): Electron.Rectangle | null => {
+  const win = getTaskbarLyricWindow();
+  if (!win || !lastLayoutEvent) return null;
+  const winBounds = win.getBounds();
+  const coverBounds = getCoverBounds();
+  const buttonSize = Math.max(0, winBounds.height - 16);
+  const x =
+    lastLayoutEvent.anchor === "right"
+      ? (coverBounds?.x ?? winBounds.x + winBounds.width - 6) - CONTROL_PADDING - buttonSize
+      : (coverBounds ? coverBounds.x + coverBounds.width : winBounds.x + 6) +
+        CONTROL_PADDING +
+        (CONTROL_BUTTON_COUNT - 1) * (buttonSize + CONTROL_BUTTON_GAP);
+  return { x, y: winBounds.y + 8, width: buttonSize, height: buttonSize };
+};
+
+/** 分离模式光标轮询：穿透时进入封面需要由 OS 坐标主动恢复交互 */
+const pollSeparatedCursor = (): void => {
+  const win = getTaskbarLyricWindow();
+  if (!win || !win.isVisible()) return;
+  const coverBounds = getCoverBounds();
+  if (!coverBounds) {
+    setCoverHovered(false);
+    setMouseIgnore(true);
+    return;
+  }
+  const interactionBounds = coverHovered ? getExpandedInteractionBounds(coverBounds) : coverBounds;
+  if (interactionBounds && isCursorInside(interactionBounds)) {
+    setMouseIgnore(false);
+    setCoverHovered(true);
+    return;
+  }
+  setCoverHovered(false);
+  setMouseIgnore(true);
+};
+
+/** 启动封面区域光标轮询 */
+const startCursorPolling = (): void => {
+  if (cursorPollTimer) return;
+  pollSeparatedCursor();
+  cursorPollTimer = setInterval(pollSeparatedCursor, CURSOR_POLL_MS);
+};
+
+/** 停止封面区域光标轮询 */
+const stopCursorPolling = (): void => {
+  if (cursorPollTimer) clearInterval(cursorPollTimer);
+  cursorPollTimer = null;
+};
+
+/** 应用歌词与封面分离配置 */
+export const applyTaskbarLyricSeparation = (): void => {
+  const win = getTaskbarLyricWindow();
+  if (!win) return;
+  const config = store.get("taskbarLyric");
+  if (!config.separateCoverAndLyric) {
+    stopCursorPolling();
+    setCoverHovered(false);
+    setMouseIgnore(false);
+    return;
+  }
+  startCursorPolling();
+  const coverBounds = getCoverBounds();
+  const hovered = !!coverBounds && isCursorInside(coverBounds);
+  setCoverHovered(hovered);
+  setMouseIgnore(!hovered);
+};
+
+/**
+ * 分离模式下由渲染端在离开封面与控制区时恢复穿透
+ * @param ignore - 是否穿透鼠标事件
+ */
+export const applyTaskbarLyricMouseIgnore = (ignore: boolean): void => {
+  const config = store.get("taskbarLyric");
+  if (!config.separateCoverAndLyric) {
+    setMouseIgnore(false);
+    return;
+  }
+  if (ignore) setCoverHovered(false);
+  setMouseIgnore(ignore);
+};
 
 /** 根据设置和任务栏对齐方式选择使用哪侧空间以及锚定方向 */
 const pickSpace = (layout: JsTaskbarLayout): PickedSpace | null => {
@@ -96,6 +304,8 @@ let firstLayoutDone = false;
 /** 空间不足时安静隐藏窗口，避免残留旧位置的歌词残影 */
 const hideIfVisible = (win: BrowserWindow): void => {
   if (win.isVisible()) win.hide();
+  stopCursorPolling();
+  closeTaskbarQueueWindow();
 };
 
 /** Rust 布局回调：把物理像素空间转为 DIP，<阈值则隐藏，≥阈值则 setBounds 并 show */
@@ -137,19 +347,25 @@ const applyLayout = (layout: JsTaskbarLayout): void => {
 
   win.setBounds({ x: windowX, y: availY, width: windowWidth, height: availHeight });
 
+  const wasVisible = win.isVisible();
   if (!firstLayoutDone) {
     firstLayoutDone = true;
     win.showInactive();
   } else if (!win.isVisible()) {
     win.showInactive();
   }
+  if (!wasVisible) applyTaskbarLyricSeparation();
 
-  win.webContents.send("taskbarLyric:layout", {
+  const layoutEvent: TaskbarLyricLayoutEvent = {
     isCentered: layout.extra.isCentered,
     systemType: layout.extra.systemType,
     isLight: layout.extra.isLight,
     anchor,
-  });
+  };
+  lastLayoutEvent = layoutEvent;
+  win.webContents.send("taskbarLyric:layout", layoutEvent);
+  getTaskbarQueueWindow()?.webContents.send("taskbarLyric:layout", layoutEvent);
+  positionTaskbarQueueWindow();
 };
 
 /** Watcher 回调——任何任务栏相关变化都回到这里重算布局 */
@@ -201,9 +417,120 @@ const stopLayoutWatchers = (): void => {
  */
 const onExplorerRestart = (): void => {
   taskbarLog.info("探测到 explorer 重启，重建 watcher 与嵌入");
+  closeTaskbarQueueWindow();
   stopLayoutWatchers();
   service?.reinit();
   if (nativeModule) startWatchers(nativeModule);
+};
+
+/** 根据任务栏位置和锚点摆放紧凑播放列表 */
+const positionTaskbarQueueWindow = (): void => {
+  const lyricWin = getTaskbarLyricWindow();
+  const queueWin = getTaskbarQueueWindow();
+  if (!lyricWin || !queueWin || !lastLayoutEvent) return;
+
+  const lyricBounds = lyricWin.getBounds();
+  const display = screen.getDisplayMatching(lyricBounds);
+  const workArea = display.workArea;
+  const width = Math.min(QUEUE_WINDOW_WIDTH, Math.max(200, workArea.width - 16));
+  const height = Math.min(QUEUE_WINDOW_HEIGHT, Math.max(160, workArea.height - 16));
+  const alignedX =
+    lastLayoutEvent.anchor === "right" ? lyricBounds.x + lyricBounds.width - width : lyricBounds.x;
+  const x = Math.max(workArea.x + 8, Math.min(workArea.x + workArea.width - width - 8, alignedX));
+
+  const taskbarBelow = lyricBounds.y >= workArea.y + workArea.height;
+  const taskbarAbove = lyricBounds.y + lyricBounds.height <= workArea.y;
+  const preferredY = taskbarAbove
+    ? lyricBounds.y + lyricBounds.height + QUEUE_WINDOW_GAP
+    : lyricBounds.y - height - QUEUE_WINDOW_GAP;
+  const fallbackY = taskbarBelow ? workArea.y + workArea.height - height : workArea.y;
+  const y = Math.max(
+    workArea.y + 8,
+    Math.min(workArea.y + workArea.height - height - 8, preferredY || fallbackY),
+  );
+
+  queueWin.setBounds({ x, y, width, height });
+};
+
+/** 创建任务栏紧凑播放列表窗口 */
+const createTaskbarQueueWindow = (): BrowserWindow | null => {
+  const lyricWin = getTaskbarLyricWindow();
+  if (!lyricWin || !lyricWin.isVisible()) return null;
+  const existing = getTaskbarQueueWindow();
+  if (existing) return existing;
+
+  taskbarQueueWindow = createWindow({
+    width: QUEUE_WINDOW_WIDTH,
+    height: QUEUE_WINDOW_HEIGHT,
+    minWidth: 0,
+    minHeight: 0,
+    type: "toolbar",
+    title: "Taskbar Queue",
+    frame: false,
+    transparent: true,
+    hasShadow: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    show: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      disableDialogs: true,
+      zoomFactor: 1,
+    },
+  });
+
+  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+    taskbarQueueWindow.loadURL(
+      `${process.env["ELECTRON_RENDERER_URL"]}/windows/taskbar-lyric/index.html?view=queue`,
+    );
+  } else {
+    taskbarQueueWindow.loadFile(join(__dirname, "../renderer/windows/taskbar-lyric/index.html"), {
+      query: { view: "queue" },
+    });
+  }
+
+  taskbarQueueWindow.once("ready-to-show", () => {
+    const win = getTaskbarQueueWindow();
+    if (!win) return;
+    positionTaskbarQueueWindow();
+    win.setAlwaysOnTop(true, "pop-up-menu");
+    win.show();
+    win.focus();
+    win.on("blur", () => {
+      const queueButtonBounds = getQueueButtonBounds();
+      if (queueButtonBounds && isCursorInside(queueButtonBounds)) return;
+      closeTaskbarQueueWindow();
+    });
+    if (lastLayoutEvent) win.webContents.send("taskbarLyric:layout", lastLayoutEvent);
+    win.webContents.send("taskbarLyric:playbackChange", getTaskbarPlaybackSnapshot());
+    requestTaskbarPlaybackSnapshot();
+  });
+
+  taskbarQueueWindow.on("closed", () => {
+    taskbarQueueWindow = null;
+    releasePlaybackSnapshot();
+  });
+  return taskbarQueueWindow;
+};
+
+/** 关闭任务栏紧凑播放列表 */
+export const closeTaskbarQueueWindow = (): void => {
+  const win = getTaskbarQueueWindow();
+  if (win) win.close();
+};
+
+/** 切换任务栏紧凑播放列表 */
+export const toggleTaskbarQueueWindow = (): void => {
+  if (getTaskbarQueueWindow()) {
+    closeTaskbarQueueWindow();
+    return;
+  }
+  createTaskbarQueueWindow();
 };
 
 /** 创建任务栏歌词窗口：加载原生模块、嵌入任务栏 HWND 并启动 watcher */
@@ -215,6 +542,8 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
 
   if (taskbarLyricWindow && !taskbarLyricWindow.isDestroyed()) {
     taskbarLyricWindow.show();
+    applyTaskbarLyricSeparation();
+    requestTaskbarPlaybackSnapshot();
     return taskbarLyricWindow;
   }
 
@@ -279,6 +608,8 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
     taskbarLog.info(`嵌入窗口 hwnd=${hwndPtr}`);
     svc.embedWindowByPtr(hwndPtr);
     svc.update(resolveLyricWidth());
+    applyTaskbarLyricSeparation();
+    requestTaskbarPlaybackSnapshot();
 
     startWatchers(mod);
     taskbarCreatedWatcher = tryStart(
@@ -288,14 +619,19 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
   });
 
   taskbarLyricWindow.on("closed", () => {
+    closeTaskbarQueueWindow();
     taskbarLyricWindow = null;
     firstLayoutDone = false;
+    lastLayoutEvent = null;
+    mouseIgnored = false;
+    coverHovered = false;
     cleanupWatchers();
     setTrayTaskbarLyric(false);
     broadcast("taskbarLyric:visibilityChange", false);
     if (!isAppQuitting()) {
       store.set("windowStates.taskbarLyric.visible", false);
     }
+    releasePlaybackSnapshot();
   });
 
   setTrayTaskbarLyric(true);
@@ -306,6 +642,7 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
 
 /** 停止并清空所有 watcher 与 service */
 const cleanupWatchers = (): void => {
+  stopCursorPolling();
   stopLayoutWatchers();
   taskbarCreatedWatcher?.stop();
   taskbarCreatedWatcher = null;

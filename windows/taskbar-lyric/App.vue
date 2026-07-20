@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import type { LyricLine } from "@shared/types/lyrics";
-import type { TaskbarLyricSettings } from "@shared/types/settings";
+import type { LocaleCode, TaskbarLyricSettings } from "@shared/types/settings";
+import type { TaskbarPlaybackSnapshot, TaskbarPlayMode } from "@shared/types/taskbarLyric";
 import DEFAULT_COVER from "@/assets/images/song.jpg";
 import IconSkipBack from "~icons/lucide/skip-back";
 import IconSkipForward from "~icons/lucide/skip-forward";
 import IconPlay from "~icons/lucide/play";
 import IconPause from "~icons/lucide/pause";
+import IconRepeat from "~icons/lucide/repeat";
+import IconRepeatOne from "~icons/lucide/repeat-1";
+import IconShuffle from "~icons/lucide/shuffle";
+import IconListMusic from "~icons/lucide/list-music";
+import IconPlayOrder from "~icons/sp/play-order";
 import TaskbarLyricLine from "./components/TaskbarLyricLine.vue";
-import { pickPrimaryIndex } from "@shared/utils/lyricSync";
+import { hasRealWordTiming, pickPrimaryIndex } from "@shared/utils/lyricSync";
 import { useNowPlayingSync } from "@windows/shared/composables/useNowPlayingSync";
 
 const config = reactive<TaskbarLyricSettings>({
@@ -20,14 +26,22 @@ const config = reactive<TaskbarLyricSettings>({
   doubleLine: true,
   showTranslation: true,
   showCover: true,
+  separateCoverAndLyric: false,
   wordByWord: true,
+  autoGenerateWordByWord: true,
   fontSize: 14,
+  fontWeight: 400,
+  translationFontWeight: 400,
   fontFamily: "",
 });
 
 const anchor = ref<"left" | "right">("left");
 const taskbarIsLight = ref(false);
 const isHovered = ref(false);
+const coverHovered = ref(false);
+const playMode = ref<TaskbarPlayMode>("repeat-list");
+const playModeDisabled = ref(true);
+const locale = ref<LocaleCode>("zh-CN");
 
 const { track, lyric, primaryIndex, playing } = useNowPlayingSync({
   pickIndex: pickPrimaryIndex,
@@ -41,10 +55,15 @@ const currentLine = computed<LyricLine | null>(() => {
 });
 
 const hasLyric = computed(() => lyric.value.length > 0 && primaryIndex.value >= 0);
+const separationEnabled = computed(() => config.separateCoverAndLyric);
+const controlsVisible = computed(() =>
+  separationEnabled.value ? config.showCover && coverHovered.value : isHovered.value,
+);
+const songInfoVisible = computed(() => controlsVisible.value);
 
 const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next");
 const artistsText = computed<string>(
-  () => track.value?.artists?.map((a) => a.name).join(" / ") || "未知艺术家",
+  () => track.value?.artists?.map((artist) => artist.name).join(" / ") || "未知艺术家",
 );
 
 const effectiveTheme = computed<"light" | "dark">(() => {
@@ -57,6 +76,7 @@ const effectiveTheme = computed<"light" | "dark">(() => {
 interface RenderItem {
   key: string;
   role: "primary" | "secondary";
+  kind: "lyric" | "translation" | "meta";
   text: string;
   line?: LyricLine;
 }
@@ -69,21 +89,28 @@ const items = computed<RenderItem[]>(() => {
       {
         key: `line-${idx}`,
         role: "primary",
-        text: line.words.map((w) => w.word).join(""),
+        kind: "lyric",
+        text: line.words.map((word) => word.word).join(""),
         line,
       },
     ];
     if (config.doubleLine) {
-      const trans = config.showTranslation ? line.translatedLyric : "";
-      if (trans) {
-        list.push({ key: `trans-${idx}`, role: "secondary", text: trans });
+      const translation = config.showTranslation ? line.translatedLyric : "";
+      if (translation) {
+        list.push({
+          key: `translation-${idx}`,
+          role: "secondary",
+          kind: "translation",
+          text: translation,
+        });
       } else {
         const next = lyric.value[idx + 1];
         if (next) {
           list.push({
             key: `line-${idx + 1}`,
             role: "secondary",
-            text: next.words.map((w) => w.word).join(""),
+            kind: "lyric",
+            text: next.words.map((word) => word.word).join(""),
             line: next,
           });
         }
@@ -91,24 +118,112 @@ const items = computed<RenderItem[]>(() => {
     }
     return list;
   }
-  /* 无歌词：歌曲信息填在主/副行 */
-  const list: RenderItem[] = [{ key: "meta-title", role: "primary", text: titleText.value }];
+
+  const list: RenderItem[] = [
+    { key: "meta-title", role: "primary", kind: "meta", text: titleText.value },
+  ];
   if (config.doubleLine) {
-    list.push({ key: "meta-artist", role: "secondary", text: artistsText.value });
+    list.push({
+      key: "meta-artist",
+      role: "secondary",
+      kind: "meta",
+      text: artistsText.value,
+    });
   }
   return list;
 });
 
+const shouldRenderWordByWord = (item: RenderItem): boolean => {
+  if (!config.wordByWord || !item.line) return false;
+  return config.autoGenerateWordByWord || hasRealWordTiming(item.line);
+};
+
 const rootStyle = computed(() => ({
   "--tbl-font-size": `${config.fontSize}px`,
+  "--tbl-font-weight": config.fontWeight,
+  "--tbl-translation-font-weight": config.translationFontWeight,
   fontFamily: config.fontFamily || undefined,
 }));
+
+const controlLabels: Record<
+  LocaleCode,
+  {
+    prev: string;
+    next: string;
+    play: string;
+    pause: string;
+    queue: string;
+    modes: Record<TaskbarPlayMode, string>;
+  }
+> = {
+  "zh-CN": {
+    prev: "上一首",
+    next: "下一首",
+    play: "播放",
+    pause: "暂停",
+    queue: "播放列表",
+    modes: {
+      "repeat-list": "列表循环",
+      "repeat-one": "单曲循环",
+      shuffle: "随机播放",
+      sequential: "顺序播放",
+    },
+  },
+  "en-US": {
+    prev: "Previous",
+    next: "Next",
+    play: "Play",
+    pause: "Pause",
+    queue: "Queue",
+    modes: {
+      "repeat-list": "Repeat All",
+      "repeat-one": "Repeat One",
+      shuffle: "Shuffle",
+      sequential: "Sequential",
+    },
+  },
+};
+
+const labels = computed(() => controlLabels[locale.value]);
+const playModeIcon = computed(() => {
+  switch (playMode.value) {
+    case "repeat-one":
+      return IconRepeatOne;
+    case "shuffle":
+      return IconShuffle;
+    case "sequential":
+      return IconPlayOrder;
+    case "repeat-list":
+      return IconRepeat;
+  }
+  return IconRepeat;
+});
+
+const applyPlaybackSnapshot = (snapshot: TaskbarPlaybackSnapshot): void => {
+  playMode.value = snapshot.playMode;
+  playModeDisabled.value = snapshot.playModeDisabled;
+  locale.value = snapshot.locale;
+};
 
 const handlePrev = (): void => window.api.player.dispatch("prev");
 const handleNext = (): void => window.api.player.dispatch("next");
 const handleTogglePlay = (): void => window.api.player.dispatch(playing.value ? "pause" : "play");
+const handleCyclePlayMode = (): void => window.api.taskbarLyric.cyclePlayMode();
+const handleToggleQueue = (): void => window.api.taskbarLyric.toggleQueue();
 const handleFocusMain = (): void => {
   window.api.system.focusMainWindow().catch(() => {});
+};
+
+const handleContainerEnter = (): void => {
+  isHovered.value = true;
+};
+
+const handleContainerLeave = (): void => {
+  isHovered.value = false;
+};
+
+const handleContainerDoubleClick = (): void => {
+  if (!separationEnabled.value) handleFocusMain();
 };
 
 const unsubscribers: Array<() => void> = [];
@@ -128,8 +243,19 @@ onMounted(async () => {
     }),
     window.api.taskbarLyric.onConfigChange((next) => {
       Object.assign(config, next);
+      if (!next.separateCoverAndLyric || !next.showCover) coverHovered.value = false;
     }),
+    window.api.taskbarLyric.onCoverHover((hovered) => {
+      if (config.separateCoverAndLyric && config.showCover) coverHovered.value = hovered;
+    }),
+    window.api.taskbarLyric.onPlaybackChange(applyPlaybackSnapshot),
   );
+
+  try {
+    applyPlaybackSnapshot(await window.api.taskbarLyric.requestPlayback());
+  } catch (error) {
+    console.error("[taskbar-lyric] request playback failed", error);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -141,53 +267,108 @@ onBeforeUnmount(() => {
   <div class="wrapper" :data-align="anchor">
     <div
       class="container"
-      :class="{ 'is-hovered': isHovered }"
+      :class="{
+        'is-separated': separationEnabled,
+        'show-controls': controlsVisible,
+        'show-song-info': songInfoVisible,
+      }"
       :data-theme="effectiveTheme"
       :data-align="anchor"
       :style="rootStyle"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
-      @dblclick="handleFocusMain"
+      @mouseenter="handleContainerEnter"
+      @mouseleave="handleContainerLeave"
+      @dblclick="handleContainerDoubleClick"
     >
-      <div v-if="config.showCover" class="cover-wrapper">
-        <img
-          class="cover"
-          :src="track?.cover || DEFAULT_COVER"
-          alt=""
-          draggable="false"
-          @error="($event.target as HTMLImageElement).src = DEFAULT_COVER"
-        />
-      </div>
+      <div
+        class="interactive-zone"
+        :class="{ 'show-controls': controlsVisible }"
+        @dblclick.stop="handleFocusMain"
+      >
+        <div v-if="config.showCover" class="cover-wrapper">
+          <img
+            class="cover"
+            :src="track?.cover || DEFAULT_COVER"
+            alt=""
+            draggable="false"
+            decoding="async"
+            @error="($event.target as HTMLImageElement).src = DEFAULT_COVER"
+          />
+        </div>
 
-      <!-- 播放控件 -->
-      <div class="controls-wrapper">
-        <div class="controls-inner">
-          <button class="control-btn" type="button" @click.stop="handlePrev" @dblclick.stop>
-            <IconSkipBack class="control-icon" />
-          </button>
-          <button class="control-btn" type="button" @click.stop="handleTogglePlay" @dblclick.stop>
-            <component :is="playing ? IconPause : IconPlay" class="control-icon" />
-          </button>
-          <button class="control-btn" type="button" @click.stop="handleNext" @dblclick.stop>
-            <IconSkipForward class="control-icon" />
-          </button>
+        <div class="controls-wrapper">
+          <div class="controls-inner">
+            <button
+              class="control-btn"
+              type="button"
+              :title="labels.prev"
+              :aria-label="labels.prev"
+              @click.stop="handlePrev"
+              @dblclick.stop
+            >
+              <IconSkipBack class="control-icon" />
+            </button>
+            <button
+              class="control-btn"
+              type="button"
+              :title="playing ? labels.pause : labels.play"
+              :aria-label="playing ? labels.pause : labels.play"
+              @click.stop="handleTogglePlay"
+              @dblclick.stop
+            >
+              <component :is="playing ? IconPause : IconPlay" class="control-icon" />
+            </button>
+            <button
+              class="control-btn"
+              type="button"
+              :title="labels.next"
+              :aria-label="labels.next"
+              @click.stop="handleNext"
+              @dblclick.stop
+            >
+              <IconSkipForward class="control-icon" />
+            </button>
+            <button
+              class="control-btn"
+              type="button"
+              :title="labels.modes[playMode]"
+              :aria-label="labels.modes[playMode]"
+              :disabled="playModeDisabled"
+              @click.stop="handleCyclePlayMode"
+              @dblclick.stop
+            >
+              <component :is="playModeIcon" class="control-icon" />
+            </button>
+            <button
+              class="control-btn"
+              type="button"
+              :title="labels.queue"
+              :aria-label="labels.queue"
+              @click.stop="handleToggleQueue"
+              @dblclick.stop
+            >
+              <IconListMusic class="control-icon" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- 文本区 -->
       <div class="lyric-area">
-        <!-- 歌词层 -->
         <TransitionGroup tag="div" name="line" class="lyric-column">
-          <div v-for="item in items" :key="item.key" class="lyric-line" :data-role="item.role">
+          <div
+            v-for="item in items"
+            :key="item.key"
+            class="lyric-line"
+            :data-role="item.role"
+            :data-kind="item.kind"
+          >
             <TaskbarLyricLine
               :line="item.line"
               :text="item.text"
-              :word-by-word="config.wordByWord && !!item.line"
+              :word-by-word="shouldRenderWordByWord(item)"
               :anchor="anchor"
             />
           </div>
         </TransitionGroup>
-        <!-- 歌曲信息 -->
         <div class="song-info">
           <div class="song-title">{{ titleText }}</div>
           <div v-if="config.doubleLine" class="song-artist">
@@ -213,7 +394,6 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
 }
 .container {
-  /* 深色主题 */
   --tbl-text-primary: #ffffff;
   --tbl-text-secondary: rgba(255, 255, 255, 0.5);
   --tbl-hover-bg: rgba(255, 255, 255, 0.12);
@@ -239,16 +419,31 @@ onBeforeUnmount(() => {
   --tbl-text-secondary: rgba(0, 0, 0, 0.62);
   --tbl-hover-bg: rgba(0, 0, 0, 0.08);
 }
-.container:hover {
+.container:not(.is-separated):hover {
   background: var(--tbl-hover-bg);
 }
-/* 封面 */
+.interactive-zone {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  min-width: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+.container[data-align="right"] .interactive-zone {
+  flex-direction: row-reverse;
+}
+.container.is-separated .interactive-zone.show-controls {
+  background: var(--tbl-hover-bg);
+}
 .cover-wrapper {
   flex: 0 0 auto;
   height: 100%;
   aspect-ratio: 1 / 1;
   padding: 4px;
   overflow: hidden;
+  cursor: default;
 }
 .cover {
   width: 100%;
@@ -276,11 +471,11 @@ onBeforeUnmount(() => {
   opacity: 0;
   transition: opacity 0.25s ease;
 }
-.container.is-hovered .controls-wrapper {
-  max-width: calc(3 * (100vh - 16px) + 16px);
+.interactive-zone.show-controls .controls-wrapper {
+  max-width: calc(5 * (100vh - 16px) + 24px);
   pointer-events: auto;
 }
-.container.is-hovered .controls-inner {
+.interactive-zone.show-controls .controls-inner {
   opacity: 1;
   transition-delay: 0.1s;
 }
@@ -299,6 +494,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition:
     background 0.3s,
+    opacity 0.2s,
     transform 0.3s;
 }
 .control-btn:hover {
@@ -307,12 +503,14 @@ onBeforeUnmount(() => {
 .control-btn:active {
   transform: scale(0.9);
 }
+.control-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
 .control-icon {
   width: 14px;
   height: 14px;
-  transition: transform 0.3s;
 }
-
 .lyric-area {
   flex: 1 1 auto;
   min-width: 0;
@@ -321,7 +519,9 @@ onBeforeUnmount(() => {
   height: 100%;
   overflow: hidden;
 }
-
+.container.is-separated .lyric-area {
+  pointer-events: none;
+}
 .lyric-column {
   position: absolute;
   inset: 0;
@@ -334,18 +534,17 @@ onBeforeUnmount(() => {
 .container[data-align="right"] .lyric-column {
   align-items: flex-end;
 }
-.container.is-hovered .lyric-column {
+.container.show-song-info .lyric-column {
   opacity: 0;
   pointer-events: none;
 }
-
 .lyric-line {
   width: 100%;
   transform-origin: left center;
+  font-weight: var(--tbl-font-weight);
   transition:
     font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.3s ease;
-  will-change: transform, opacity;
 }
 .container[data-align="right"] .lyric-line {
   transform-origin: right center;
@@ -358,7 +557,9 @@ onBeforeUnmount(() => {
   font-size: calc(var(--tbl-font-size) * 0.82);
   color: var(--tbl-text-secondary);
 }
-
+.lyric-line[data-kind="translation"] {
+  font-weight: var(--tbl-translation-font-weight);
+}
 .line-move,
 .line-enter-active,
 .line-leave-active {
@@ -381,7 +582,6 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: translateY(-100%);
 }
-
 .song-info {
   position: absolute;
   inset: 0;
@@ -395,25 +595,23 @@ onBeforeUnmount(() => {
 .container[data-align="right"] .song-info {
   align-items: flex-end;
 }
-.container.is-hovered .song-info {
+.container.show-song-info .song-info {
   opacity: 1;
-  pointer-events: auto;
   transition-delay: 0.08s;
+}
+.song-title,
+.song-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .song-title {
   font-size: var(--tbl-font-size);
   color: var(--tbl-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 .song-artist {
   font-size: calc(var(--tbl-font-size) * 0.82);
   color: var(--tbl-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 </style>

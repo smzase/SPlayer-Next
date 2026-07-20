@@ -180,6 +180,8 @@ export type PlayerEvent =
   | { type: "prev" }
   | { type: "setShuffle"; data: { mode: ShuffleMode } }
   | { type: "setRepeat"; data: { mode: RepeatMode } }
+  | { type: "playQueueTrack"; data: { trackId: string } }
+  | { type: "cycleTaskbarPlayMode" }
   | { type: "toggleLike" }
   | { type: "fftData"; data: number[] }
   | { type: "error"; error: string }
