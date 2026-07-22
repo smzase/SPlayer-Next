@@ -226,12 +226,12 @@ onBeforeUnmount(() => {
   height: 100vh;
   padding: 8px;
   color: rgb(var(--queue-on-surface));
-  overflow: hidden;
 }
 .queue-background {
   position: absolute;
-  inset: 0;
+  inset: 8px;
   overflow: hidden;
+  border-radius: 8px;
   pointer-events: none;
 }
 .queue-background-image {
