@@ -357,6 +357,7 @@ const taskbarLyricSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.taskbarLyric.separateCoverAndLyric" },
       defaultValue: false,
+      disabled: () => !useSettingsStore().system.taskbarLyric.showCover,
     },
     {
       key: "taskbarLyricWordByWord",

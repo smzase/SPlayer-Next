@@ -206,14 +206,10 @@ onBeforeUnmount(() => {
   border: 1px solid rgb(var(--queue-outline-variant) / 0.72);
   border-radius: 8px;
   background: rgb(var(--queue-surface-panel));
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
 }
 .queue-root[data-appearance="image"] .queue-panel {
   background: rgb(var(--queue-surface-panel) / 0.84);
   backdrop-filter: blur(16px) saturate(1.15);
-}
-.queue-root[data-theme="light"] .queue-panel {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
 }
 .queue-header {
   flex: 0 0 auto;

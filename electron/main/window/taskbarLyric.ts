@@ -468,7 +468,7 @@ const createTaskbarQueueWindow = (): BrowserWindow | null => {
     title: "Taskbar Queue",
     frame: false,
     transparent: true,
-    hasShadow: true,
+    hasShadow: false,
     resizable: false,
     movable: false,
     minimizable: false,
