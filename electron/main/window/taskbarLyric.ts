@@ -102,6 +102,12 @@ export const getTaskbarPlaybackSnapshot = (): TaskbarPlaybackSnapshot =>
     theme: {
       isDark: true,
       appearanceStyle: "solid",
+      imageBackground: {
+        src: "",
+        blur: 0,
+        dim: 0.4,
+        scale: 1.2,
+      },
       primary: "244 244 245",
       primaryContainer: "63 63 70",
       surface: "16 16 20",

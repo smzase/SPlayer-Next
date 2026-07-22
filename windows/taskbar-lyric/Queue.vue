@@ -16,6 +16,12 @@ const snapshot = shallowRef<TaskbarPlaybackSnapshot>({
   theme: {
     isDark: true,
     appearanceStyle: "solid",
+    imageBackground: {
+      src: "",
+      blur: 0,
+      dim: 0.4,
+      scale: 1.2,
+    },
     primary: "244 244 245",
     primaryContainer: "63 63 70",
     surface: "16 16 20",
@@ -71,6 +77,18 @@ const queueStyle = computed(() => {
 });
 
 const effectiveAppearance = computed(() => snapshot.value.theme.appearanceStyle);
+const backgroundImage = computed(() => snapshot.value.theme.imageBackground);
+const backgroundVisible = computed(
+  () => effectiveAppearance.value === "image" && !!backgroundImage.value.src,
+);
+const backgroundImageStyle = computed<Record<string, string>>(() => ({
+  filter:
+    backgroundImage.value.blur > 0 ? `blur(${backgroundImage.value.blur}px)` : "none",
+  transform: `scale(${backgroundImage.value.scale})`,
+}));
+const backgroundDimStyle = computed(() => ({
+  opacity: backgroundImage.value.dim,
+}));
 
 const items = computed(() => snapshot.value.items);
 const currentIndex = computed(() =>
@@ -132,6 +150,17 @@ onBeforeUnmount(() => {
     :data-appearance="effectiveAppearance"
     :style="queueStyle"
   >
+    <div v-if="backgroundVisible" class="queue-background" aria-hidden="true">
+      <img
+        :src="backgroundImage.src"
+        class="queue-background-image"
+        :style="backgroundImageStyle"
+        alt=""
+        draggable="false"
+        decoding="async"
+      />
+      <div class="queue-background-dim" :style="backgroundDimStyle" />
+    </div>
     <section class="queue-panel">
       <header class="queue-header">
         <div class="queue-heading">
@@ -192,12 +221,33 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .queue-root {
+  position: relative;
   width: 100vw;
   height: 100vh;
   padding: 8px;
   color: rgb(var(--queue-on-surface));
+  overflow: hidden;
+}
+.queue-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.queue-background-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.queue-background-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
 }
 .queue-panel {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: flex;
@@ -208,7 +258,7 @@ onBeforeUnmount(() => {
   background: rgb(var(--queue-surface-panel));
 }
 .queue-root[data-appearance="image"] .queue-panel {
-  background: rgb(var(--queue-surface-panel) / 0.84);
+  background: rgb(var(--queue-surface-bright) / 0.22);
   backdrop-filter: blur(16px) saturate(1.15);
 }
 .queue-header {

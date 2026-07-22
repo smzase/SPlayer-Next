@@ -1027,6 +1027,12 @@ export const initPlayer = async (): Promise<void> => {
         theme: {
           isDark: theme.isDark,
           appearanceStyle: theme.effectiveStyle,
+          imageBackground: {
+            src: theme.imageBackground.src,
+            blur: theme.imageBackground.blur,
+            dim: theme.imageBackground.dim,
+            scale: theme.imageBackground.scale,
+          },
           primary: rootStyle.getPropertyValue("--s-primary").trim(),
           primaryContainer: rootStyle.getPropertyValue("--s-primary-container").trim(),
           surface: rootStyle.getPropertyValue("--s-surface").trim(),
@@ -1058,6 +1064,10 @@ export const initPlayer = async (): Promise<void> => {
         () => theme.globalTint,
         () => theme.coverColor,
         () => theme.imageBackgroundColor,
+        () => theme.imageBackground.src,
+        () => theme.imageBackground.blur,
+        () => theme.imageBackground.dim,
+        () => theme.imageBackground.scale,
         () => theme.effectiveStyle,
       ],
       pushTaskbarPlayback,

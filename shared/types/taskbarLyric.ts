@@ -16,6 +16,12 @@ export interface TaskbarQueueItem {
 export interface TaskbarThemeSnapshot {
   isDark: boolean;
   appearanceStyle: "solid" | "image";
+  imageBackground: {
+    src: string;
+    blur: number;
+    dim: number;
+    scale: number;
+  };
   primary: string;
   primaryContainer: string;
   surface: string;
