@@ -234,6 +234,16 @@ export interface ExternalApiSettings {
   port: number;
 }
 
+/** MCP 服务配置 */
+export interface McpSettings {
+  /** 服务开关 */
+  enabled: boolean;
+  /** 仅本机监听的端口 */
+  port: number;
+  /** 本机客户端连接密钥，由主进程首次使用时生成 */
+  accessKey: string;
+}
+
 /** 网络代理协议 */
 export type NetworkProxyProtocol = "off" | "http" | "https" | "socks5";
 
@@ -259,6 +269,38 @@ export interface ExternalApiStatus {
   port: number | null;
   /** 上次启动失败的错误 */
   error: { code: string; message: string } | null;
+}
+
+/** MCP 服务运行时状态 */
+export interface McpStatus {
+  /** 是否正在监听 */
+  listening: boolean;
+  /** 实际监听端口 */
+  port: number | null;
+  /** 上次启动失败的错误 */
+  error: { code: string; message: string } | null;
+}
+
+/** 生成 AI 客户端配置所需的动态参数 */
+export interface McpClientConfigParams {
+  /** MCP 服务实际使用或即将使用的端口 */
+  port: number;
+  /** 本机客户端连接密钥 */
+  accessKey: string;
+}
+
+/** 外部 AI Agent MCP 客户端应用 */
+export interface McpAgentApp {
+  /** 客户端应用标识 */
+  id: string;
+  /** 外部 AI Agent MCP 客户端应用显示名称 */
+  name: string;
+  /** 配置文件路径 */
+  configPath: string;
+  /** 是否已配置 splayer-next */
+  configured: boolean;
+  /** 是否支持自动写入配置 */
+  injectable: boolean;
 }
 
 /** 在线歌词服务配置 */
@@ -402,6 +444,8 @@ export interface SystemConfig {
   lastfm: LastfmSettings;
   /** 外部 API 服务（HTTP + WS） */
   externalApi: ExternalApiSettings;
+  /** AI 集成使用的 MCP 服务 */
+  mcp: McpSettings;
   /** 应用更新配置 */
   update: AppUpdateSettings;
   /** 系统配置 */

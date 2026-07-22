@@ -51,6 +51,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@hono/node-server": "^2.0.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "atomically": "^2.1.1",
     "better-sqlite3": "^12.8.0",
     "electron-log": "^5.4.3",
@@ -58,7 +59,8 @@
     "font-list": "^2.0.2",
     "hono": "^4.12.25",
     "undici": "^8.7.0",
-    "ws": "^8.20.1"
+    "ws": "^8.20.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@applemusic-like-lyrics/core": "^0.5.1",

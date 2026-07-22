@@ -205,6 +205,12 @@ export const setTrayPlayMode = (repeat: RepeatMode, shuffle: ShuffleMode): void 
   refreshTray();
 };
 
+/** 获取当前播放模式 */
+export const getTrayPlayMode = (): { repeat: RepeatMode; shuffle: ShuffleMode } => ({
+  repeat: repeatMode,
+  shuffle: shuffleMode,
+});
+
 /**
  * 同步当前歌曲喜欢状态到托盘（由渲染进程调用）
  * @param value - 是否已喜欢

@@ -928,12 +928,16 @@ export const insertToQueue = (item: Track, afterIndex?: number): number => {
 };
 
 /**
- * 批量插入曲目到当前曲目之后，一次性切片落盘，避免逐首插入的卡顿
+ * 批量插入曲目，一次性切片落盘，避免逐首插入的卡顿
  * 跳过队列中已存在的（含当前播放曲目）与传入列表内部的重复
  * @param items - 要插入的曲目
+ * @param position - 插入到当前曲目之后或队列末尾
  * @returns 实际插入的数量
  */
-export const insertManyToQueue = (items: readonly Track[]): number => {
+export const insertManyToQueue = (
+  items: readonly Track[],
+  position: "next" | "end" = "next",
+): number => {
   if (items.length === 0) return 0;
   const status = useStatusStore();
   const seen = new Set(queue.queue.value.map((track) => track.id));
@@ -944,7 +948,8 @@ export const insertManyToQueue = (items: readonly Track[]): number => {
     fresh.push(item);
   }
   if (fresh.length === 0) return 0;
-  queue.insertManyToQueue(fresh, status.playIndex + 1);
+  const insertAt = position === "end" ? queue.queue.value.length : status.playIndex + 1;
+  queue.insertManyToQueue(fresh, insertAt);
   return fresh.length;
 };
 
