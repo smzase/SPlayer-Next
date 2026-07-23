@@ -247,6 +247,12 @@ const dynamicIslandSection: SettingSection = {
   ],
 };
 
+/** 歌词与封面分离当前是否实际生效 */
+const isTaskbarLyricSeparationActive = (): boolean => {
+  const config = useSettingsStore().system.taskbarLyric;
+  return config.separateCoverAndLyric && !config.pureLyricMode;
+};
+
 /** Win 平台限定 */
 const taskbarLyricSection: SettingSection = {
   id: "taskbarLyric",
@@ -256,6 +262,12 @@ const taskbarLyricSection: SettingSection = {
       key: "taskbarLyricEnabled",
       type: "switch",
       binding: { store: "settings", path: "isTaskbarLyricOpen" },
+      defaultValue: false,
+    },
+    {
+      key: "taskbarLyricPureMode",
+      type: "switch",
+      binding: { store: "settings", path: "system.taskbarLyric.pureLyricMode" },
       defaultValue: false,
     },
     {
@@ -274,7 +286,10 @@ const taskbarLyricSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.taskbarLyric.autoMaxWidth" },
       defaultValue: true,
-      childrenCondition: () => useSettingsStore().system.taskbarLyric.autoMaxWidth === false,
+      disabled: isTaskbarLyricSeparationActive,
+      childrenCondition: () =>
+        !isTaskbarLyricSeparationActive() &&
+        useSettingsStore().system.taskbarLyric.autoMaxWidth === false,
       children: [
         {
           key: "taskbarLyricMaxWidth",
@@ -357,7 +372,10 @@ const taskbarLyricSection: SettingSection = {
       type: "switch",
       binding: { store: "settings", path: "system.taskbarLyric.separateCoverAndLyric" },
       defaultValue: false,
-      disabled: () => !useSettingsStore().system.taskbarLyric.showCover,
+      disabled: () => {
+        const config = useSettingsStore().system.taskbarLyric;
+        return !config.showCover || config.pureLyricMode;
+      },
     },
     {
       key: "taskbarLyricWordByWord",

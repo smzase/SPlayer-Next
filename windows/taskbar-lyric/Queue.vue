@@ -44,6 +44,7 @@ const config = reactive<TaskbarLyricSettings>({
   doubleLine: true,
   showTranslation: true,
   showCover: true,
+  pureLyricMode: false,
   separateCoverAndLyric: false,
   wordByWord: true,
   autoGenerateWordByWord: true,

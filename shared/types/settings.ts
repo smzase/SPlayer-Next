@@ -194,6 +194,8 @@ export interface TaskbarLyricSettings {
   showTranslation: boolean;
   /** 显示封面 */
   showCover: boolean;
+  /** 纯歌词模式：隐藏播放控制并让整个窗口穿透鼠标事件 */
+  pureLyricMode: boolean;
   /** 歌词与封面交互分离：歌词区域穿透，仅封面和控制区响应鼠标 */
   separateCoverAndLyric: boolean;
   /** 逐字高亮 */

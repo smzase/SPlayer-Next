@@ -1272,6 +1272,10 @@
       "label": "显示封面",
       "description": "在歌词旁显示当前曲目的封面缩略图"
     },
+    "taskbarLyricPureMode": {
+      "label": "纯歌词模式",
+      "description": "隐藏全部播放按钮并让整个任务栏歌词区域支持鼠标穿透；封面仍可正常显示"
+    },
     "taskbarLyricDoubleLine": {
       "label": "双行显示",
       "description": "同时显示当前歌词与翻译或下一行"

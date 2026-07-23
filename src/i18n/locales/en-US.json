@@ -1284,6 +1284,10 @@
       "label": "Show Cover",
       "description": "Show the current track's cover thumbnail beside the lyric"
     },
+    "taskbarLyricPureMode": {
+      "label": "Lyric-only Mode",
+      "description": "Hide all playback controls and let pointer input pass through the entire taskbar lyric; the cover can remain visible"
+    },
     "taskbarLyricDoubleLine": {
       "label": "Double Line",
       "description": "Show current lyric together with translation or next line"

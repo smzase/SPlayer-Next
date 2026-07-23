@@ -108,7 +108,11 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
       break;
     case "taskbarLyric.showCover":
     case "taskbarLyric.separateCoverAndLyric":
-      if (isWin) applyTaskbarLyricSeparation();
+    case "taskbarLyric.pureLyricMode":
+      if (isWin) {
+        applyTaskbarLyricLayout();
+        applyTaskbarLyricSeparation();
+      }
       break;
   }
   // 桌面歌词配置变更广播到所有窗口

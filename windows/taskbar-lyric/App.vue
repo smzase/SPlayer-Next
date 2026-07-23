@@ -26,6 +26,7 @@ const config = reactive<TaskbarLyricSettings>({
   doubleLine: true,
   showTranslation: true,
   showCover: true,
+  pureLyricMode: false,
   separateCoverAndLyric: false,
   wordByWord: true,
   autoGenerateWordByWord: true,
@@ -55,11 +56,15 @@ const currentLine = computed<LyricLine | null>(() => {
 });
 
 const hasLyric = computed(() => lyric.value.length > 0 && primaryIndex.value >= 0);
-const separationEnabled = computed(() => config.separateCoverAndLyric);
+const separationEnabled = computed(() => config.separateCoverAndLyric && !config.pureLyricMode);
 const controlsVisible = computed(() =>
-  separationEnabled.value ? config.showCover && coverHovered.value : isHovered.value,
+  config.pureLyricMode
+    ? false
+    : separationEnabled.value
+      ? config.showCover && coverHovered.value
+      : isHovered.value,
 );
-const songInfoVisible = computed(() => controlsVisible.value);
+const songInfoVisible = computed(() => !config.pureLyricMode && controlsVisible.value);
 
 const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next");
 const artistsText = computed<string>(
@@ -211,10 +216,12 @@ const handleTogglePlay = (): void => window.api.player.dispatch(playing.value ? 
 const handleCyclePlayMode = (): void => window.api.taskbarLyric.cyclePlayMode();
 const handleToggleQueue = (): void => window.api.taskbarLyric.toggleQueue();
 const handleFocusMain = (): void => {
+  if (config.pureLyricMode) return;
   window.api.system.focusMainWindow().catch(() => {});
 };
 
 const handleContainerEnter = (): void => {
+  if (config.pureLyricMode) return;
   isHovered.value = true;
 };
 
@@ -223,7 +230,7 @@ const handleContainerLeave = (): void => {
 };
 
 const handleContainerDoubleClick = (): void => {
-  if (!separationEnabled.value) handleFocusMain();
+  if (!config.pureLyricMode && !separationEnabled.value) handleFocusMain();
 };
 
 const unsubscribers: Array<() => void> = [];
@@ -243,10 +250,13 @@ onMounted(async () => {
     }),
     window.api.taskbarLyric.onConfigChange((next) => {
       Object.assign(config, next);
-      if (!next.separateCoverAndLyric || !next.showCover) coverHovered.value = false;
+      if (!next.separateCoverAndLyric || !next.showCover || next.pureLyricMode) {
+        coverHovered.value = false;
+      }
+      if (next.pureLyricMode) isHovered.value = false;
     }),
     window.api.taskbarLyric.onCoverHover((hovered) => {
-      if (config.separateCoverAndLyric && config.showCover) coverHovered.value = hovered;
+      if (separationEnabled.value && config.showCover) coverHovered.value = hovered;
     }),
     window.api.taskbarLyric.onPlaybackChange(applyPlaybackSnapshot),
   );
@@ -266,9 +276,11 @@ onBeforeUnmount(() => {
 <template>
   <div class="wrapper" :data-align="anchor">
     <div
-      class="container"
+      class="taskbar-lyric-container"
       :class="{
         'is-separated': separationEnabled,
+        'is-pure': config.pureLyricMode,
+        'has-cover': config.showCover,
         'show-controls': controlsVisible,
         'show-song-info': songInfoVisible,
       }"
@@ -295,7 +307,7 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div class="controls-wrapper">
+        <div v-if="!config.pureLyricMode" class="controls-wrapper">
           <div class="controls-inner">
             <button
               class="control-btn"
@@ -393,12 +405,13 @@ onBeforeUnmount(() => {
 .wrapper[data-align="right"] {
   justify-content: flex-end;
 }
-.container {
+.taskbar-lyric-container {
   --tbl-text-primary: #ffffff;
   --tbl-text-secondary: rgba(255, 255, 255, 0.5);
   --tbl-hover-bg: rgba(255, 255, 255, 0.12);
   --tbl-played: var(--tbl-text-primary);
   --tbl-unplayed: var(--tbl-text-secondary);
+  --tbl-control-size: clamp(16px, calc((100vw - 44px) / 5), calc(100vh - 16px));
   position: relative;
   width: 100%;
   height: 100%;
@@ -411,15 +424,21 @@ onBeforeUnmount(() => {
   color: var(--tbl-text-primary);
   transition: background 0.3s;
 }
-.container[data-align="right"] {
+.taskbar-lyric-container.has-cover {
+  --tbl-control-size: clamp(16px, calc((100vw - 100vh - 36px) / 5), calc(100vh - 16px));
+}
+.taskbar-lyric-container.is-pure {
+  pointer-events: none;
+}
+.taskbar-lyric-container[data-align="right"] {
   flex-direction: row-reverse;
 }
-.container[data-theme="light"] {
+.taskbar-lyric-container[data-theme="light"] {
   --tbl-text-primary: #1a1a1a;
   --tbl-text-secondary: rgba(0, 0, 0, 0.62);
   --tbl-hover-bg: rgba(0, 0, 0, 0.08);
 }
-.container:not(.is-separated):hover {
+.taskbar-lyric-container:not(.is-separated):hover {
   background: var(--tbl-hover-bg);
 }
 .interactive-zone {
@@ -431,10 +450,10 @@ onBeforeUnmount(() => {
   overflow: hidden;
   transition: background 0.3s;
 }
-.container[data-align="right"] .interactive-zone {
+.taskbar-lyric-container[data-align="right"] .interactive-zone {
   flex-direction: row-reverse;
 }
-.container.is-separated .interactive-zone.show-controls {
+.taskbar-lyric-container.is-separated .interactive-zone.show-controls {
   background: var(--tbl-hover-bg);
 }
 .cover-wrapper {
@@ -472,7 +491,7 @@ onBeforeUnmount(() => {
   transition: opacity 0.25s ease;
 }
 .interactive-zone.show-controls .controls-wrapper {
-  max-width: calc(5 * (100vh - 16px) + 24px);
+  max-width: calc(5 * var(--tbl-control-size) + 24px);
   pointer-events: auto;
 }
 .interactive-zone.show-controls .controls-inner {
@@ -481,8 +500,8 @@ onBeforeUnmount(() => {
 }
 .control-btn {
   flex: 0 0 auto;
-  height: 100%;
-  aspect-ratio: 1 / 1;
+  width: var(--tbl-control-size);
+  height: var(--tbl-control-size);
   border-radius: 6px;
   padding: 0;
   display: flex;
@@ -519,7 +538,7 @@ onBeforeUnmount(() => {
   height: 100%;
   overflow: hidden;
 }
-.container.is-separated .lyric-area {
+.taskbar-lyric-container.is-separated .lyric-area {
   pointer-events: none;
 }
 .lyric-column {
@@ -531,10 +550,10 @@ onBeforeUnmount(() => {
   opacity: 1;
   transition: opacity 0.18s ease;
 }
-.container[data-align="right"] .lyric-column {
+.taskbar-lyric-container[data-align="right"] .lyric-column {
   align-items: flex-end;
 }
-.container.show-song-info .lyric-column {
+.taskbar-lyric-container.show-song-info .lyric-column {
   opacity: 0;
   pointer-events: none;
 }
@@ -546,7 +565,7 @@ onBeforeUnmount(() => {
     font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.3s ease;
 }
-.container[data-align="right"] .lyric-line {
+.taskbar-lyric-container[data-align="right"] .lyric-line {
   transform-origin: right center;
 }
 .lyric-line[data-role="primary"] {
@@ -592,10 +611,10 @@ onBeforeUnmount(() => {
   pointer-events: none;
   transition: opacity 0.18s ease;
 }
-.container[data-align="right"] .song-info {
+.taskbar-lyric-container[data-align="right"] .song-info {
   align-items: flex-end;
 }
-.container.show-song-info .song-info {
+.taskbar-lyric-container.show-song-info .song-info {
   opacity: 1;
   transition-delay: 0.08s;
 }

@@ -60,6 +60,12 @@ let cursorPollTimer: NodeJS.Timeout | null = null;
 let mouseIgnored = false;
 let coverHovered = false;
 
+/** 歌词与封面分离当前是否实际生效 */
+const isTaskbarLyricSeparationActive = (): boolean => {
+  const config = store.get("taskbarLyric");
+  return config.separateCoverAndLyric && !config.pureLyricMode;
+};
+
 /** 从设置读取当前歌词宽度（Win10 据此从 tasklist 划空间，Win11 忽略） */
 const resolveLyricWidth = (): number => {
   const width = store.get("taskbarLyric.maxWidth");
@@ -255,7 +261,14 @@ export const applyTaskbarLyricSeparation = (): void => {
   const win = getTaskbarLyricWindow();
   if (!win) return;
   const config = store.get("taskbarLyric");
-  if (!config.separateCoverAndLyric) {
+  if (config.pureLyricMode) {
+    stopCursorPolling();
+    setCoverHovered(false);
+    closeTaskbarQueueWindow();
+    setMouseIgnore(true);
+    return;
+  }
+  if (!isTaskbarLyricSeparationActive()) {
     stopCursorPolling();
     setCoverHovered(false);
     setMouseIgnore(false);
@@ -274,7 +287,12 @@ export const applyTaskbarLyricSeparation = (): void => {
  */
 export const applyTaskbarLyricMouseIgnore = (ignore: boolean): void => {
   const config = store.get("taskbarLyric");
-  if (!config.separateCoverAndLyric) {
+  if (config.pureLyricMode) {
+    setCoverHovered(false);
+    setMouseIgnore(true);
+    return;
+  }
+  if (!isTaskbarLyricSeparationActive()) {
     setMouseIgnore(false);
     return;
   }
@@ -346,9 +364,9 @@ const applyLayout = (layout: JsTaskbarLayout): void => {
     return;
   }
 
-  const autoMaxWidth = store.get("taskbarLyric.autoMaxWidth") ?? true;
-  const maxWidth = store.get("taskbarLyric.maxWidth") ?? 400;
-  const windowWidth = autoMaxWidth ? availWidth : Math.min(maxWidth, availWidth);
+  const config = store.get("taskbarLyric");
+  const useAvailableWidth = config.autoMaxWidth || isTaskbarLyricSeparationActive();
+  const windowWidth = useAvailableWidth ? availWidth : Math.min(config.maxWidth, availWidth);
   const windowX = anchor === "right" ? availX + availWidth - windowWidth : availX;
 
   win.setBounds({ x: windowX, y: availY, width: windowWidth, height: availHeight });
@@ -532,6 +550,10 @@ export const closeTaskbarQueueWindow = (): void => {
 
 /** 切换任务栏紧凑播放列表 */
 export const toggleTaskbarQueueWindow = (): void => {
+  if (store.get("taskbarLyric.pureLyricMode")) {
+    closeTaskbarQueueWindow();
+    return;
+  }
   if (getTaskbarQueueWindow()) {
     closeTaskbarQueueWindow();
     return;
