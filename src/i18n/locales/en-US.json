@@ -460,8 +460,7 @@
     },
     "repeatMode": {
       "list": "Repeat all",
-      "one": "Repeat one",
-      "off": "Repeat off"
+      "one": "Repeat one"
     },
     "shuffleMode": {
       "on": "Shuffle on",
@@ -1201,6 +1200,12 @@
       "label": "Word Highlight",
       "description": "Render progressive word-by-word highlight"
     },
+    "dynamicIslandTransition": {
+      "label": "Transition",
+      "description": "Choose how the island width and lyric lines transition",
+      "bounce": "Dynamic Bounce",
+      "smooth": "Smooth Transition"
+    },
     "dynamicIslandDoubleLine": {
       "label": "Always Two Lines",
       "description": "Keep two-line layout even when no translation is available"
@@ -1254,7 +1259,11 @@
     },
     "taskbarLyricAutoMaxWidth": {
       "label": "Auto Width",
-      "description": "When enabled, fill the available taskbar space; otherwise limit to Max Width below"
+      "description": "Use the available taskbar area as the maximum width; disable to set it manually"
+    },
+    "taskbarLyricAutoAdjustOccupiedSpace": {
+      "label": "Shrink Window to Content",
+      "description": "Within the automatic width, shrink the actual window to the primary lyric and hover controls"
     },
     "taskbarLyricMaxWidth": {
       "label": "Max Width",
@@ -1276,9 +1285,17 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "taskbarLyricShowBackground": {
+      "label": "Show Background",
+      "description": "Show a translucent background while focused"
+    },
     "taskbarLyricFontSize": {
       "label": "Font Size",
       "description": "Taskbar lyric text size (px)"
+    },
+    "taskbarLyricFontWeight": {
+      "label": "Font Weight",
+      "description": "Taskbar lyric text weight"
     },
     "taskbarLyricShowCover": {
       "label": "Show Cover",
@@ -1612,8 +1629,8 @@
       "description": "Configure AI models used by the app"
     },
     "aiModel": {
-      "hint": "Add AI models for the app to use",
-      "hintDetail": "Add multiple OpenAI Compatible or Anthropic configurations and select the active model",
+      "hint": "AI Model Configuration",
+      "hintDetail": "Provides model support for selected AI features in the app",
       "add": "Add model",
       "editModel": "Edit model",
       "empty": "No AI models configured",

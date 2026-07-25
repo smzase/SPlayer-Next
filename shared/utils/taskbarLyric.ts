@@ -13,31 +13,33 @@ export const TASKBAR_PLAY_MODE_CYCLE: readonly TaskbarPlayMode[] = [
  * 将播放器底层状态归一为任务栏四态模式
  * @param repeatMode - 循环状态
  * @param shuffleMode - 随机状态
+ * @param sequential - 是否启用任务栏独有的顺序播放
  */
 export const resolveTaskbarPlayMode = (
   repeatMode: RepeatMode,
   shuffleMode: ShuffleMode,
+  sequential = false,
 ): TaskbarPlayMode => {
   if (shuffleMode === "on") return "shuffle";
   if (repeatMode === "one") return "repeat-one";
-  if (repeatMode === "off") return "sequential";
+  if (sequential) return "sequential";
   return "repeat-list";
 };
 
 /**
- * 获取统一播放模式对应的底层状态
+ * 获取统一播放模式对应的播放器状态
  * @param mode - 任务栏统一播放模式
  */
 export const resolveTaskbarPlayModeState = (mode: TaskbarPlayMode): TaskbarPlayModeState => {
   switch (mode) {
     case "repeat-one":
-      return { repeatMode: "one", shuffleMode: "off" };
+      return { repeatMode: "one", shuffleMode: "off", sequential: false };
     case "shuffle":
-      return { repeatMode: "list", shuffleMode: "on" };
+      return { repeatMode: "list", shuffleMode: "on", sequential: false };
     case "sequential":
-      return { repeatMode: "off", shuffleMode: "off" };
+      return { repeatMode: "list", shuffleMode: "off", sequential: true };
     case "repeat-list":
-      return { repeatMode: "list", shuffleMode: "off" };
+      return { repeatMode: "list", shuffleMode: "off", sequential: false };
   }
 };
 

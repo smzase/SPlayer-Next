@@ -506,7 +506,7 @@ const showComments = (): void => {
                 variant="ghost"
                 circle
                 :disabled="!hasTrack"
-                @click="player.nextTrack(true)"
+                @click="player.nextTrack()"
               >
                 <template #icon><IconLucideSkipForward /></template>
               </SButton>
@@ -515,7 +515,7 @@ const showComments = (): void => {
                 variant="ghost"
                 circle
                 :disabled="fmMode"
-                :class="fmMode || repeatMode === 'off' ? 'opacity-40' : 'opacity-100'"
+                :class="fmMode ? 'opacity-40' : 'opacity-100'"
                 @click="player.cycleRepeatMode()"
               >
                 <template #icon>

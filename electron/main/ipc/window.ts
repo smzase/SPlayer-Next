@@ -16,6 +16,7 @@ import {
   saveDynamicIslandState,
   applyDynamicIslandWidth,
   applyDynamicIslandHeight,
+  applyDynamicIslandShape,
   toggleTaskbarLyricWindow,
   closeTaskbarLyricWindow,
   getTaskbarLyricWindow,
@@ -27,6 +28,7 @@ import {
   getTaskbarPlaybackSnapshot,
   requestTaskbarPlaybackSnapshot,
   updateTaskbarPlaybackSnapshot,
+  updateTaskbarLyricContentWidth,
   minimizeMainWindow,
   toggleMaximizeMainWindow,
   isMainWindowMaximized,
@@ -91,6 +93,9 @@ export const registerWindowIpc = (): void => {
   ipcMain.on("dynamicIsland:resize", (_event, width: number) => {
     applyDynamicIslandWidth(width);
   });
+  ipcMain.on("dynamicIsland:setShape", (_event, width: number | null) => {
+    applyDynamicIslandShape(width);
+  });
 
   // 灵动岛高度变化
   ipcMain.on("dynamicIsland:setHeight", (_event, height: number) => {
@@ -140,6 +145,10 @@ export const registerWindowIpc = (): void => {
     ipcMain.on("taskbarLyric:setMouseIgnore", (event, ignore: boolean) => {
       if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
       applyTaskbarLyricMouseIgnore(!!ignore);
+    });
+    ipcMain.on("taskbarLyric:setContentWidth", (event, width: number) => {
+      if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
+      updateTaskbarLyricContentWidth(width);
     });
   } else {
     ipcMain.handle("window:toggleTaskbarLyric", () => false);

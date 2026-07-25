@@ -47,6 +47,8 @@ export const useStatusStore = defineStore(
     const repeatMode = ref<RepeatMode>("list");
     /** 随机模式 */
     const shuffleMode = ref<ShuffleMode>("off");
+    /** 任务栏独有的顺序播放状态；主播放器仍保持上游的循环模式定义 */
+    const taskbarSequentialMode = ref(false);
     /** 心动模式 */
     const heartMode = ref(false);
     /** 私人 FM 模式 */
@@ -124,6 +126,7 @@ export const useStatusStore = defineStore(
       playIndex,
       repeatMode,
       shuffleMode,
+      taskbarSequentialMode,
       heartMode,
       fmMode,
       speed,
@@ -147,6 +150,7 @@ export const useStatusStore = defineStore(
         "playIndex",
         "repeatMode",
         "shuffleMode",
+        "taskbarSequentialMode",
         "heartMode",
         "volume",
         "position",

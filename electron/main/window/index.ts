@@ -37,6 +37,7 @@ export {
   getDynamicIslandWindow,
   applyDynamicIslandAlwaysOnTop,
   applyDynamicIslandHeight,
+  applyDynamicIslandShape,
   applyDynamicIslandWidth,
   applyDynamicIslandSnapCentered,
   applyDynamicIslandNotchFusion,
@@ -58,6 +59,7 @@ export {
   getTaskbarPlaybackSnapshot,
   requestTaskbarPlaybackSnapshot,
   updateTaskbarPlaybackSnapshot,
+  updateTaskbarLyricContentWidth,
 } from "./taskbarLyric";
 
 /** 恢复歌词相关窗口 */

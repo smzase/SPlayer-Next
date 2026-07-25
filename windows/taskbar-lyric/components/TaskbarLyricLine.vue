@@ -207,6 +207,7 @@ onBeforeUnmount(() => {
   display: inline-block;
   font-family: inherit;
   font-weight: inherit;
+  pointer-events: auto;
   will-change: transform;
 }
 .tb-word {

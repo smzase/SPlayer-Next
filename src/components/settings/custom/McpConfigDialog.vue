@@ -11,6 +11,7 @@ const { t } = useI18n();
 const { copy } = useCopyText();
 const settings = useSettingsStore();
 const open = ref(false);
+const opening = ref(false);
 const params = ref<McpClientConfigParams>({
   port: settings.system.mcp.port,
   accessKey: "********************************",
@@ -34,16 +35,24 @@ const clientConfig = computed(() =>
   ),
 );
 
-watch(open, async (value) => {
-  if (!value) return;
-
+/** 加载配置后打开弹窗，避免异步内容改变进入动画期间的高度 */
+const handleOpen = async (): Promise<void> => {
+  if (opening.value) return;
+  opening.value = true;
   try {
-    params.value = await window.api.mcp.getClientConfigParams();
-    agents.value = await window.api.mcp.detectAgents();
+    const [nextParams, nextAgents] = await Promise.all([
+      window.api.mcp.getClientConfigParams(),
+      window.api.mcp.detectAgents(),
+    ]);
+    params.value = nextParams;
+    agents.value = nextAgents;
+    open.value = true;
   } catch (error) {
     toast.error(error instanceof Error ? error.message : String(error));
+  } finally {
+    opening.value = false;
   }
-});
+};
 
 const handleInject = async (agent: McpAgentApp) => {
   if (agent.configured || !agent.injectable) return;
@@ -61,7 +70,7 @@ const handleInject = async (agent: McpAgentApp) => {
 </script>
 
 <template>
-  <SButton type="primary" variant="secondary" size="small" @click="open = true">
+  <SButton type="primary" variant="secondary" size="small" :loading="opening" @click="handleOpen">
     {{ t("common.configure") }}
   </SButton>
 

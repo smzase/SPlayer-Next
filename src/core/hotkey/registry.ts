@@ -27,7 +27,7 @@ export const buildRegistry = (): void => {
   // 播放/暂停
   handlers.set("player.togglePlay", () => player.togglePlay());
   // 下一曲
-  handlers.set("player.next", () => player.nextTrack(true));
+  handlers.set("player.next", () => player.nextTrack());
   // 上一曲
   handlers.set("player.prev", () => player.prevTrack());
   // 快进

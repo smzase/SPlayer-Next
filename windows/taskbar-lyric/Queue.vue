@@ -37,10 +37,12 @@ const snapshot = shallowRef<TaskbarPlaybackSnapshot>({
 const config = reactive<TaskbarLyricSettings>({
   position: "auto",
   autoMaxWidth: true,
+  autoAdjustOccupiedSpace: false,
   maxWidth: 400,
   leftMargin: 0,
   rightMargin: 0,
   colorMode: "taskbar",
+  showBackground: false,
   doubleLine: true,
   showTranslation: true,
   showCover: true,

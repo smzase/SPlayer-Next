@@ -5,7 +5,7 @@ import type { Platform } from "./platform";
 export type PlayerState = "idle" | "loading" | "playing" | "paused" | "stopped";
 
 /** 循环模式 */
-export type RepeatMode = "off" | "list" | "one";
+export type RepeatMode = "list" | "one";
 
 /** 随机模式 */
 export type ShuffleMode = "off" | "on";

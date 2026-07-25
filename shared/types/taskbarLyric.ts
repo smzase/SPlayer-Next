@@ -48,4 +48,5 @@ export interface TaskbarPlaybackSnapshot {
 export interface TaskbarPlayModeState {
   repeatMode: RepeatMode;
   shuffleMode: ShuffleMode;
+  sequential: boolean;
 }

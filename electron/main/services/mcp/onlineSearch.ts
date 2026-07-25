@@ -3,6 +3,7 @@ import { callNetease } from "@main/apis/netease";
 import { callQQMusic } from "@main/apis/qqmusic";
 import type { Track, TrackFee } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
+import { cacheTracks } from "./cache";
 
 interface RawArtist {
   id?: number | string;
@@ -120,13 +121,16 @@ const result = (
   limit: number,
   total: number,
   tracks: Track[],
-): OnlineSearchResult => ({
-  platform,
-  page,
-  total,
-  hasMore: (page - 1) * limit + tracks.length < total,
-  tracks,
-});
+): OnlineSearchResult => {
+  cacheTracks(tracks);
+  return {
+    platform,
+    page,
+    total,
+    hasMore: (page - 1) * limit + tracks.length < total,
+    tracks,
+  };
+};
 
 /**
  * 搜索在线平台单曲并转换为可直接播放的 Track

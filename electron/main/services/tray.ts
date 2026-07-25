@@ -25,7 +25,7 @@ let dynamicIslandOpen = false;
 let taskbarLyricOpen = false;
 
 const repeatLabel = (mode: RepeatMode): string =>
-  ({ list: t("repeatList"), one: t("repeatOne"), off: t("repeatOff") })[mode];
+  ({ list: t("repeatList"), one: t("repeatOne") })[mode];
 
 /** 获取菜单图标 */
 const menuIcon = (name: string) => {
@@ -105,13 +105,6 @@ const buildMenu = (): Menu => {
           type: "radio",
           checked: repeatMode === "one",
           click: () => sendToMain("player:event", { type: "setRepeat", data: { mode: "one" } }),
-        },
-        {
-          label: t("repeatOff"),
-          icon: menuIcon("repeat"),
-          type: "radio",
-          checked: repeatMode === "off",
-          click: () => sendToMain("player:event", { type: "setRepeat", data: { mode: "off" } }),
         },
       ],
     },

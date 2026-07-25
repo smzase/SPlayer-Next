@@ -7,6 +7,7 @@ import * as playback from "@/services/playback";
 import * as autoClose from "@/services/autoClose";
 import * as abLoop from "@/services/abLoop";
 import * as cacheScheduler from "@/services/cacheScheduler";
+import * as queue from "@/stores/queue";
 import * as playStats from "./stats";
 import {
   hasReachedSeekTarget,
@@ -18,6 +19,7 @@ import {
   play,
   playQueueTrack,
   playNow,
+  onQueueEnded,
   prevTrack,
   recoverFromSourceFailure,
   refreshDevices,
@@ -47,6 +49,11 @@ const finishCurrentTrack = async (): Promise<void> => {
     if (repeatOne) {
       await seek(0);
       await play();
+    } else if (
+      status.taskbarSequentialMode &&
+      status.playIndex >= queue.queueLength.value - 1
+    ) {
+      await onQueueEnded();
     } else {
       await nextTrack();
     }
@@ -122,7 +129,7 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       await pause();
       break;
     case "next":
-      await nextTrack(true);
+      await nextTrack();
       break;
     case "prev":
       await prevTrack();

@@ -16,6 +16,7 @@ import { toMs } from "@main/utils/time";
 import { getTrayPlayMode } from "@main/services/tray";
 import { createMcpEndpoint as createHttpEndpoint, type McpEndpoint } from "./endpoint";
 import { searchOnlineTracks } from "./onlineSearch";
+import { cacheTracks, getTrackById, getTracksByIds } from "./cache";
 
 const jsonContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
@@ -115,16 +116,26 @@ const createServer = (): McpServer => {
     {
       title: "播放指定曲目",
       description:
-        "将指定曲目加入播放队列并立即播放。传入完整的 Track 对象（通常来自 search_library、search_online_songs 或 get_random_tracks 的返回值）",
-      inputSchema: { track: z.record(z.string(), z.any()) },
+        "将指定曲目加入播放队列并立即播放。推荐优先传入 trackId（来自搜索接口返回的歌曲 ID，极快），也可传入完整 track 对象。",
+      inputSchema: {
+        trackId: z.string().optional(),
+        track: z.record(z.string(), z.any()).optional(),
+      },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    ({ track }) => {
-      if (!track || typeof track.id !== "string") {
-        throw new Error("Invalid track object.");
+    ({ trackId, track }) => {
+      let targetTrack: Track | undefined;
+      if (trackId) {
+        targetTrack = getTrackById(trackId);
       }
-      playerControl.playTrack(track as Track);
-      return jsonContent({ ok: true, id: track.id });
+      if (!targetTrack && track && typeof track.id === "string") {
+        targetTrack = track as Track;
+      }
+      if (!targetTrack) {
+        throw new Error("Invalid or missing track/trackId.");
+      }
+      playerControl.playTrack(targetTrack);
+      return jsonContent({ ok: true, id: targetTrack.id });
     },
   );
 
@@ -133,9 +144,9 @@ const createServer = (): McpServer => {
     {
       title: "设置播放模式",
       description:
-        "设置播放器的循环模式或随机模式。repeat: 循环模式 (off/list/one), shuffle: 随机播放 (on/off)",
+        "设置播放器的循环模式或随机模式。repeat: 循环模式 (list/one), shuffle: 随机播放 (on/off)",
       inputSchema: {
-        repeat: z.enum(["off", "list", "one"]).optional(),
+        repeat: z.enum(["list", "one"]).optional(),
         shuffle: z.enum(["on", "off"]).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -155,19 +166,35 @@ const createServer = (): McpServer => {
     "add_to_queue",
     {
       title: "添加到播放队列",
-      description: "批量添加最多 50 个完整 Track 到当前歌曲之后或队列末尾，不立即播放",
+      description:
+        "批量添加最多 50 首曲目到播放队列。强烈优先传入 trackIds（即搜索接口返回的歌曲 ID 数组，响应极快）；也可传入完整 tracks 数组。position 默认为 'next'（插入到当前播放歌曲之后，下一首播放），若需追加到队列最末尾可指定为 'end'。",
       inputSchema: {
-        tracks: z.array(z.record(z.string(), z.any())).min(1).max(50),
-        position: z.enum(["next", "end"]).default("next"),
+        trackIds: z.array(z.string()).min(1).max(50).optional(),
+        tracks: z.array(z.record(z.string(), z.any())).min(1).max(50).optional(),
+        position: z.enum(["next", "end"]).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    ({ tracks, position }) => {
-      if (tracks.some((track) => typeof track.id !== "string")) {
-        throw new Error("Invalid track object.");
+    ({ trackIds, tracks, position }) => {
+      const targetPosition = position ?? "next";
+      let targetTracks: Track[] = [];
+
+      if (trackIds && trackIds.length > 0) {
+        targetTracks = getTracksByIds(trackIds);
       }
-      playerControl.addToQueue(tracks as Track[], position);
-      return jsonContent({ ok: true, count: tracks.length, position });
+      if (targetTracks.length === 0 && tracks && tracks.length > 0) {
+        if (tracks.some((track) => typeof track.id !== "string")) {
+          throw new Error("Invalid track object.");
+        }
+        targetTracks = tracks as Track[];
+      }
+
+      if (targetTracks.length === 0) {
+        throw new Error("No valid tracks or trackIds provided.");
+      }
+
+      playerControl.addToQueue(targetTracks, targetPosition);
+      return jsonContent({ ok: true, count: targetTracks.length, position: targetPosition });
     },
   );
 
@@ -184,9 +211,11 @@ const createServer = (): McpServer => {
     },
     ({ query, limit }) => {
       const matches = searchTracks(query);
+      const sliced = matches.slice(0, limit);
+      cacheTracks(sliced);
       return jsonContent({
         total: matches.length,
-        tracks: matches.slice(0, limit),
+        tracks: sliced,
       });
     },
   );
@@ -216,7 +245,11 @@ const createServer = (): McpServer => {
       inputSchema: { limit: z.number().int().min(1).max(50).default(10) },
       annotations: { readOnlyHint: true, idempotentHint: false },
     },
-    ({ limit }) => jsonContent({ tracks: getRandomTracks(limit) }),
+    ({ limit }) => {
+      const tracks = getRandomTracks(limit);
+      cacheTracks(tracks);
+      return jsonContent({ tracks });
+    },
   );
 
   server.registerTool(

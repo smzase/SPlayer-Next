@@ -26,7 +26,7 @@ describe("taskbar play mode", () => {
   it("将底层状态归一为四态模式，随机状态优先", () => {
     assert.equal(resolveTaskbarPlayMode("list", "off"), "repeat-list");
     assert.equal(resolveTaskbarPlayMode("one", "off"), "repeat-one");
-    assert.equal(resolveTaskbarPlayMode("off", "off"), "sequential");
+    assert.equal(resolveTaskbarPlayMode("list", "off", true), "sequential");
     assert.equal(resolveTaskbarPlayMode("one", "on"), "shuffle");
   });
 
@@ -34,18 +34,22 @@ describe("taskbar play mode", () => {
     assert.deepEqual(resolveTaskbarPlayModeState("repeat-list"), {
       repeatMode: "list",
       shuffleMode: "off",
+      sequential: false,
     });
     assert.deepEqual(resolveTaskbarPlayModeState("repeat-one"), {
       repeatMode: "one",
       shuffleMode: "off",
+      sequential: false,
     });
     assert.deepEqual(resolveTaskbarPlayModeState("shuffle"), {
       repeatMode: "list",
       shuffleMode: "on",
+      sequential: false,
     });
     assert.deepEqual(resolveTaskbarPlayModeState("sequential"), {
-      repeatMode: "off",
+      repeatMode: "list",
       shuffleMode: "off",
+      sequential: true,
     });
   });
 
