@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { LyricLine } from "../types/lyrics";
-import { hasRealWordTiming } from "./lyricSync";
+import { hasRealWordTiming, pickLatestActiveIndex } from "./lyricSync";
 import {
   nextTaskbarPlayMode,
   resolveTaskbarPlayMode,
@@ -82,5 +82,29 @@ describe("hasRealWordTiming", () => {
       ),
       false,
     );
+  });
+});
+
+describe("pickLatestActiveIndex", () => {
+  it("仅在背景歌词自己的时间窗口内返回索引", () => {
+    const lines = [makeLine([[0, 1_000]]), makeLine([[1_500, 2_000]])];
+
+    assert.equal(pickLatestActiveIndex(lines, -1), -1);
+    assert.equal(pickLatestActiveIndex(lines, 500), 0);
+    assert.equal(pickLatestActiveIndex(lines, 1_200), -1);
+    assert.equal(pickLatestActiveIndex(lines, 1_700), 1);
+    assert.equal(pickLatestActiveIndex(lines, 2_000), -1);
+  });
+
+  it("忽略主行配对后拓宽的行级时间窗", () => {
+    const line = {
+      ...makeLine([[1_000, 2_000]]),
+      startTime: 0,
+      endTime: 5_000,
+    };
+
+    assert.equal(pickLatestActiveIndex([line], 500), -1);
+    assert.equal(pickLatestActiveIndex([line], 1_500), 0);
+    assert.equal(pickLatestActiveIndex([line], 2_500), -1);
   });
 });

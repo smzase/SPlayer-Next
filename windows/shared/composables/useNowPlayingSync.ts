@@ -2,7 +2,7 @@ import type { Ref, ShallowRef } from "vue";
 import type { LyricLine } from "@shared/types/lyrics";
 import type { NowPlayingSnapshot } from "@shared/types/nowPlaying";
 import type { Track } from "@shared/types/player";
-import { clampLastLineEnd } from "@shared/utils/lyricSync";
+import { clampLastLineEnd, pickLatestActiveIndex } from "@shared/utils/lyricSync";
 
 /** 同步偏差阈值 */
 const SYNC_DRIFT_THRESHOLD = 300;
@@ -17,13 +17,17 @@ export interface NowPlayingSyncOptions {
   pickIndex: (lyric: LyricLine[], time: number) => number;
   /** 日志 / 错误前缀 */
   logTag: string;
+  /** 是否为当前窗口维护独立背景歌词时间轴 */
+  includeBackground?: boolean;
 }
 
 export interface NowPlayingSync {
   track: ShallowRef<Track | null>;
   lyric: ShallowRef<LyricLine[]>;
+  backgroundLyric: ShallowRef<LyricLine[]>;
   playing: Ref<boolean>;
   primaryIndex: Ref<number>;
+  backgroundIndex: Ref<number>;
 }
 
 /**
@@ -31,12 +35,14 @@ export interface NowPlayingSync {
  * 拉取 / 订阅快照、维护播放锚点、RAF 高频更新 currentMs 与 primaryIndex
  */
 export const useNowPlayingSync = (options: NowPlayingSyncOptions): NowPlayingSync => {
-  const { pickIndex, logTag } = options;
+  const { pickIndex, logTag, includeBackground = false } = options;
 
   const track = shallowRef<Track | null>(null);
   const lyric = shallowRef<LyricLine[]>([]);
+  const backgroundLyric = shallowRef<LyricLine[]>([]);
   const playing = ref(false);
   const primaryIndex = ref(-1);
+  const backgroundIndex = ref(-1);
 
   let anchorPos = 0;
   let anchorPerf = 0;
@@ -85,10 +91,13 @@ export const useNowPlayingSync = (options: NowPlayingSyncOptions): NowPlayingSyn
     track.value = snap.track;
     const mainLines = snap.lyric.filter((line) => !line.isBG);
     lyric.value = clampLastLineEnd(mainLines, snap.track?.duration);
+    const backgroundLines = includeBackground ? snap.lyric.filter((line) => line.isBG) : [];
+    backgroundLyric.value = clampLastLineEnd(backgroundLines, snap.track?.duration);
     playing.value = snap.playing;
     speed = snap.speed;
     lyricOffsetMs = snap.lyricOffsetMs;
     primaryIndex.value = -1;
+    backgroundIndex.value = -1;
     resetAnchor(snap.position, snap.sendTimestamp);
   };
 
@@ -97,6 +106,10 @@ export const useNowPlayingSync = (options: NowPlayingSyncOptions): NowPlayingSyn
     currentNowPlayingMs = next + lyricOffsetMs;
     const idx = pickIndex(lyric.value, currentNowPlayingMs);
     if (idx !== primaryIndex.value) primaryIndex.value = idx;
+    if (includeBackground) {
+      const bgIdx = pickLatestActiveIndex(backgroundLyric.value, currentNowPlayingMs);
+      if (bgIdx !== backgroundIndex.value) backgroundIndex.value = bgIdx;
+    }
   };
 
   const tick = (): void => {
@@ -163,5 +176,5 @@ export const useNowPlayingSync = (options: NowPlayingSyncOptions): NowPlayingSyn
     for (const off of unsubscribers) off();
   });
 
-  return { track, lyric, playing, primaryIndex };
+  return { track, lyric, backgroundLyric, playing, primaryIndex, backgroundIndex };
 };

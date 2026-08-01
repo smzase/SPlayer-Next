@@ -70,6 +70,40 @@ describe("lyric parse", () => {
     expect(lines.every(({ words }) => words.length > 0)).toBe(true);
   });
 
+  it("将括号包裹的 LRC 行标记为独立背景歌词", () => {
+    const lines = parseLyric(
+      {
+        content:
+          "[01:48.390]耳をすましてみるよ\n" +
+          "[01:50.220](聞こえる)\n" +
+          "[01:53.570]今を信じるために\n" +
+          "[01:56.810](鼓動が)",
+      },
+      "lrc",
+    );
+
+    expect(lines.filter(({ isBG }) => isBG)).toHaveLength(2);
+    expect(
+      lines.filter(({ isBG }) => isBG).map(({ words }) => words.map(({ word }) => word).join("")),
+    ).toEqual(["聞こえる", "鼓動が"]);
+  });
+
+  it("将 TTML x-bg 解析为独立背景歌词", () => {
+    const content =
+      '<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">' +
+      '<body><div><p begin="00:01.000" end="00:04.000">' +
+      '<span begin="00:01.000" end="00:02.000">主歌词</span>' +
+      '<span ttm:role="x-bg" begin="00:02.000" end="00:04.000">' +
+      '<span begin="00:02.000" end="00:04.000">(背景歌词)</span>' +
+      "</span></p></div></body></tt>";
+    const lines = parseLyric({ content }, "ttml");
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0].isBG).toBe(false);
+    expect(lines[1].isBG).toBe(true);
+    expect(lines[1].words.map(({ word }) => word).join("")).toBe("背景歌词");
+  });
+
   it("使用 ESLRC 末尾时间标签结束最后一个字", () => {
     const [line] = parseLyric({ content: "[00:00.00]<00:00.00>A<00:01.00>B<00:02.00>" }, "lrc");
 

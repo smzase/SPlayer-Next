@@ -425,6 +425,12 @@ const taskbarLyricSection: SettingSection = {
       binding: { store: "settings", path: "system.taskbarLyric.showTranslation" },
       defaultValue: true,
     },
+    {
+      key: "taskbarLyricShowBackgroundLyric",
+      type: "switch",
+      binding: { store: "settings", path: "system.taskbarLyric.showBackgroundLyric" },
+      defaultValue: true,
+    },
   ],
 };
 

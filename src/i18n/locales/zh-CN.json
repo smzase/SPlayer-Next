@@ -1306,6 +1306,10 @@
       "label": "显示翻译",
       "description": "双行模式下优先显示翻译，无翻译时回退到下一行"
     },
+    "taskbarLyricShowBackgroundLyric": {
+      "label": "显示背景歌词",
+      "description": "将括号背景人声和 TTML 背景行显示在主歌词外侧，并用细线分隔"
+    },
     "taskbarLyricWordByWord": {
       "label": "逐字高亮",
       "description": "按单词进度逐字渲染高亮"

@@ -201,6 +201,8 @@ export interface TaskbarLyricSettings {
   doubleLine: boolean;
   /** 显示翻译（doubleLine 开启时，副行优先显示翻译，没有翻译则回退到下一行） */
   showTranslation: boolean;
+  /** 在主歌词外侧显示独立背景歌词 */
+  showBackgroundLyric: boolean;
   /** 显示封面 */
   showCover: boolean;
   /** 纯歌词模式：隐藏播放控制并让整个窗口穿透鼠标事件 */

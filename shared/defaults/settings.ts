@@ -88,6 +88,7 @@ export const defaultSystemConfig: SystemConfig = {
     showBackground: false,
     doubleLine: true,
     showTranslation: true,
+    showBackgroundLyric: true,
     showCover: true,
     pureLyricMode: false,
     separateCoverAndLyric: false,

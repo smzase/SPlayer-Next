@@ -45,6 +45,7 @@ const config = reactive<TaskbarLyricSettings>({
   showBackground: false,
   doubleLine: true,
   showTranslation: true,
+  showBackgroundLyric: true,
   showCover: true,
   pureLyricMode: false,
   separateCoverAndLyric: false,
@@ -85,8 +86,7 @@ const backgroundVisible = computed(
   () => effectiveAppearance.value === "image" && !!backgroundImage.value.src,
 );
 const backgroundImageStyle = computed<Record<string, string>>(() => ({
-  filter:
-    backgroundImage.value.blur > 0 ? `blur(${backgroundImage.value.blur}px)` : "none",
+  filter: backgroundImage.value.blur > 0 ? `blur(${backgroundImage.value.blur}px)` : "none",
   transform: `scale(${backgroundImage.value.scale})`,
 }));
 const backgroundDimStyle = computed(() => ({

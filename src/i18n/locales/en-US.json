@@ -1318,6 +1318,10 @@
       "label": "Show Translation",
       "description": "In double-line mode, prefer translation; fall back to the next line when unavailable"
     },
+    "taskbarLyricShowBackgroundLyric": {
+      "label": "Show Background Vocals",
+      "description": "Show parenthesized vocals and TTML background lines beside the primary lyric with a divider"
+    },
     "taskbarLyricWordByWord": {
       "label": "Word by Word",
       "description": "Render highlight progress per word"

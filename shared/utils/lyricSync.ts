@@ -24,6 +24,55 @@ export const pickLatestStartedIndex = (lines: LyricLine[], time: number): number
 };
 
 /**
+ * 获取歌词内容的实际开始时间
+ * 主行与背景行配对后，行级时间窗可能被拓宽；逐词时间仍保留各自真实边界。
+ * @param line - 歌词行
+ * @returns 实际开始时间（毫秒）
+ */
+const getContentStartTime = (line: LyricLine): number => {
+  for (const word of line.words) {
+    if (word.endTime > word.startTime) return word.startTime;
+  }
+  return line.startTime;
+};
+
+/**
+ * 获取歌词内容的实际结束时间
+ * @param line - 歌词行
+ * @returns 实际结束时间（毫秒）
+ */
+const getContentEndTime = (line: LyricLine): number => {
+  for (let index = line.words.length - 1; index >= 0; index--) {
+    const word = line.words[index];
+    if (word.endTime > word.startTime) return word.endTime;
+  }
+  return line.endTime;
+};
+
+/**
+ * 选出最新开始且仍未结束的行索引
+ * @param lines - 歌词行数组
+ * @param time - 当前播放毫秒
+ * @returns 活跃行索引，无活跃行时返回 -1
+ */
+export const pickLatestActiveIndex = (lines: LyricLine[], time: number): number => {
+  let lo = 0;
+  let hi = lines.length - 1;
+  let result = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (getContentStartTime(lines[mid]) <= time) {
+      result = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (result < 0 || time >= getContentEndTime(lines[result])) return -1;
+  return result;
+};
+
+/**
  * 提前切到下一行
  * @param lines 歌词行数组
  * @param time 当前播放毫秒

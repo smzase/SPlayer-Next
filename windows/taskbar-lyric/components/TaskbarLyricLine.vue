@@ -9,6 +9,7 @@ const props = withDefaults(
     text?: string;
     wordByWord?: boolean;
     anchor?: "left" | "right";
+    layoutWidth?: number;
   }>(),
   { wordByWord: false, anchor: "left" },
 );
@@ -20,6 +21,7 @@ const wrapperRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const overflowPx = ref(0);
 const isOverflow = computed(() => overflowPx.value > 0);
+let lastTransform = "";
 
 /** 前 30% 停在开头 */
 const SCROLL_START_AT = 0.3;
@@ -35,6 +37,10 @@ const measure = (): void => {
   }
   const diff = inner.getBoundingClientRect().width - outer.getBoundingClientRect().width;
   overflowPx.value = diff > 0.5 ? diff : 0;
+  if (overflowPx.value === 0) {
+    inner.style.transform = "translateX(0)";
+    lastTransform = "translateX(0)";
+  }
 };
 
 /** 根据进度计算平移量——溢出时始终向左滚（与桌面歌词一致），不做来回 */
@@ -77,7 +83,6 @@ const setWordRef = (el: Element | { $el?: Element } | null, index: number): void
 
 let resizeObserver: ResizeObserver | null = null;
 let rafId = 0;
-let lastTransform = "";
 let lastWordProgress: string[] = [];
 const needsRaf = computed(() => useKaraoke.value || isOverflow.value);
 
@@ -139,6 +144,10 @@ watch(
 );
 watch(
   () => props.text,
+  () => nextTick(measure),
+);
+watch(
+  () => props.layoutWidth,
   () => nextTick(measure),
 );
 watch(needsRaf, (enabled) => {
