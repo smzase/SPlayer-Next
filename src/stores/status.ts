@@ -7,7 +7,9 @@ import type {
 } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
 import type { ContentScope } from "@/types/collection";
+import type { SortField, SortOrder } from "@/types/list";
 export type { RepeatMode, ShuffleMode } from "@shared/types/player";
+export type { SortField, SortOrder } from "@/types/list";
 import * as queue from "./queue";
 
 export const useStatusStore = defineStore(
@@ -27,8 +29,8 @@ export const useStatusStore = defineStore(
     const outputDevices = ref<AudioDevice[]>([]);
     /** 歌曲加载 */
     const trackLoading = ref(false);
-    /** 菜单折叠状态 */
-    const isExpanded = ref(false);
+    /** 全屏播放器展开状态 */
+    const isPlayerExpanded = ref(false);
     /** 外层播放队列 */
     const outerQueueOpen = ref(false);
     /** 播放器播放队列 */
@@ -83,6 +85,10 @@ export const useStatusStore = defineStore(
     const likedPageTab = ref<ContentScope>("local");
     /** 设置弹窗上次手动选择的大分类 */
     const settingsCategory = ref("");
+    /** 歌曲列表排序字段 */
+    const sortField = ref<SortField>("none");
+    /** 歌曲列表排序方向 */
+    const sortOrder = ref<SortOrder>("asc");
     /** 是否正在播放 */
     const isPlaying = computed(() => state.value === "playing");
     /** 是否暂停 */
@@ -115,7 +121,7 @@ export const useStatusStore = defineStore(
       isLoading,
       progress,
       trackLoading,
-      isExpanded,
+      isPlayerExpanded,
       outerQueueOpen,
       fullQueueOpen,
       searchOpen,
@@ -139,6 +145,8 @@ export const useStatusStore = defineStore(
       myPlaylistSource,
       likedPageTab,
       settingsCategory,
+      sortField,
+      sortOrder,
       currentTrack,
       showComments,
     };
@@ -158,6 +166,8 @@ export const useStatusStore = defineStore(
         "myPlaylistSource",
         "likedPageTab",
         "settingsCategory",
+        "sortField",
+        "sortOrder",
       ],
     },
   },

@@ -686,6 +686,7 @@
       "language": "语言",
       "playback": "播放器",
       "playControl": "播放控制",
+      "audioSource": "播放音源",
       "scrobble": "听歌打卡",
       "lyricContent": "歌词内容",
       "lyricTTML": "TTML 歌词",
@@ -796,6 +797,10 @@
     "allowTrialPlay": {
       "label": "允许播放试听",
       "description": "完整音源和插件都不可用时，允许播放平台返回的试听片段"
+    },
+    "preloadNextTrack": {
+      "label": "预载下一首歌曲",
+      "description": "提前获取下一首的播放信息，可能会增加网络占用"
     },
     "outputDevice": {
       "label": "输出设备",

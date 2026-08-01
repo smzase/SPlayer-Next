@@ -31,7 +31,7 @@ pub struct HttpInterrupt {
 }
 
 impl HttpInterrupt {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             token: Arc::new(Mutex::new(CancellationToken::new())),
         }
@@ -67,7 +67,13 @@ pub struct HttpRangeSource {
 
 impl HttpRangeSource {
     /** 探测远端文件并复用首次响应作为起始数据流。 */
+    #[cfg(test)]
     pub fn new(url: impl Into<String>) -> Result<Self> {
+        Self::new_with_interrupt(url, HttpInterrupt::new())
+    }
+
+    /** 使用调用方提供的中断句柄探测远端文件。 */
+    pub fn new_with_interrupt(url: impl Into<String>, interrupt: HttpInterrupt) -> Result<Self> {
         let url = url.into();
         let probe_agent = build_agent(PROBE_TIMEOUT);
         let response = probe_agent
@@ -83,12 +89,12 @@ impl HttpRangeSource {
             total_size,
             pos: 0,
             stream: Some(response.into_reader()),
-            interrupt: HttpInterrupt::new(),
+            interrupt,
         })
     }
 
-    /** 获取供播放器 stop/seek 使用的共享中断句柄。 */
-    pub fn interrupt_handle(&self) -> HttpInterrupt {
+    #[cfg(test)]
+    fn interrupt_handle(&self) -> HttpInterrupt {
         self.interrupt.clone()
     }
 

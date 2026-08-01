@@ -196,6 +196,8 @@ export interface PlayerSettings {
   snapToLyric: boolean;
   /** 播放时底部显示歌词而非歌手名 */
   showLyricInBar: boolean;
+  /** 播放时提前获取下一首的播放数据 */
+  preloadNextTrack: boolean;
 }
 
 /** 外观设置 */

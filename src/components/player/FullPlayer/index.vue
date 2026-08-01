@@ -10,6 +10,7 @@ import { useDownload, buildDownloadQualityItems } from "@/composables/useDownloa
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useImmersiveMode } from "@/composables/useImmersiveMode";
 import { useTimeFormat } from "@/composables/useTimeFormat";
+import { useProgressLyric } from "@/composables/useProgressLyric";
 import Lyrics from "@/components/player/Lyrics/index.vue";
 import AMLLLyrics from "@/components/player/Lyrics/AMLLLyrics.vue";
 import PlaylistPickerDialog from "@/components/modals/PlaylistPickerDialog.vue";
@@ -32,7 +33,7 @@ const {
   isLoading,
   position,
   duration,
-  isExpanded,
+  isPlayerExpanded,
   repeatMode,
   shuffleMode,
   heartMode,
@@ -41,6 +42,7 @@ const {
 } = storeToRefs(status);
 
 const { timeDisplay, toggleTimeFormat } = useTimeFormat();
+const { snapToNearestLyric } = useProgressLyric();
 
 const lyricRef = ref<InstanceType<typeof Lyrics> | InstanceType<typeof AMLLLyrics>>();
 const lyricMounted = ref(false);
@@ -127,7 +129,7 @@ const lyricFontSize = computed(() =>
 );
 
 const { immersive, onPlayerMouseEnter, onPlayerMouseLeave, onMainMove, onBarEnter, onBarLeave } =
-  useImmersiveMode(isExpanded);
+  useImmersiveMode(isPlayerExpanded);
 
 const { isFullscreen, toggleFullscreen } = useWindowControls();
 
@@ -145,11 +147,11 @@ const onDownloadSelect = (key: string): void => {
 };
 
 const collapse = (): void => {
-  isExpanded.value = false;
+  isPlayerExpanded.value = false;
 };
 
 const onSeekDragEnd = (value: number): void => {
-  player.seek(value);
+  player.seek(snapToNearestLyric(value));
 };
 
 const {
@@ -190,7 +192,7 @@ const showComments = (): void => {
       @after-leave="onAfterLeave"
     >
       <div
-        v-show="isExpanded"
+        v-show="isPlayerExpanded"
         class="fixed inset-0 z-200 overflow-hidden text-cover"
         :class="immersive ? 'cursor-none [&_*]:!cursor-none' : ''"
         style="--lp-color: rgb(var(--s-cover))"
@@ -205,7 +207,7 @@ const showComments = (): void => {
         </div>
         <!-- 底部频谱 -->
         <BottomSpectrum
-          v-if="isExpanded && settings.player.enableSpectrum"
+          v-if="isPlayerExpanded && settings.player.enableSpectrum"
           :show="isPlaying && immersive"
         />
         <!-- 顶/底栏渐变遮罩（全屏封面模式） -->

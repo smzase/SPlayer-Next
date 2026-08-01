@@ -2,7 +2,7 @@ import type { MediaInfo, Track, TrackDetail } from "@shared/types/player";
 import type { LyricData, LyricFormat, LyricInput, LyricLine } from "@shared/types/lyrics";
 import { findLyricIndex } from "@shared/utils/lyric";
 import { useSettingsStore } from "@/stores/settings";
-import { watchLyricPreference } from "@/services/lyricLoader";
+import { watchLyricPreference } from "@/services/lyric/loader";
 import { parseLyric } from "@/utils/lyric/parse";
 import { applyLyricLanguages } from "@/utils/lyric/language";
 import { extractLyricAuthors } from "@/utils/lyric/author";

@@ -10,6 +10,8 @@ use parking_lot::{Condvar, Mutex};
 pub struct AudioChunk {
     /// 交错排列的 f32 播放样本（L R L R ...）
     pub player_samples: Vec<f32>,
+    /// 交错排列的 f32 FFT 样本（L R L R ...）
+    pub fft_samples: Vec<f32>,
 }
 
 /// 非阻塞弹出缓冲区的结果
@@ -41,7 +43,7 @@ pub struct Shared {
     normalization_gain: AtomicU32,
     /// 音量归一化开关
     normalization_enabled: AtomicBool,
-    /// 关联的网络中断句柄（由 decoder::start_decode 在打开输入前注入）
+    /// 关联的网络中断句柄（由 decoder 在启动解码前注入）
     /// stop() 触发时中断读取和重试等待，seek 前可重置
     interrupt: Mutex<Option<HttpInterrupt>>,
 }

@@ -698,6 +698,7 @@
       "language": "Language",
       "playback": "Player",
       "playControl": "Playback Control",
+      "audioSource": "Audio Source",
       "scrobble": "Scrobble",
       "lyricContent": "Lyric Content",
       "lyricTTML": "TTML Lyrics",
@@ -808,6 +809,10 @@
     "allowTrialPlay": {
       "label": "Allow Trial Playback",
       "description": "Play trial clips returned by the platform only when full sources and plugins are unavailable"
+    },
+    "preloadNextTrack": {
+      "label": "Preload next track",
+      "description": "Fetch the next track's playback info in advance, which may increase network usage"
     },
     "outputDevice": {
       "label": "Output Device",
