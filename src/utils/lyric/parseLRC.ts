@@ -129,20 +129,7 @@ export const parseLRC = (text: string, detectBackground = true): LyricLine[] => 
     if (times.length === 0) continue;
     // 提取行内容
     const content = trimmed.slice(textStart);
-    if (!content.trim()) {
-      for (const t of times) {
-        lines.push({
-          words: [],
-          translatedLyric: "",
-          romanLyric: "",
-          startTime: t,
-          endTime: 0,
-          isBG: false,
-          isDuet: false,
-        });
-      }
-      continue;
-    }
+    if (!content.trim()) continue;
     // 尝试 ESLRC 逐字
     const eslrcWords = parseEslrcWords(content);
     if (eslrcWords) {

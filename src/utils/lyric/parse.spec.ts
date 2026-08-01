@@ -62,13 +62,12 @@ describe("lyric parse", () => {
     expect(lines.every(({ translatedLyric }) => translatedLyric === "")).toBe(true);
   });
 
-  it("将空时间标签保留为结束上一行的空白时间节点", () => {
+  it("忽略只有时间标签的空歌词行", () => {
     const lines = parseLyric({ content: "[00:00.00]A\n[00:01.00]\n[00:02.00]B" }, "lrc");
 
-    expect(lines).toHaveLength(3);
-    expect(lines[0].endTime).toBe(1_000);
-    expect(lines[1]).toMatchObject({ startTime: 1_000, endTime: 2_000, words: [] });
-    expect(lines[2].startTime).toBe(2_000);
+    expect(lines).toHaveLength(2);
+    expect(lines[0].endTime).toBe(2_000);
+    expect(lines.every(({ words }) => words.length > 0)).toBe(true);
   });
 
   it("使用 ESLRC 末尾时间标签结束最后一个字", () => {
