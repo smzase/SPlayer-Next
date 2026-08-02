@@ -8,10 +8,27 @@ use napi::{
     threadsafe_function::{ThreadsafeFunctionCallMode, UnknownReturnValue},
 };
 use napi_derive::napi;
-use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::IsWindow};
+use windows::Win32::{
+    Foundation::HWND,
+    UI::{
+        Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_MBUTTON, VK_RBUTTON},
+        WindowsAndMessaging::IsWindow,
+    },
+};
 
 /// 任务列表和歌词之间的微小间距
 pub const GAP: i32 = 10;
+
+/// 查询鼠标主要按键是否处于按下状态，或自上次查询后曾被按下
+#[napi]
+pub fn is_mouse_button_active() -> bool {
+    // SAFETY: GetAsyncKeyState 只读取调用线程桌面的异步按键状态。
+    unsafe {
+        GetAsyncKeyState(i32::from(VK_LBUTTON.0)) != 0
+            || GetAsyncKeyState(i32::from(VK_RBUTTON.0)) != 0
+            || GetAsyncKeyState(i32::from(VK_MBUTTON.0)) != 0
+    }
+}
 
 #[macro_use]
 mod logger;

@@ -41,6 +41,8 @@ let taskbarQueueReady = false;
 let taskbarQueueShowRequested = false;
 let taskbarQueueShown = false;
 let taskbarQueueHideTimer: ReturnType<typeof setTimeout> | null = null;
+let taskbarQueueMousePollTimer: ReturnType<typeof setInterval> | null = null;
+let taskbarQueueMouseWasDown = false;
 let nativeModule: TaskbarLyricNative | null = null;
 let service: TaskbarService | null = null;
 let advancedRegWatcher: RegistryWatcher | null = null;
@@ -61,6 +63,7 @@ const MIN_QUEUE_WINDOW_HEIGHT = 360;
 const MAX_QUEUE_WINDOW_HEIGHT = 800;
 const QUEUE_WINDOW_GAP = 8;
 const QUEUE_EXIT_CONCEAL_MS = 180;
+const QUEUE_MOUSE_POLL_MS = 50;
 const CONTROL_BUTTON_COUNT = 5;
 const CONTROL_BUTTON_GAP = 4;
 const CONTROL_PADDING = 4;
@@ -568,6 +571,42 @@ const clearTaskbarQueueHideTimer = (): void => {
   taskbarQueueHideTimer = null;
 };
 
+/** 判断光标是否位于播放列表或其触发按钮内 */
+const isCursorInsideTaskbarQueueInteraction = (): boolean => {
+  const queueWin = getTaskbarQueueWindow();
+  if (queueWin && isCursorInside(queueWin.getBounds())) return true;
+  const queueButtonBounds = getQueueButtonBounds();
+  return !!queueButtonBounds && isCursorInside(queueButtonBounds);
+};
+
+/** 停止播放列表外部点击轮询 */
+const stopTaskbarQueueMousePolling = (): void => {
+  if (taskbarQueueMousePollTimer === null) return;
+  clearInterval(taskbarQueueMousePollTimer);
+  taskbarQueueMousePollTimer = null;
+  taskbarQueueMouseWasDown = false;
+};
+
+/** 全屏应用未派发 blur 时，通过 Win32 按键状态补充外部点击关闭 */
+const pollTaskbarQueueMouse = (): void => {
+  if (!taskbarQueueShown || !nativeModule) {
+    stopTaskbarQueueMousePolling();
+    return;
+  }
+  const mouseDown = nativeModule.isMouseButtonActive();
+  const pressedOutside =
+    mouseDown && !taskbarQueueMouseWasDown && !isCursorInsideTaskbarQueueInteraction();
+  taskbarQueueMouseWasDown = mouseDown;
+  if (pressedOutside) closeTaskbarQueueWindow();
+};
+
+/** 启动播放列表外部点击轮询 */
+const startTaskbarQueueMousePolling = (): void => {
+  if (taskbarQueueMousePollTimer !== null || !nativeModule) return;
+  taskbarQueueMouseWasDown = nativeModule.isMouseButtonActive();
+  taskbarQueueMousePollTimer = setInterval(pollTaskbarQueueMouse, QUEUE_MOUSE_POLL_MS);
+};
+
 /** 显示已完成预热的任务栏播放列表窗口 */
 const showTaskbarQueueWindow = (): void => {
   const lyricWin = getTaskbarLyricWindow();
@@ -582,6 +621,7 @@ const showTaskbarQueueWindow = (): void => {
   queueWin.setIgnoreMouseEvents(false);
   queueWin.webContents.send("taskbarLyric:queueVisibilityChange", true);
   queueWin.focus();
+  startTaskbarQueueMousePolling();
   taskbarQueueShowRequested = false;
 };
 
@@ -658,6 +698,7 @@ const createTaskbarQueueWindow = (): BrowserWindow | null => {
     taskbarQueueShowRequested = false;
     taskbarQueueShown = false;
     clearTaskbarQueueHideTimer();
+    stopTaskbarQueueMousePolling();
     releasePlaybackSnapshot();
   });
   return taskbarQueueWindow;
@@ -669,6 +710,7 @@ export const closeTaskbarQueueWindow = (): void => {
   const win = getTaskbarQueueWindow();
   if (!win || !taskbarQueueShown) return;
   taskbarQueueShown = false;
+  stopTaskbarQueueMousePolling();
   setWindowBroadcastVisibility(win, false);
   win.webContents.send("taskbarLyric:queueVisibilityChange", false);
   win.setIgnoreMouseEvents(true);
@@ -687,6 +729,7 @@ const destroyTaskbarQueueWindow = (): void => {
   taskbarQueueReady = false;
   taskbarQueueShown = false;
   clearTaskbarQueueHideTimer();
+  stopTaskbarQueueMousePolling();
   const win = getTaskbarQueueWindow();
   if (win) {
     setWindowBroadcastVisibility(win, false);

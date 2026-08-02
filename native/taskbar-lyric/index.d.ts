@@ -41,6 +41,9 @@ export declare class UiaWatcher {
 }
 export type NapiUiaWatcher = UiaWatcher
 
+/** 查询鼠标主要按键是否处于按下状态，或自上次查询后曾被按下 */
+export declare function isMouseButtonActive(): boolean
+
 export interface JsAvailableSpace {
   left: JsRect
   right: JsRect
