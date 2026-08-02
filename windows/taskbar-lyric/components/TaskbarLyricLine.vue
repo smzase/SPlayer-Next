@@ -191,6 +191,7 @@ onBeforeUnmount(() => {
           :key="i"
           :ref="(el) => setWordRef(el, i)"
           class="tb-word"
+          style="white-space: pre"
         >
           <span class="tb-word-unplayed">{{ word.word }}</span>
           <span class="tb-word-played" aria-hidden="true">{{ word.word }}</span>

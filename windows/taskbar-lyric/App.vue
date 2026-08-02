@@ -55,6 +55,7 @@ const playModeDisabled = ref(true);
 const locale = ref<LocaleCode>("zh-CN");
 const maxLayoutWidth = ref(400);
 const mainContentWidth = ref(0);
+const mainExitContentWidth = ref(0);
 const backgroundContentWidth = ref(0);
 const dividerContentWidth = ref(0);
 const wrapperRef = ref<HTMLElement | null>(null);
@@ -80,6 +81,18 @@ const measureTargetTextWidth = (element: HTMLElement): number => {
   return naturalWidth * (targetFontSize / currentFontSize);
 };
 
+/**
+ * 上报任务栏歌词窗口宽度，背景横移动画期间暂缓收窄窗口
+ * @param targetWidth - 目标窗口宽度
+ * @param deferShrink - 是否等待背景横移动画结束后再收窄
+ */
+const setReportedContentWidth = (targetWidth: number, deferShrink: boolean): void => {
+  if (targetWidth < lastReportedWidth && (deferShrink || backgroundMoveAnimation)) return;
+  if (targetWidth === lastReportedWidth) return;
+  lastReportedWidth = targetWidth;
+  window.api.taskbarLyric.setContentWidth(targetWidth);
+};
+
 /** 测量当前内容的自然宽度，不受已经收窄的窗口反向限制 */
 const reportContentWidth = (): void => {
   widthReportRaf = 0;
@@ -93,20 +106,34 @@ const reportContentWidth = (): void => {
     ? (wrapper.querySelector<HTMLElement>(".cover-wrapper")?.offsetWidth ?? 0)
     : 0;
   const lyricStage = wrapper.querySelector<HTMLElement>(".lyric-stage");
+  const lyricArea = wrapper.querySelector<HTMLElement>(".lyric-area");
+  const currentMainViewportWidth = lyricArea?.getBoundingClientRect().width ?? 0;
   const lyricStyle = lyricStage ? getComputedStyle(lyricStage) : null;
   const lyricMargins = lyricStyle
     ? Number.parseFloat(lyricStyle.marginLeft) + Number.parseFloat(lyricStyle.marginRight)
     : 0;
-  const mainTextElements = wrapper.querySelectorAll<HTMLElement>(
-    ".main-lyric-column .lyric-line .scroll-content",
+  const renderedMainTextElements = Array.from(
+    wrapper.querySelectorAll<HTMLElement>(".main-lyric-column .lyric-line .scroll-content"),
   );
-  const backgroundTextElements = wrapper.querySelectorAll<HTMLElement>(
-    ".background-lyric-column .lyric-line .scroll-content",
+  const renderedBackgroundTextElements = Array.from(
+    wrapper.querySelectorAll<HTMLElement>(".background-lyric-column .lyric-line .scroll-content"),
   );
-  const mainTextWidth = Math.max(0, ...Array.from(mainTextElements, measureTargetTextWidth));
-  const backgroundTextWidth = Math.max(
+  const nextMainTextElements = renderedMainTextElements.filter(
+    (element) => !element.closest(".line-leave-active"),
+  );
+  const hasLeavingMainLine = renderedMainTextElements.some((element) =>
+    element.closest(".line-leave-active"),
+  );
+  const targetMainTextElements =
+    nextMainTextElements.length > 0 ? nextMainTextElements : renderedMainTextElements;
+  const mainTextWidth = Math.max(0, ...targetMainTextElements.map(measureTargetTextWidth));
+  const renderedMainTextWidth = Math.max(
     0,
-    ...Array.from(backgroundTextElements, measureTargetTextWidth),
+    ...renderedMainTextElements.map(measureTargetTextWidth),
+  );
+  const renderedBackgroundTextWidth = Math.max(
+    0,
+    ...renderedBackgroundTextElements.map(measureTargetTextWidth),
   );
   const divider = wrapper.querySelector<HTMLElement>(".background-divider");
   const dividerStyle = divider ? getComputedStyle(divider) : null;
@@ -117,26 +144,31 @@ const reportContentWidth = (): void => {
         Number.parseFloat(dividerStyle.marginRight)
       : 0;
   const widthGuard = LYRIC_WIDTH_GUARD / 2;
-  mainContentWidth.value = mainTextWidth > 0 ? mainTextWidth + widthGuard : 0;
+  const nextMainContentWidth = mainTextWidth > 0 ? mainTextWidth + widthGuard : 0;
+  const backgroundWillMove =
+    !!backgroundGroupRef.value?.querySelector(".lyric-line") &&
+    Math.abs(nextMainContentWidth - mainContentWidth.value) >= 0.5;
+  const shouldDeferWindowShrink = hasLeavingMainLine || backgroundWillMove;
+  mainExitContentWidth.value = hasLeavingMainLine
+    ? Math.max(mainExitContentWidth.value, currentMainViewportWidth)
+    : 0;
+  mainContentWidth.value = nextMainContentWidth;
   backgroundContentWidth.value =
-    backgroundTextElements.length > 0 ? backgroundTextWidth + widthGuard : 0;
-  dividerContentWidth.value = backgroundTextElements.length > 0 ? dividerWidth : 0;
+    renderedBackgroundTextElements.length > 0 ? renderedBackgroundTextWidth + widthGuard : 0;
+  dividerContentWidth.value = renderedBackgroundTextElements.length > 0 ? dividerWidth : 0;
   if (isHovered.value) {
     const targetWidth = Math.ceil(maxLayoutWidth.value);
-    if (targetWidth === lastReportedWidth) return;
-    lastReportedWidth = targetWidth;
-    window.api.taskbarLyric.setContentWidth(targetWidth);
+    setReportedContentWidth(targetWidth, shouldDeferWindowShrink);
     return;
   }
-  const naturalTextWidth = mainTextWidth + backgroundTextWidth + dividerWidth;
+  const naturalTextWidth =
+    renderedMainTextWidth + renderedBackgroundTextWidth + dividerContentWidth.value;
   const fixedWidth = horizontalPadding + coverWidth + lyricMargins;
   const availableTextWidth = Math.max(0, maxLayoutWidth.value - fixedWidth);
   const preferredTextWidth = naturalTextWidth + LYRIC_WIDTH_GUARD;
   const textWidth = Math.min(preferredTextWidth, availableTextWidth);
   const targetWidth = Math.ceil(Math.min(maxLayoutWidth.value, fixedWidth + textWidth));
-  if (targetWidth === lastReportedWidth) return;
-  lastReportedWidth = targetWidth;
-  window.api.taskbarLyric.setContentWidth(targetWidth);
+  setReportedContentWidth(targetWidth, shouldDeferWindowShrink);
 };
 
 const scheduleContentWidthReport = (): void => {
@@ -145,21 +177,30 @@ const scheduleContentWidthReport = (): void => {
 };
 
 /**
- * 主歌词宽度变化时平滑移动仍在显示或退出的背景歌词
+ * 主歌词宽度变化时，以靠近主歌词的边缘为基准平滑移动背景歌词
  */
 const animateBackgroundMove = async (): Promise<void> => {
   const group = backgroundGroupRef.value;
   if (!group?.querySelector(".lyric-line")) return;
 
-  const beforeLeft = group.getBoundingClientRect().left;
+  const beforeRect = group.getBoundingClientRect();
+  const beforeEdge = anchor.value === "right" ? beforeRect.right : beforeRect.left;
   backgroundMoveAnimation?.cancel();
   backgroundMoveAnimation = null;
   await nextTick();
 
   const currentGroup = backgroundGroupRef.value;
-  if (!currentGroup?.querySelector(".lyric-line")) return;
-  const deltaX = beforeLeft - currentGroup.getBoundingClientRect().left;
-  if (Math.abs(deltaX) < 0.5) return;
+  if (!currentGroup?.querySelector(".lyric-line")) {
+    scheduleContentWidthReport();
+    return;
+  }
+  const currentRect = currentGroup.getBoundingClientRect();
+  const currentEdge = anchor.value === "right" ? currentRect.right : currentRect.left;
+  const deltaX = beforeEdge - currentEdge;
+  if (Math.abs(deltaX) < 0.5) {
+    scheduleContentWidthReport();
+    return;
+  }
 
   const animation = currentGroup.animate(
     [{ transform: "translateX(" + deltaX + "px)" }, { transform: "translateX(0)" }],
@@ -176,6 +217,7 @@ const animateBackgroundMove = async (): Promise<void> => {
       if (backgroundMoveAnimation !== animation) return;
       animation.cancel();
       backgroundMoveAnimation = null;
+      scheduleContentWidthReport();
     },
     { once: true },
   );
@@ -348,6 +390,7 @@ const shouldRenderWordByWord = (item: RenderItem): boolean => shouldRenderLineWo
 
 const lyricLayoutStyle = computed(() => ({
   "--tbl-main-content-width": mainContentWidth.value + "px",
+  "--tbl-main-exit-content-width": mainExitContentWidth.value + "px",
   "--tbl-background-content-width": backgroundContentWidth.value + "px",
   "--tbl-divider-content-width": dividerContentWidth.value + "px",
 }));
@@ -840,7 +883,7 @@ onBeforeUnmount(() => {
   );
   display: flex;
   align-items: stretch;
-  overflow: hidden;
+  overflow: visible;
 }
 .taskbar-lyric-container[data-align="right"] .lyric-layout {
   inset: 0 0 0 auto;
@@ -852,7 +895,8 @@ onBeforeUnmount(() => {
   min-width: 0;
   position: relative;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 1;
 }
 .lyric-column {
   position: absolute;
@@ -862,6 +906,14 @@ onBeforeUnmount(() => {
   justify-content: space-evenly;
   opacity: 1;
   transition: opacity 0.18s ease;
+}
+.main-lyric-column {
+  right: auto;
+  width: max(100%, var(--tbl-main-exit-content-width));
+}
+.taskbar-lyric-container[data-align="right"] .main-lyric-column {
+  left: auto;
+  right: 0;
 }
 .taskbar-lyric-container[data-align="right"] .lyric-column {
   align-items: flex-end;
