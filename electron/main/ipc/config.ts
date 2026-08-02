@@ -25,6 +25,7 @@ import {
   applyDynamicIslandNotchFusion,
   applyDynamicIslandNonOcclusive,
   applyTaskbarLyricLayout,
+  applyTaskbarQueueLayout,
   applyTaskbarLyricSeparation,
 } from "@main/window";
 import { broadcast } from "@main/utils/broadcast";
@@ -110,6 +111,10 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
     case "taskbarLyric.leftMargin":
     case "taskbarLyric.rightMargin":
       if (isWin) applyTaskbarLyricLayout();
+      break;
+    case "taskbarLyric.queueWidth":
+    case "taskbarLyric.queueHeight":
+      if (isWin) applyTaskbarQueueLayout();
       break;
     case "taskbarLyric.showCover":
     case "taskbarLyric.separateCoverAndLyric":

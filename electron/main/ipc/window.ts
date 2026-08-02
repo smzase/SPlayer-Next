@@ -138,6 +138,20 @@ export const registerWindowIpc = (): void => {
       if ((!taskbarSender && !queueSender) || typeof trackId !== "string") return;
       sendToMain("player:event", { type: "playQueueTrack", data: { trackId } });
     });
+    ipcMain.on("taskbarLyric:removeTrack", (event, index: number) => {
+      if (
+        event.sender !== getTaskbarQueueWindow()?.webContents ||
+        !Number.isInteger(index) ||
+        index < 0
+      ) {
+        return;
+      }
+      sendToMain("player:event", { type: "removeQueueTrack", data: { index } });
+    });
+    ipcMain.on("taskbarLyric:clearQueue", (event) => {
+      if (event.sender !== getTaskbarQueueWindow()?.webContents) return;
+      sendToMain("player:event", { type: "clearPlaybackQueue" });
+    });
     ipcMain.on("taskbarLyric:cyclePlayMode", (event) => {
       if (event.sender !== getTaskbarLyricWindow()?.webContents) return;
       sendToMain("player:event", { type: "cycleTaskbarPlayMode" });

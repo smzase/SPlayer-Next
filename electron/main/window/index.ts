@@ -52,6 +52,7 @@ export {
   getTaskbarLyricWindow,
   getTaskbarQueueWindow,
   applyTaskbarLyricLayout,
+  applyTaskbarQueueLayout,
   applyTaskbarLyricSeparation,
   applyTaskbarLyricMouseIgnore,
   closeTaskbarQueueWindow,

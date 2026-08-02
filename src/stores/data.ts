@@ -33,6 +33,7 @@ export const useDataStore = defineStore(
   () => {
     /** 搜索历史（最新在前，去重，最多 20 条） */
     const searchHistory = ref<string[]>([]);
+    const showHotSearch = ref(true);
 
     /** 写入搜索历史 */
     const addSearchHistory = (keyword: string): void => {
@@ -132,6 +133,7 @@ export const useDataStore = defineStore(
 
     return {
       searchHistory,
+      showHotSearch,
       addSearchHistory,
       removeSearchHistory,
       clearSearchHistory,
@@ -143,7 +145,7 @@ export const useDataStore = defineStore(
   {
     persist: {
       storage: localStorage,
-      pick: ["searchHistory"],
+      pick: ["searchHistory", "showHotSearch"],
     },
   },
 );

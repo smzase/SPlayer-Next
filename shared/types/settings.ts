@@ -191,6 +191,10 @@ export interface TaskbarLyricSettings {
   autoAdjustOccupiedSpace: boolean;
   /** 最大宽度（逻辑像素）；仅在 autoMaxWidth 关闭时生效；超出可用空间时仍以可用空间为准 */
   maxWidth: number;
+  /** 任务栏播放列表窗口宽度（逻辑像素） */
+  queueWidth: number;
+  /** 任务栏播放列表窗口高度（逻辑像素） */
+  queueHeight: number;
   /** 左边距（逻辑像素），从可用空间左侧扣除 */
   leftMargin: number;
   /** 右边距（逻辑像素），从可用空间右侧扣除 */

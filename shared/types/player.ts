@@ -183,6 +183,8 @@ export type PlayerEvent =
   | { type: "setShuffle"; data: { mode: ShuffleMode } }
   | { type: "setRepeat"; data: { mode: RepeatMode } }
   | { type: "playQueueTrack"; data: { trackId: string } }
+  | { type: "removeQueueTrack"; data: { index: number } }
+  | { type: "clearPlaybackQueue" }
   | { type: "cycleTaskbarPlayMode" }
   | { type: "addToQueue"; data: { tracks: Track[]; position: "next" | "end" } }
   | { type: "toggleLike" }

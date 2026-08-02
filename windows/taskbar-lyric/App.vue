@@ -28,6 +28,8 @@ const config = reactive<TaskbarLyricSettings>({
   autoMaxWidth: true,
   autoAdjustOccupiedSpace: false,
   maxWidth: 400,
+  queueWidth: 340,
+  queueHeight: 520,
   leftMargin: 0,
   rightMargin: 0,
   colorMode: "taskbar",

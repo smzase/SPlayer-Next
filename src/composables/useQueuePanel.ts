@@ -3,8 +3,6 @@ import { useI18n } from "vue-i18n";
 import type { Track } from "@shared/types/player";
 import type { SVirtualListExposed } from "@/components/ui/SVirtualList.vue";
 import { useStatusStore } from "@/stores/status";
-import { useMediaStore } from "@/stores/media";
-import { useThemeStore } from "@/stores/theme";
 import { queue, queueLength } from "@/stores/queue";
 import * as player from "@/core/player";
 
@@ -20,7 +18,6 @@ export interface UseQueuePanelOptions {
 export const useQueuePanel = (options: UseQueuePanelOptions) => {
   const { t } = useI18n();
   const statusStore = useStatusStore();
-  const mediaStore = useMediaStore();
 
   /** 拼接艺术家名称 */
   const formatArtists = (artists: Track["artists"]): string => {
@@ -43,11 +40,7 @@ export const useQueuePanel = (options: UseQueuePanelOptions) => {
   /** 清空队列 + 重置播放索引 */
   const clearAll = (): void => {
     if (queueLength.value === 0) return;
-    player.stop();
-    statusStore.playIndex = -1;
-    queue.value = [];
-    mediaStore.clear();
-    useThemeStore().coverColor = null;
+    player.clearPlaybackQueue();
     clearConfirmOpen.value = false;
   };
 

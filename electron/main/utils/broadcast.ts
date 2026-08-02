@@ -1,6 +1,18 @@
 import { BrowserWindow } from "electron";
 import { getMainWindow } from "@main/window";
 
+const broadcastHiddenWindows = new WeakSet<BrowserWindow>();
+
+/**
+ * 标记窗口是否应被视为可见广播目标
+ * @param win - 需要标记的窗口
+ * @param visible - 是否接收仅可见窗口事件
+ */
+export const setWindowBroadcastVisibility = (win: BrowserWindow, visible: boolean): void => {
+  if (visible) broadcastHiddenWindows.delete(win);
+  else broadcastHiddenWindows.add(win);
+};
+
 /**
  * 向所有窗口广播事件
  * @param channel 通道名称
@@ -10,7 +22,7 @@ import { getMainWindow } from "@main/window";
 export const broadcast = (channel: string, data: unknown, visibleOnly = false): void => {
   for (const win of BrowserWindow.getAllWindows()) {
     if (win.isDestroyed()) continue;
-    if (visibleOnly && !win.isVisible()) continue;
+    if (visibleOnly && (!win.isVisible() || broadcastHiddenWindows.has(win))) continue;
     win.webContents.send(channel, data);
   }
 };

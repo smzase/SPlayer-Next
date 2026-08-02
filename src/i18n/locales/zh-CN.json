@@ -192,6 +192,8 @@
     "searchEmpty": "输入关键词开始搜索",
     "searchGoto": "搜索「{keyword}」",
     "searchSection": {
+      "showHot": "显示热搜榜",
+      "hideHot": "隐藏热搜榜",
       "quick": "快捷",
       "history": "搜索历史",
       "hot": "热搜榜"
@@ -1279,6 +1281,14 @@
     "taskbarLyricRightMargin": {
       "label": "右边距",
       "description": "歌词与可用空间右侧的间距，用于避开任务栏上的其他组件"
+    },
+    "taskbarLyricQueueWidth": {
+      "label": "播放列表宽度",
+      "description": "调整任务栏歌词播放列表窗口的宽度，超出当前屏幕可用区域时会自动收缩"
+    },
+    "taskbarLyricQueueHeight": {
+      "label": "播放列表高度",
+      "description": "调整任务栏歌词播放列表窗口的高度，超出当前屏幕可用区域时会自动收缩"
     },
     "taskbarLyricColorMode": {
       "label": "配色模式",

@@ -92,8 +92,14 @@ export interface TaskbarLyricApi {
   toggleQueue: () => void;
   /** 关闭紧凑播放列表 */
   closeQueue: () => void;
+  /** 订阅紧凑播放列表的动画可见状态 */
+  onQueueVisibilityChange: (callback: (visible: boolean) => void) => () => void;
   /** 播放队列中的指定歌曲 */
   playTrack: (trackId: string) => void;
+  /** 移除播放队列中的指定歌曲 */
+  removeTrack: (index: number) => void;
+  /** 清空播放队列 */
+  clearQueue: () => void;
   /** 循环切换任务栏四态播放模式 */
   cyclePlayMode: () => void;
   /** 分离模式下切换任务栏窗口鼠标穿透 */

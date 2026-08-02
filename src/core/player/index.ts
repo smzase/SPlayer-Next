@@ -909,6 +909,17 @@ export const removeFromQueue = async (index: number): Promise<void> => {
   }
 };
 
+/** 清空播放队列并重置当前播放状态 */
+export const clearPlaybackQueue = (): void => {
+  if (queue.queueLength.value === 0) return;
+  const status = useStatusStore();
+  void stop();
+  status.playIndex = -1;
+  queue.clearQueue();
+  useMediaStore().clear();
+  useThemeStore().coverColor = null;
+};
+
 /**
  * 文件删除后同步队列：移除被删曲目，当前播放曲被删则切下一首（队列空则停止）
  * @param ids - 被删除的 Track id 列表

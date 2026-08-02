@@ -204,6 +204,8 @@
     "searchEmpty": "Start typing to search",
     "searchGoto": "Search for \"{keyword}\"",
     "searchSection": {
+      "showHot": "Show trending searches",
+      "hideHot": "Hide trending searches",
       "quick": "Quick",
       "history": "Recent searches",
       "hot": "Trending"
@@ -1291,6 +1293,14 @@
     "taskbarLyricRightMargin": {
       "label": "Right Margin",
       "description": "Gap between the lyric and the right edge of available space, to avoid other taskbar widgets"
+    },
+    "taskbarLyricQueueWidth": {
+      "label": "Queue Width",
+      "description": "Adjust the taskbar lyric queue window width; it shrinks to fit the current display"
+    },
+    "taskbarLyricQueueHeight": {
+      "label": "Queue Height",
+      "description": "Adjust the taskbar lyric queue window height; it shrinks to fit the current display"
     },
     "taskbarLyricColorMode": {
       "label": "Color Mode",

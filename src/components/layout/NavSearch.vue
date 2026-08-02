@@ -7,17 +7,30 @@ import { songsByIds as getNeteaseSongsByIds } from "@/apis/song/netease";
 import { formatCompact } from "@/utils/format";
 import { navigateToAlbum, navigateToArtist, navigateToPlaylist } from "@/utils/navigate";
 import { parseMusicLink, type LinkType } from "@/utils/link";
+import { useCopyText } from "@/composables/useCopyText";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import type { TrackSource } from "@shared/types/player";
 import * as player from "@/core/player";
 import IconLucideMusic from "~icons/lucide/music";
 import IconLucideUser from "~icons/lucide/user";
 import IconLucideDisc from "~icons/lucide/disc";
 import IconLucideListMusic from "~icons/lucide/list-music";
+import IconLucideCopy from "~icons/lucide/copy";
+import IconEye from "~icons/lucide/eye";
+import IconEyeOff from "~icons/lucide/eye-off";
 
 const { t, locale } = useI18n();
 const router = useRouter();
 const data = useDataStore();
 const status = useStatusStore();
+const { copy } = useCopyText();
+const historyMenuItems = computed<DropdownMenuItem[]>(() => [
+  {
+    key: "copy",
+    label: t("nav.searchMenu.copy"),
+    icon: markRaw(IconLucideCopy),
+  },
+]);
 
 /** 弹窗开关挂在 status store，便于快捷键打开 */
 const dialogOpen = computed({
@@ -189,11 +202,14 @@ const keyboardItems = computed(() => {
     for (const word of data.searchHistory) {
       items.push({ id: `history-${word}`, action: () => onPickKeyword(word) });
     }
-    hotItems.value
-      .slice(0, 20)
-      .forEach((item, idx) =>
-        items.push({ id: `hot-${item.keyword}-${idx}`, action: () => onPickKeyword(item.keyword) }),
+    if (data.showHotSearch) {
+      hotItems.value.slice(0, 20).forEach((item, idx) =>
+        items.push({
+          id: `hot-${item.keyword}-${idx}`,
+          action: () => onPickKeyword(item.keyword),
+        }),
       );
+    }
   }
   return items;
 });
@@ -380,25 +396,32 @@ onMounted(() => {
                 </SButton>
               </div>
               <div class="flex flex-wrap gap-1.5">
-                <STag
+                <SContextMenu
                   v-for="word in data.searchHistory"
                   :key="word"
-                  type="default"
-                  round
-                  closable
-                  class="max-w-50 cursor-pointer hover:bg-on-surface/20 transition-colors duration-200"
-                  :class="{ 'bg-on-surface/20': isActive(`history-${word}`) }"
-                  :data-search-id="`history-${word}`"
-                  @click="onPickKeyword(word)"
-                  @close="onRemoveHistory(word)"
+                  :items="historyMenuItems"
+                  @select="copy(word)"
                 >
-                  <span class="truncate">{{ word }}</span>
-                </STag>
+                  <STag
+                    type="default"
+                    round
+                    closable
+                    class="max-w-50 cursor-pointer hover:bg-on-surface/20 transition-colors duration-200"
+                    :class="{ 'bg-on-surface/20': isActive(`history-${word}`) }"
+                    :data-search-id="`history-${word}`"
+                    @click="onPickKeyword(word)"
+                    @close="onRemoveHistory(word)"
+                  >
+                    <span class="truncate">{{ word }}</span>
+                  </STag>
+                </SContextMenu>
               </div>
             </div>
             <!-- 空内容提示 -->
             <div
-              v-if="data.searchHistory.length === 0 && hotItems.length === 0"
+              v-if="
+                data.searchHistory.length === 0 && (!data.showHotSearch || hotItems.length === 0)
+              "
               class="py-10 flex flex-col items-center justify-center gap-2 text-on-surface-variant/40"
             >
               <IconLucideSearch class="size-8" />
@@ -406,11 +429,38 @@ onMounted(() => {
             </div>
             <!-- 热搜 -->
             <div v-if="hotItems.length > 0" class="flex flex-col gap-2">
-              <div class="px-2 flex items-center gap-1.5 text-sm font-medium text-primary">
-                <IconLucideFlame class="size-4" />
-                <span>{{ t("nav.searchSection.hot") }}</span>
+              <div class="px-2 flex items-center justify-between">
+                <div class="flex items-center gap-1.5 text-sm font-medium text-primary">
+                  <IconLucideFlame class="size-4" />
+                  <span>{{ t("nav.searchSection.hot") }}</span>
+                </div>
+                <SButton
+                  variant="ghost"
+                  size="tiny"
+                  circle
+                  :title="
+                    t(
+                      data.showHotSearch
+                        ? 'nav.searchSection.hideHot'
+                        : 'nav.searchSection.showHot',
+                    )
+                  "
+                  :aria-label="
+                    t(
+                      data.showHotSearch
+                        ? 'nav.searchSection.hideHot'
+                        : 'nav.searchSection.showHot',
+                    )
+                  "
+                  @click="data.showHotSearch = !data.showHotSearch"
+                >
+                  <template #icon>
+                    <IconEye v-if="data.showHotSearch" />
+                    <IconEyeOff v-else />
+                  </template>
+                </SButton>
               </div>
-              <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              <div v-if="data.showHotSearch" class="grid grid-cols-2 gap-x-2 gap-y-0.5">
                 <div
                   v-for="(item, idx) in hotItems.slice(0, 20)"
                   :key="`${item.keyword}-${idx}`"

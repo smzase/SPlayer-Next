@@ -314,8 +314,17 @@ const api = {
     toggleQueue: () => ipcRenderer.send("taskbarLyric:toggleQueue"),
     // 关闭紧凑播放列表
     closeQueue: () => ipcRenderer.send("taskbarLyric:closeQueue"),
+    // 订阅紧凑播放列表的动画可见状态
+    onQueueVisibilityChange: (callback: (visible: boolean) => void) => {
+      ipcRenderer.removeAllListeners("taskbarLyric:queueVisibilityChange");
+      return subscribe<boolean>("taskbarLyric:queueVisibilityChange", callback);
+    },
     // 播放队列中的指定歌曲
     playTrack: (trackId: string) => ipcRenderer.send("taskbarLyric:playTrack", trackId),
+    // 移除播放队列中的指定歌曲
+    removeTrack: (index: number) => ipcRenderer.send("taskbarLyric:removeTrack", index),
+    // 清空播放队列
+    clearQueue: () => ipcRenderer.send("taskbarLyric:clearQueue"),
     // 循环切换任务栏四态播放模式
     cyclePlayMode: () => ipcRenderer.send("taskbarLyric:cyclePlayMode"),
     // 分离模式下切换鼠标穿透

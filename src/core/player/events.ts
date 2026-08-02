@@ -18,10 +18,12 @@ import {
   pause,
   play,
   playQueueTrack,
+  clearPlaybackQueue,
   playNow,
   onQueueEnded,
   prevTrack,
   recoverFromSourceFailure,
+  removeFromQueue,
   refreshDevices,
   seek,
   setRepeatMode,
@@ -49,10 +51,7 @@ const finishCurrentTrack = async (): Promise<void> => {
     if (repeatOne) {
       await seek(0);
       await play();
-    } else if (
-      status.taskbarSequentialMode &&
-      status.playIndex >= queue.queueLength.value - 1
-    ) {
+    } else if (status.taskbarSequentialMode && status.playIndex >= queue.queueLength.value - 1) {
       await onQueueEnded();
     } else {
       await nextTrack();
@@ -145,6 +144,12 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "playQueueTrack":
       await playQueueTrack(event.data.trackId);
+      break;
+    case "removeQueueTrack":
+      await removeFromQueue(event.data.index);
+      break;
+    case "clearPlaybackQueue":
+      clearPlaybackQueue();
       break;
     case "cycleTaskbarPlayMode":
       cycleTaskbarPlayMode();
