@@ -82,6 +82,9 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       playback.setDuration(event.data.duration);
       playback.setPlaying(event.data.state === "playing");
       break;
+    case "volume":
+      status.volume = event.data.volume;
+      break;
     case "seek":
       markSeek(event.data.position);
       break;

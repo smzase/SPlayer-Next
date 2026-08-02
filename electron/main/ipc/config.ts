@@ -33,6 +33,7 @@ import { startServer, stopServer } from "@main/server";
 import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { setOrpheusProtocolRegistered } from "@main/services/orpheus";
 import { setTaskbarThumbnailEnabled } from "@main/services/thumbnail";
+import { setWindowsVolumeSyncEnabled } from "@main/services/windowsVolumeSync";
 
 /** 配置写入后的副作用 */
 const applyConfigChange = (keyPath: string, value: unknown): void => {
@@ -53,6 +54,9 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
       break;
     case "player.loudnessNormalization":
       setNormalizationEnabled(value as boolean);
+      break;
+    case "player.syncWindowsVolumeMixer":
+      setWindowsVolumeSyncEnabled(value as boolean);
       break;
     case "player.equalizer.enabled":
       setEqualizerEnabled(value as boolean);

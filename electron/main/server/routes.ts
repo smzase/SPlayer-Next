@@ -9,6 +9,7 @@ import { getPlayer } from "@main/services/engine";
 import { toMs } from "@main/utils/time";
 import * as nowPlaying from "@main/services/nowPlaying";
 import { playerControl } from "@main/services/playerControl";
+import { getPlayerVolume } from "@main/services/windowsVolumeSync";
 import { getWsClientCount } from "./broadcast";
 
 export const buildRoutes = (): Hono => {
@@ -28,12 +29,12 @@ export const buildRoutes = (): Hono => {
       state: raw.state,
       position: toMs(raw.position),
       duration: toMs(raw.duration),
-      volume: raw.volume,
+      volume: getPlayerVolume(),
       isFinished: raw.isFinished,
     });
   });
 
-  api.get("/volume", (c) => c.json({ volume: getPlayer().getVolume() }));
+  api.get("/volume", (c) => c.json({ volume: getPlayerVolume() }));
 
   api.get("/now-playing", (c) => c.json(nowPlaying.lightSnapshot()));
 

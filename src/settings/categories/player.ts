@@ -1,5 +1,6 @@
 import type { SettingCategory } from "@/types/settings-schema";
 import { useSettingsStore } from "@/stores/settings";
+import { isWin } from "@/utils/config";
 import DeviceSelector from "@/components/settings/custom/DeviceSelector.vue";
 import IconLucidePlay from "~icons/lucide/play";
 
@@ -288,6 +289,13 @@ const playerCategory: SettingCategory = {
           key: "outputDevice",
           type: "custom",
           component: DeviceSelector,
+        },
+        {
+          key: "syncWindowsVolumeMixer",
+          type: "switch",
+          binding: { store: "settings", path: "system.player.syncWindowsVolumeMixer" },
+          defaultValue: false,
+          visible: () => isWin,
         },
         {
           key: "pauseOnDeviceSwitch",

@@ -28,6 +28,40 @@ const MODIFIER_TOKENS = new Set([
   "cmdorctrl",
 ]);
 
+/** Electron Accelerator 对小键盘按键使用的 token */
+const NUMPAD_CODE_TO_TOKEN: Record<string, string> = {
+  Numpad0: "num0",
+  Numpad1: "num1",
+  Numpad2: "num2",
+  Numpad3: "num3",
+  Numpad4: "num4",
+  Numpad5: "num5",
+  Numpad6: "num6",
+  Numpad7: "num7",
+  Numpad8: "num8",
+  Numpad9: "num9",
+  NumpadDecimal: "numdec",
+  NumpadAdd: "numadd",
+  NumpadSubtract: "numsub",
+  NumpadMultiply: "nummult",
+  NumpadDivide: "numdiv",
+};
+
+const NUMPAD_TOKEN_TO_CODE = Object.fromEntries(
+  Object.entries(NUMPAD_CODE_TO_TOKEN).map(([code, token]) => [token, code]),
+) as Record<string, string>;
+
+/** 兼容旧录入值和 KeyboardEvent.code 形式的小键盘 token */
+const normalizeKeyToken = (token: string): string => {
+  const lower = token.toLowerCase();
+  const numpadEntry = Object.entries(NUMPAD_CODE_TO_TOKEN).find(
+    ([code, accelerator]) => code.toLowerCase() === lower || accelerator === lower,
+  );
+  if (numpadEntry) return numpadEntry[1];
+  if (lower.startsWith("arrow")) return token.slice(5);
+  return token;
+};
+
 /**
  * 把 Accelerator 中的 key token（最后一段非 modifier）规范成 KeyboardEvent.code 形式
  * Electron Accelerator 用的是 key 字符（如 "A"、"Right"），需要映射到 code
@@ -35,6 +69,7 @@ const MODIFIER_TOKENS = new Set([
 const keyToCode = (token: string): string => {
   const t = token.trim();
   if (!t) return "";
+  const normalized = normalizeKeyToken(t);
   // 字母
   if (/^[A-Za-z]$/.test(t)) return `Key${t.toUpperCase()}`;
   // 数字
@@ -46,7 +81,8 @@ const keyToCode = (token: string): string => {
     up: "ArrowUp",
     down: "ArrowDown",
   };
-  const lower = t.toLowerCase();
+  const lower = normalized.toLowerCase();
+  if (lower in NUMPAD_TOKEN_TO_CODE) return NUMPAD_TOKEN_TO_CODE[lower];
   if (lower in arrow) return arrow[lower];
   // 功能键 F1-F24
   if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(t)) return `F${t.slice(1)}`;
@@ -83,7 +119,7 @@ const keyToCode = (token: string): string => {
   };
   if (lower in map) return map[lower];
   // 兜底：原样返回
-  return t;
+  return normalized;
 };
 
 /**
@@ -165,7 +201,7 @@ export const normalizeAccelerator = (accel: string): string => {
     else if (lower === "ctrl" || lower === "control") mods.ctrl = true;
     else if (lower === "alt" || lower === "option") mods.alt = true;
     else if (lower === "shift") mods.shift = true;
-    else key = t;
+    else key = normalizeKeyToken(t);
   }
   if (!key) return "";
   // 字母统一大写
@@ -220,6 +256,15 @@ export const formatAccelerator = (accel: string | null, isMac: boolean): string 
       out.push(isMac ? "↵" : "Enter");
     } else if (lower === "space" || lower === "spacebar") {
       out.push("Space");
+    } else if (lower in NUMPAD_TOKEN_TO_CODE) {
+      const labels: Record<string, string> = {
+        numdec: "Num .",
+        numadd: "Num +",
+        numsub: "Num -",
+        nummult: "Num ×",
+        numdiv: "Num ÷",
+      };
+      out.push(labels[lower] ?? "Num " + lower.slice(3));
     } else if (/^[a-z]$/.test(lower)) {
       out.push(lower.toUpperCase());
     } else {
@@ -255,6 +300,7 @@ export const eventToAccelerator = (event: KeyboardEvent, isMac: boolean): string
     if (code.startsWith("Key")) return code.slice(3); // KeyA → A
     if (code.startsWith("Digit")) return code.slice(5);
     if (code.startsWith("Arrow")) return code.slice(5); // ArrowLeft → Left
+    if (code in NUMPAD_CODE_TO_TOKEN) return NUMPAD_CODE_TO_TOKEN[code];
     if (code.startsWith("F") && /^F[0-9]+$/.test(code)) return code; // F1
     const map: Record<string, string> = {
       Space: "Space",
@@ -295,3 +341,11 @@ export const eventToAccelerator = (event: KeyboardEvent, isMac: boolean): string
   parts.push(codeToToken(event.code));
   return normalizeAccelerator(parts.join("+"));
 };
+
+/**
+ * 允许不带修饰键注册为全局快捷键的独立按键
+ * @param code - KeyboardEvent.code
+ * @returns 是否允许独立注册
+ */
+export const canUseAsStandaloneGlobalKey = (code: string): boolean =>
+  code.startsWith("Arrow") || code in NUMPAD_CODE_TO_TOKEN;

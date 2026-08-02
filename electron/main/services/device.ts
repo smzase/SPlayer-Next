@@ -1,6 +1,7 @@
 import { getPlayer } from "./engine";
 import { sendToMain } from "@main/utils/broadcast";
 import { playerLog } from "@main/utils/logger";
+import { reapplyWindowsVolume } from "@main/services/windowsVolumeSync";
 
 /** 设备轮询定时器句柄，null 表示未启动 */
 let pollingTimer: NodeJS.Timeout | null = null;
@@ -30,6 +31,7 @@ export const startDevicePolling = (): void => {
         getPlayer()
           .reinitOutput()
           .then(() => {
+            reapplyWindowsVolume();
             playerLog.info("音频输出已重建");
           })
           .catch((error) => {

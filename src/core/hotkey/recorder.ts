@@ -14,7 +14,7 @@
  * - 失焦：自动取消
  */
 
-import { eventToAccelerator } from "@shared/utils/accelerator";
+import { canUseAsStandaloneGlobalKey, eventToAccelerator } from "@shared/utils/accelerator";
 
 interface UseHotkeyRecorderOptions {
   /** 平台（用于显示 + accelerator 反推） */
@@ -68,10 +68,17 @@ export const useHotkeyRecorder = (options: UseHotkeyRecorderOptions) => {
       return;
     }
 
-    // 检查 requireModifier：global 不允许单键
+    // 全局快捷键默认需要修饰键，方向键和小键盘按键可独立注册
     const needsModifier =
       typeof requireModifier === "function" ? requireModifier() : requireModifier;
-    if (needsModifier && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    if (
+      needsModifier &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      !canUseAsStandaloneGlobalKey(event.code)
+    ) {
       // 只允许带 modifier 的组合；单键拒绝
       return;
     }

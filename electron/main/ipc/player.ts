@@ -12,6 +12,13 @@ import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated } from "@main/services/engine";
 import { startDevicePolling, stopDevicePolling } from "@main/services/device";
+import {
+  disposeWindowsVolumeSync,
+  getPlayerVolume,
+  initWindowsVolumeSync,
+  reapplyWindowsVolume,
+  setPlayerVolume,
+} from "@main/services/windowsVolumeSync";
 import { getThumbar } from "@main/services/thumbar";
 import {
   setTraySongName,
@@ -106,7 +113,7 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
             state,
             position: toDisplayPositionMs(toMs(inst.getPosition())),
             duration: toDisplayDurationMs(toMs(inst.getDuration())),
-            volume: inst.getVolume(),
+            volume: getPlayerVolume(),
             isFinished: false,
           },
         };
@@ -159,9 +166,12 @@ const registerNativeEvents = (inst: InstanceType<AudioEngineModule["AudioPlayer"
         if (now - lastReinitAt < REINIT_COOLDOWN_MS) break;
         lastReinitAt = now;
         playerLog.warn("检测到音频输出停滞，自动重建");
-        inst.reinitOutput().catch((error) => {
-          playerLog.error("自动重建音频输出失败:", error);
-        });
+        inst
+          .reinitOutput()
+          .then(reapplyWindowsVolume)
+          .catch((error) => {
+            playerLog.error("自动重建音频输出失败:", error);
+          });
         break;
       }
     }
@@ -176,6 +186,7 @@ export const registerPlayerIpc = (): void => {
   // 注册实例创建/重建时的回调
   onPlayerCreated(registerNativeEvents);
   onPlayerCreated(() => startDevicePolling());
+  initWindowsVolumeSync();
   // 加载音频文件
   ipcMain.handle("player:load", async (_event, source: string, options: LoadOptions = {}) => {
     const autoPlay = options.autoPlay ?? true;
@@ -193,7 +204,7 @@ export const registerPlayerIpc = (): void => {
           state: "loading",
           position: 0,
           duration: 0,
-          volume: inst.getVolume(),
+          volume: getPlayerVolume(),
           isFinished: false,
         },
       };
@@ -237,6 +248,7 @@ export const registerPlayerIpc = (): void => {
         await inst.seek(cueRange.startMs / 1000);
         if (autoPlay) await inst.play();
       }
+      reapplyWindowsVolume();
       const nativeDurationMs = toMs(meta.duration);
       const durationMs = toDisplayDurationMs(nativeDurationMs);
       const fallbackTitle = meta.title || source.split(/[/\\]/).pop() || source;
@@ -373,8 +385,7 @@ export const registerPlayerIpc = (): void => {
   // 设置音量（0.0 ~ 1.0）
   ipcMain.handle("player:setVolume", (_event, volume: number) => {
     try {
-      getPlayer().setVolume(volume);
-      mediaService.setVolume(volume);
+      setPlayerVolume(volume);
       return { success: true };
     } catch (error) {
       return fail(ErrorCode.UNKNOWN, error);
@@ -383,7 +394,7 @@ export const registerPlayerIpc = (): void => {
 
   // 获取当前音量
   ipcMain.handle("player:getVolume", () => {
-    return { success: true, data: getPlayer().getVolume() };
+    return { success: true, data: getPlayerVolume() };
   });
 
   // 设置暂停/恢复时的渐变时长（毫秒），0 表示禁用
@@ -410,7 +421,7 @@ export const registerPlayerIpc = (): void => {
         state: raw.state,
         position: toDisplayPositionMs(toMs(raw.position)),
         duration: toDisplayDurationMs(toMs(raw.duration)),
-        volume: raw.volume,
+        volume: getPlayerVolume(),
         isFinished: raw.isFinished,
       },
     };
@@ -420,6 +431,7 @@ export const registerPlayerIpc = (): void => {
   ipcMain.handle("player:reinit", async () => {
     try {
       await getPlayer().reinitOutput();
+      reapplyWindowsVolume();
       return { success: true };
     } catch (error) {
       return fail(ErrorCode.UNKNOWN, error);
@@ -575,6 +587,7 @@ export const registerPlayerIpc = (): void => {
   ipcMain.handle("player:setOutputDevice", async (_event, deviceName: string | null) => {
     try {
       await getPlayer().setOutputDevice(deviceName ?? undefined);
+      reapplyWindowsVolume();
       return { success: true };
     } catch (error) {
       return fail(ErrorCode.UNKNOWN, error);
@@ -635,7 +648,7 @@ export const registerPlayerIpc = (): void => {
           break;
         case "SetVolume":
           if (event.volume != null) {
-            inst.setVolume(event.volume);
+            setPlayerVolume(event.volume, false);
           }
           break;
         case "NextTrack":
@@ -658,6 +671,7 @@ export const registerPlayerIpc = (): void => {
       await new Promise((r) => setTimeout(r, RETRY_DELAYS[i]));
       try {
         await inst.reinitOutput();
+        reapplyWindowsVolume();
         playerLog.info(`唤醒后重建音频输出成功（第 ${i + 1} 次尝试）`);
         return;
       } catch (error) {
@@ -666,16 +680,20 @@ export const registerPlayerIpc = (): void => {
     }
     // 全部重试失败，销毁损坏的实例
     playerLog.error("重建音频输出全部失败，销毁播放器实例");
+    const volume = getPlayerVolume();
     resetPlayer();
     stopDevicePolling();
     const stoppedEvent = {
       type: "status",
-      data: { state: "stopped", position: 0, duration: 0, volume: 1, isFinished: false },
+      data: { state: "stopped", position: 0, duration: 0, volume, isFinished: false },
     };
     sendToMain("player:event", stoppedEvent);
     wsBroadcast(stoppedEvent);
   };
   powerMonitor.on("resume", resumeHandler);
   // 退出前停止设备轮询
-  app.on("before-quit", stopDevicePolling);
+  app.on("before-quit", () => {
+    stopDevicePolling();
+    disposeWindowsVolumeSync();
+  });
 };

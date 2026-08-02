@@ -6,6 +6,7 @@
  */
 
 import { getPlayer } from "@main/services/engine";
+import { setPlayerVolume } from "@main/services/windowsVolumeSync";
 import { sendToMain } from "@main/utils/broadcast";
 import { toMs } from "@main/utils/time";
 import type { ShuffleMode, RepeatMode, Track } from "@shared/types/player";
@@ -39,7 +40,7 @@ export const playerControl = {
   addToQueue: (tracks: Track[], position: "next" | "end"): void =>
     sendToMain("player:event", { type: "addToQueue", data: { tracks, position } }),
   seek,
-  setVolume: (volume: number): void => getPlayer().setVolume(volume),
+  setVolume: setPlayerVolume,
   /** 当前播放进度（毫秒） */
   getPosition: (): number => toMs(getPlayer().getPosition()),
 };

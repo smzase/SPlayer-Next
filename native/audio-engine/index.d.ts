@@ -41,6 +41,12 @@ export declare class AudioPlayer {
   setVolume(volume: number): void
   /** 获取当前音量（0.0 ~ 1.0） */
   getVolume(): number
+  /** 设置当前进程在 Windows 音量合成器中的会话音量 */
+  setWindowsSessionVolume(volume: number): boolean
+  /** 设置当前进程在 Windows 音量合成器中的会话静音状态 */
+  setWindowsSessionMuted(muted: boolean): boolean
+  /** 获取当前进程在 Windows 音量合成器中的会话音量 */
+  getWindowsSessionVolume(): number | null
   /** 设置暂停/恢复时的渐变时长（毫秒），0 表示禁用渐变 */
   setFadeDuration(durationMs: number): void
   /** 获取当前渐变时长（毫秒） */

@@ -50,6 +50,8 @@ export interface PlayerSettings {
   outputDevice: string | null;
   /** 默认音量（0.0 ~ 1.0） */
   volume: number;
+  /** 是否与 Windows 音量合成器同步 */
+  syncWindowsVolumeMixer: boolean;
   /** 音量均衡（响度归一化） */
   loudnessNormalization: boolean;
   /** 均衡器配置 */

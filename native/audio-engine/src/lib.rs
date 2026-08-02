@@ -17,6 +17,7 @@ mod shared;
 mod source;
 mod tag_editor;
 mod tempo;
+mod windows_audio_session;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Once};
@@ -609,6 +610,24 @@ impl AudioPlayer {
     #[napi]
     pub fn get_volume(&self) -> f64 {
         self.inner.lock().volume() as f64
+    }
+
+    /// 设置当前进程在 Windows 音量合成器中的会话音量
+    #[napi]
+    pub fn set_windows_session_volume(&self, volume: f64) -> bool {
+        windows_audio_session::set_volume(volume.clamp(0.0, 1.0) as f32)
+    }
+
+    /// 设置当前进程在 Windows 音量合成器中的会话静音状态
+    #[napi]
+    pub fn set_windows_session_muted(&self, muted: bool) -> bool {
+        windows_audio_session::set_muted(muted)
+    }
+
+    /// 获取当前进程在 Windows 音量合成器中的会话音量
+    #[napi]
+    pub fn get_windows_session_volume(&self) -> Option<f64> {
+        windows_audio_session::get_volume().map(f64::from)
     }
 
     /// 设置暂停/恢复时的渐变时长（毫秒），0 表示禁用渐变

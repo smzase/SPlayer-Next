@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 import { getPlayer } from "@main/services/engine";
 import { playerControl } from "@main/services/playerControl";
+import { getPlayerVolume } from "@main/services/windowsVolumeSync";
 import * as nowPlaying from "@main/services/nowPlaying";
 import type { Track } from "@shared/types/player";
 import {
@@ -43,7 +44,7 @@ const createServer = (): McpServer => {
         state: status.state,
         positionMs: toMs(status.position),
         durationMs: toMs(status.duration),
-        volume: status.volume,
+        volume: getPlayerVolume(),
         isFinished: status.isFinished,
         repeat: playMode.repeat,
         shuffle: playMode.shuffle,

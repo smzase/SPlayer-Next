@@ -813,6 +813,10 @@
       "description": "选择音频输出设备",
       "default": "系统默认"
     },
+    "syncWindowsVolumeMixer": {
+      "label": "同步 Windows 音量合成器",
+      "description": "让播放器音量与 Windows 音量合成器保持一致，任一侧调整都会同步到另一侧"
+    },
     "pauseOnDeviceSwitch": {
       "label": "切换时暂停播放",
       "description": "切换输出设备时暂停播放，例如蓝牙设备的断联"

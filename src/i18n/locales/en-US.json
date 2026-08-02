@@ -825,6 +825,10 @@
       "description": "Select audio output device",
       "default": "System Default"
     },
+    "syncWindowsVolumeMixer": {
+      "label": "Sync Windows Volume Mixer",
+      "description": "Keep the player volume in sync with the Windows volume mixer in both directions"
+    },
     "pauseOnDeviceSwitch": {
       "label": "Pause on Device Switch",
       "description": "Pause playback when switching the output device, e.g. when a Bluetooth device disconnects"

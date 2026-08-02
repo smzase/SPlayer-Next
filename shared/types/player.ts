@@ -170,6 +170,7 @@ export interface AudioDevice {
 /** 主进程推送给渲染进程的播放事件 */
 export type PlayerEvent =
   | { type: "status"; data: PlayerStatus }
+  | { type: "volume"; data: { volume: number } }
   | { type: "position"; data: { position: number; duration: number } }
   | { type: "seek"; data: { position: number } }
   | { type: "ended" }
