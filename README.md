@@ -13,15 +13,13 @@
 [![License](https://img.shields.io/github/license/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/blob/main/LICENSE)
 [![Issues](https://img.shields.io/github/issues/SPlayer-Dev/SPlayer-Next)](https://github.com/SPlayer-Dev/SPlayer-Next/issues)
 
-[English](./README.md) | **简体中文**
-
 </div>
 
 ---
 
 ## 关于 fork
 
-本 fork 的代码由 GPT5.6-sol 制作，不会拉去请求至上头主仓库，添加了自用的功能
+本 fork 的代码由 GPT5.6-sol 制作，不会 PR 至上游主仓库，添加了自用的功能
 
 - 任务栏歌词修改
   - 添加了「纯歌词模式」
