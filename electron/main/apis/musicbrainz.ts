@@ -1,6 +1,7 @@
 import { net } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { isConfiguredCacheExpired } from "@main/utils/cacheRefresh";
 import { getArtistCacheDir } from "@main/utils/config";
 import { toCacheUrl } from "@main/utils/protocol";
 
@@ -95,13 +96,17 @@ const fetchArtistAvatarCore = async (artistName: string): Promise<string | null>
   const cachePath = path.join(getArtistCacheDir(), cacheFileName);
   // 已缓存
   if (fs.existsSync(cachePath)) {
-    return toCacheUrl(cachePath) ?? null;
+    const stat = fs.statSync(cachePath);
+    if (!isConfiguredCacheExpired(stat.mtimeMs, "file")) {
+      return toCacheUrl(cachePath) ?? null;
+    }
+    fs.unlinkSync(cachePath);
   }
-  // 已标记为未找到（7 天过期）
+  // 已标记为未找到
   const notFoundPath = path.join(getArtistCacheDir(), getNotFoundFileName(name));
   if (fs.existsSync(notFoundPath)) {
     const stat = fs.statSync(notFoundPath);
-    if (Date.now() - stat.mtimeMs < 7 * 24 * 60 * 60 * 1000) return null;
+    if (!isConfiguredCacheExpired(stat.mtimeMs, "file")) return null;
     fs.unlinkSync(notFoundPath);
   }
   try {

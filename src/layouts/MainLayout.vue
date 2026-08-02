@@ -16,6 +16,15 @@ const showPlayerBar = computed(() => !!useMediaStore().track);
 const { isPlayerExpanded } = storeToRefs(status);
 const { appearance } = settings;
 
+/** 侧边栏悬停展开状态 */
+const sidebarHovered = ref(false);
+const sidebarHoverExpandActive = computed(
+  () => appearance.sidebarHoverExpand && !appearance.sidebarCollapsed,
+);
+const isSidebarCollapsed = computed(
+  () => appearance.sidebarCollapsed || (sidebarHoverExpandActive.value && !sidebarHovered.value),
+);
+
 /** 路由切换动效 */
 const routeTransitionName = computed(() => {
   const transition = appearance.routeTransition;
@@ -48,7 +57,7 @@ const mainMarginClass = computed(() =>
 /** 外层播放条样式 */
 const playerBarWrapperClass = computed(() => {
   const base = "fixed bottom-0 z-50 transition-[left] duration-300 pointer-events-none";
-  const collapsed = appearance.sidebarCollapsed;
+  const collapsed = isSidebarCollapsed.value;
   switch (appearance.layoutMode) {
     case "sidebar-full":
       return `${base} ${collapsed ? "left-16" : "left-60"} right-0`;
@@ -81,9 +90,11 @@ const playerBarInnerClass = computed(() => {
     <!-- 侧边栏 -->
     <aside
       class="shrink-0 bg-surface-panel overflow-y-auto z-10 transition-[width,margin] duration-300"
-      :class="[appearance.sidebarCollapsed ? 'w-16' : 'w-60', sidebarClass]"
+      :class="[isSidebarCollapsed ? 'w-16' : 'w-60', sidebarClass]"
+      @mouseenter="sidebarHovered = true"
+      @mouseleave="sidebarHovered = false"
     >
-      <SideBar />
+      <SideBar :collapsed="isSidebarCollapsed" />
     </aside>
 
     <!-- 右侧主区域 -->

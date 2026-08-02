@@ -6,6 +6,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { app } from "electron";
 import { store } from "@main/store";
+import { isConfiguredCacheExpired } from "@main/utils/cacheRefresh";
 import { getSongCacheDir } from "@main/utils/config";
 import { songCacheLog } from "@main/utils/logger";
 import type { TrackSource } from "@shared/types/player";
@@ -302,6 +303,12 @@ export const lookup = async (cacheKey: string): Promise<string | null> => {
   const row = findByKey(cacheKey);
   if (!row) return null;
   const full = absPath(row.filename);
+  if (isConfiguredCacheExpired(row.cachedAt, "file")) {
+    deleteByKey(cacheKey);
+    await fsp.unlink(full).catch(() => {});
+    songCacheLog.info(`[expire] key=${cacheKey}`);
+    return null;
+  }
   if (!fs.existsSync(full)) {
     deleteByKey(cacheKey);
     return null;

@@ -766,6 +766,12 @@
       "label": "记忆播放进度",
       "description": "启动时恢复上次歌曲的播放进度"
     },
+    "singleTrackQueueMode": {
+      "label": "单曲播放列表行为",
+      "description": "点击歌曲列表中的单曲播放时，如何更新当前播放列表",
+      "replace": "用歌曲所在列表替换",
+      "append": "仅添加当前单曲"
+    },
     "showLyricInBar": {
       "label": "播放时显示歌词",
       "description": "底部播放栏播放时将歌手名替换为当前歌词"
@@ -1430,6 +1436,10 @@
       "label": "折叠侧边栏",
       "description": "将侧边栏折叠为图标模式"
     },
+    "sidebarHoverExpand": {
+      "label": "悬停展开侧边栏",
+      "description": "侧边栏平时保持折叠，鼠标悬停时临时展开；与固定折叠互斥"
+    },
     "sidebarPlaylistCover": {
       "label": "歌单显示封面",
       "description": "侧边栏的歌单项以歌单封面替代默认图标"
@@ -1823,9 +1833,17 @@
       "label": "缓存管理",
       "description": "查看缓存占用并清理"
     },
+    "fileCacheRefreshInterval": {
+      "label": "文件缓存刷新周期（天）",
+      "description": "歌手头像和在线歌曲文件超过设定天数后，在下次使用时重新获取"
+    },
     "dbCacheManager": {
       "label": "数据库管理",
       "description": "查看数据库占用并清理"
+    },
+    "databaseCacheRefreshInterval": {
+      "label": "数据库缓存刷新周期（天）",
+      "description": "歌词内容、TTML 与歌词匹配缓存超过设定天数后，在下次使用时重新获取"
     },
     "cacheDir": {
       "label": "缓存目录",

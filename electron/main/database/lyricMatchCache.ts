@@ -5,17 +5,16 @@
  *
  * 作用：把 (track 指纹) → (某平台的 platform_id [+ extra]) 的 fuzzy search 结果持久化
  * 重启后再播同一首本地歌可跳过 search
- * TTL 30 天，过期视为 miss 重新匹配
+ * 过期时间跟随数据库缓存刷新周期
  * extra：JSON 字符串，平台额外字段
  */
 
 import { normalize, normalizeTrackArtists } from "@main/apis/common/lyric/utils";
+import { isConfiguredCacheExpired } from "@main/utils/cacheRefresh";
 import type { LyricMatchExtra } from "@shared/types/lyrics";
 import type { Track } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
 import { getDb } from "./index";
-
-const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** 时长按 5s 桶归一，避免不同来源元数据微差导致 miss */
 const DURATION_BUCKET_MS = 5000;
@@ -58,7 +57,12 @@ export const getMatchedId = (fingerprint: string, platform: Platform): MatchedRe
     | { platform_id: string; extra: string | null; matched_at: number }
     | undefined;
   if (!row) return null;
-  if (Date.now() - row.matched_at > TTL_MS) return null;
+  if (isConfiguredCacheExpired(row.matched_at, "database")) {
+    getDb()
+      .prepare("DELETE FROM lyric_match_cache WHERE fingerprint = ? AND platform = ?")
+      .run(fingerprint, platform);
+    return null;
+  }
   return {
     platformId: row.platform_id,
     extra: parseExtra(row.extra),

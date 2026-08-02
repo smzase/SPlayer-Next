@@ -27,6 +27,10 @@ import IconSpHeartMode from "~icons/sp/heart-mode";
 import SButton from "@/components/ui/SButton.vue";
 import SPopselect from "@/components/ui/SPopselect.vue";
 
+const props = defineProps<{
+  collapsed: boolean;
+}>();
+
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
@@ -242,19 +246,17 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col h-full">
-    <SideBarLogo :collapsed="appearance.sidebarCollapsed" />
+    <SideBarLogo :collapsed="props.collapsed" />
     <div
       class="flex-1 min-h-0 pb-3 overflow-y-auto transition-[padding] duration-300"
       :class="
-        appearance.sidebarCollapsed
-          ? 'px-2 [&::-webkit-scrollbar]:hidden'
-          : 'px-3 [scrollbar-gutter:stable]'
+        props.collapsed ? 'px-2 [&::-webkit-scrollbar]:hidden' : 'px-3 [scrollbar-gutter:stable]'
       "
     >
       <SMenu
         :items="menuItems"
         :model-value="activeKey"
-        :collapsed="appearance.sidebarCollapsed"
+        :collapsed="props.collapsed"
         @select="onSelect"
       />
     </div>

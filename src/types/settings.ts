@@ -8,6 +8,9 @@ import type { QualityLevel } from "@/utils/quality";
 export type PlayerBgType = "blur" | "solid" | "animation";
 export type CoverLayout = "default" | "fullscreen";
 
+/** 点击歌曲列表中的单曲时如何更新播放队列 */
+export type SingleTrackQueueMode = "replace" | "append";
+
 /**
  * 歌曲播放时间显示格式
  * - current-total: 播放时间 / 总时长
@@ -154,6 +157,8 @@ export interface LyricSettings {
 
 /** 播放器设置 */
 export interface PlayerSettings {
+  /** 点击单曲时替换为所在列表，或仅将该单曲加入现有队列 */
+  singleTrackQueueMode: SingleTrackQueueMode;
   /** 播放器背景类型 */
   playerBgType: PlayerBgType;
   /** 流体背景帧率（fps） */
@@ -208,6 +213,8 @@ export interface AppearanceSettings {
   routeTransition: RouteTransition;
   /** 侧边栏折叠 */
   sidebarCollapsed: boolean;
+  /** 侧边栏平时折叠，悬停时临时展开 */
+  sidebarHoverExpand: boolean;
   /** 侧边栏歌单项显示封面 */
   sidebarPlaylistCover: boolean;
   /** 播放栏显示快捷音质切换 */

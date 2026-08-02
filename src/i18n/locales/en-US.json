@@ -778,6 +778,12 @@
       "label": "Remember Progress",
       "description": "Restore playback position on startup"
     },
+    "singleTrackQueueMode": {
+      "label": "Single-track Queue Behavior",
+      "description": "Choose how the current queue changes when you play a track from a song list",
+      "replace": "Replace with its song list",
+      "append": "Add only this track"
+    },
     "showLyricInBar": {
       "label": "Show Lyric While Playing",
       "description": "Replace artist name with current lyric in the bottom player bar"
@@ -1442,6 +1448,10 @@
       "label": "Collapse Sidebar",
       "description": "Collapse the sidebar to icon-only mode"
     },
+    "sidebarHoverExpand": {
+      "label": "Expand Sidebar on Hover",
+      "description": "Keep the sidebar collapsed until hovered; mutually exclusive with fixed collapse"
+    },
     "sidebarPlaylistCover": {
       "label": "Show Playlist Covers",
       "description": "Show playlist covers instead of default icons in the sidebar"
@@ -1835,9 +1845,17 @@
       "label": "Cache Manager",
       "description": "Inspect cache usage and clear it"
     },
+    "fileCacheRefreshInterval": {
+      "label": "File Cache Refresh (days)",
+      "description": "Refetch artist avatars and online song files on next use after this many days"
+    },
     "dbCacheManager": {
       "label": "Database Manager",
       "description": "Inspect database usage and clear it"
+    },
+    "databaseCacheRefreshInterval": {
+      "label": "Database Cache Refresh (days)",
+      "description": "Refetch lyric content, TTML, and lyric matches on next use after this many days"
     },
     "cacheDir": {
       "label": "Cache Directory",

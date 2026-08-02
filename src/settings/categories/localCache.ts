@@ -41,6 +41,15 @@ const localCacheCategory: SettingCategory = {
       id: "cache",
       items: [
         {
+          key: "fileCacheRefreshInterval",
+          type: "number",
+          binding: { store: "settings", path: "system.cache.fileRefreshIntervalDays" },
+          min: 1,
+          max: 365,
+          step: 1,
+          defaultValue: 30,
+        },
+        {
           key: "fileCacheManager",
           type: "custom",
           component: FileCacheManager,
@@ -52,6 +61,15 @@ const localCacheCategory: SettingCategory = {
     {
       id: "database",
       items: [
+        {
+          key: "databaseCacheRefreshInterval",
+          type: "number",
+          binding: { store: "settings", path: "system.cache.databaseRefreshIntervalDays" },
+          min: 1,
+          max: 365,
+          step: 1,
+          defaultValue: 7,
+        },
         {
           key: "dbCacheManager",
           type: "custom",

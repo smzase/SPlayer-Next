@@ -34,6 +34,8 @@ export interface TrackMenuOptions {
   canRemove?: boolean;
   /** 隐藏播放相关菜单项 */
   hidePlayActions?: boolean;
+  /** 播放当前曲目 */
+  onPlay?: (track: Track) => void;
   /** 添加到歌单 */
   onAddToPlaylist?: (track: Track) => void;
   /** 从集合移除回调 */
@@ -223,7 +225,8 @@ export const useTrackMenu = (
     }
     switch (key) {
       case "play":
-        player.playNow(current);
+        if (options.onPlay) options.onPlay(current);
+        else player.playNow(current);
         break;
       case "playNext":
         player.insertToQueue(current);

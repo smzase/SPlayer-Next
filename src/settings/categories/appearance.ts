@@ -1,4 +1,5 @@
 import type { SettingCategory } from "@/types/settings-schema";
+import { useSettingsStore } from "@/stores/settings";
 import { useThemeStore } from "@/stores/theme";
 import FontConfig from "@/components/settings/custom/FontConfig.vue";
 import BackgroundImagePicker from "@/components/settings/custom/BackgroundImagePicker.vue";
@@ -153,6 +154,14 @@ const appearanceCategory: SettingCategory = {
           type: "switch",
           binding: { store: "settings", path: "appearance.sidebarCollapsed" },
           defaultValue: false,
+          disabled: () => useSettingsStore().appearance.sidebarHoverExpand,
+        },
+        {
+          key: "sidebarHoverExpand",
+          type: "switch",
+          binding: { store: "settings", path: "appearance.sidebarHoverExpand" },
+          defaultValue: false,
+          disabled: () => useSettingsStore().appearance.sidebarCollapsed,
         },
         {
           key: "sidebarPlaylistCover",

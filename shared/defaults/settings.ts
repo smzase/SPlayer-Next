@@ -109,6 +109,8 @@ export const defaultSystemConfig: SystemConfig = {
   },
   cache: {
     dir: null,
+    fileRefreshIntervalDays: 30,
+    databaseRefreshIntervalDays: 7,
     songCache: {
       enabled: false,
       sizeLimitGb: 10,

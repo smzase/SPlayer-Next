@@ -40,6 +40,7 @@ export const useSettingsStore = defineStore(
       layoutMode: "default",
       routeTransition: "fade",
       sidebarCollapsed: false,
+      sidebarHoverExpand: false,
       sidebarPlaylistCover: false,
       showQualitySwitch: false,
       closeAction: "hide",
@@ -50,6 +51,7 @@ export const useSettingsStore = defineStore(
 
     /** 播放器 */
     const player = reactive<PlayerSettings>({
+      singleTrackQueueMode: "replace",
       playerBgType: "blur",
       playerBgFps: 30,
       playerBgFlowSpeed: 4,
@@ -270,9 +272,22 @@ export const useSettingsStore = defineStore(
       storage: localStorage,
       omit: ["system"],
       afterHydrate: ({ store }) => {
-        const { lyric } = store as unknown as { lyric: LyricSettings };
+        const { lyric, appearance, player } = store as unknown as {
+          lyric: LyricSettings;
+          appearance: AppearanceSettings;
+          player: PlayerSettings;
+        };
         if (typeof lyric.detectBackgroundLyrics !== "boolean") {
           lyric.detectBackgroundLyrics = true;
+        }
+        if (player.singleTrackQueueMode !== "replace" && player.singleTrackQueueMode !== "append") {
+          player.singleTrackQueueMode = "replace";
+        }
+        if (typeof appearance.sidebarHoverExpand !== "boolean") {
+          appearance.sidebarHoverExpand = false;
+        }
+        if (appearance.sidebarCollapsed && appearance.sidebarHoverExpand) {
+          appearance.sidebarHoverExpand = false;
         }
         lyric.lyricSourceOrder = reconcileOrder(lyric.lyricSourceOrder, ALL_PLATFORMS);
         lyric.lyricFormatOrder = reconcileOrder(lyric.lyricFormatOrder, DEFAULT_LYRIC_FORMAT_ORDER);

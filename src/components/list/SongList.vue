@@ -198,6 +198,15 @@ const playingIndex = computed(() => {
   return sortedItems.value.findIndex((track) => track.id === playingId.value);
 });
 
+/** 按用户选择更新队列并播放歌曲 */
+const playTrack = (item: Track, index: number): void => {
+  if (settings.player.singleTrackQueueMode === "replace") {
+    void player.playFrom(sortedItems.value, index);
+    return;
+  }
+  void player.playNow(item);
+};
+
 /** 虚拟列表引用 */
 const virtualListRef = shallowRef<SVirtualListExposed | null>(null);
 
@@ -247,6 +256,10 @@ const contextTrack = shallowRef<Track | undefined>();
 const { items: contextMenuItems, handleSelect: onContextMenu } = useTrackMenu(contextTrack, {
   collectionType: props.collectionType,
   canRemove: props.canRemove,
+  onPlay: (track) => {
+    const index = sortedItems.value.findIndex((item) => item.id === track.id);
+    if (index >= 0) playTrack(track, index);
+  },
   onAddToPlaylist: (track) => openPicker([track]),
   onRemove: (track) => batch.requestDelete([track], "remove"),
   onDeleteFile: (track) => batch.requestDelete([track], "file"),
@@ -509,7 +522,7 @@ defineExpose({
                     : 'bg-surface-panel border-primary/12 hover:border-primary/30 hover:bg-on-surface/8 active:bg-on-surface/12'
               "
               @click="batch.active.value ? batch.toggle(item.id) : undefined"
-              @dblclick="batch.active.value ? undefined : player.playFrom(sortedItems, index)"
+              @dblclick="batch.active.value ? undefined : playTrack(item, index)"
               @contextmenu="contextTrack = item"
             >
               <!-- 序号 / 多选 -->
@@ -528,7 +541,7 @@ defineExpose({
                     ? batch.toggle(item.id)
                     : playingId === item.id
                       ? player.togglePlay()
-                      : player.playNow(item)
+                      : playTrack(item, index)
                 "
               >
                 <!-- 多选模式 -->

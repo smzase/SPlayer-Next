@@ -344,6 +344,10 @@ export interface SongCacheSettings {
 export interface CacheSettings {
   /** 自定义缓存目录；null 使用默认 {userData}/app-data/cache */
   dir: string | null;
+  /** 可重新获取的文件缓存刷新周期（天） */
+  fileRefreshIntervalDays: number;
+  /** 数据库缓存刷新周期（天） */
+  databaseRefreshIntervalDays: number;
   /** 歌曲文件级缓存 */
   songCache: SongCacheSettings;
 }

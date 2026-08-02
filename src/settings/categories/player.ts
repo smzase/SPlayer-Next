@@ -26,6 +26,22 @@ const playerCategory: SettingCategory = {
           defaultValue: false,
         },
         {
+          key: "singleTrackQueueMode",
+          type: "select",
+          binding: { store: "settings", path: "player.singleTrackQueueMode" },
+          options: [
+            {
+              value: "replace",
+              labelKey: "settings.singleTrackQueueMode.replace",
+            },
+            {
+              value: "append",
+              labelKey: "settings.singleTrackQueueMode.append",
+            },
+          ],
+          defaultValue: "replace",
+        },
+        {
           key: "showLyricInBar",
           type: "switch",
           binding: { store: "settings", path: "player.showLyricInBar" },
