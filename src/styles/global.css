@@ -90,6 +90,12 @@ html[data-appearance-style="image"] .bg-field {
   backdrop-filter: blur(10px) saturate(1.3);
 }
 
+/* 消息浮窗面积有限，可使用更强模糊保证复杂背景上的文字可读性 */
+html[data-appearance-style="image"] .message-center-popover {
+  background-color: rgb(var(--s-surface-bright) / 0.68);
+  backdrop-filter: blur(28px) saturate(1.45);
+}
+
 /* 仅保留弹窗内的底色 */
 html[data-appearance-style="image"] [role="dialog"] .bg-field,
 html[data-appearance-style="image"] [role="alertdialog"] .bg-field {

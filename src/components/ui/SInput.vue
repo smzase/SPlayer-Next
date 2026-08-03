@@ -10,6 +10,8 @@ export interface SInputProps {
   type?: "text" | "password" | "email" | "number" | "url" | "search" | "tel" | "textarea";
   /** 多行行数 */
   rows?: number;
+  /** 最大输入字符数 */
+  maxlength?: number;
   /** 是否显示原生缩放手柄 */
   resize?: "none" | "vertical" | "horizontal" | "both";
   /** 尺寸 */
@@ -148,6 +150,7 @@ const handleEscape = (event: KeyboardEvent): void => {
         :disabled="disabled"
         :readonly="readonly"
         :rows="rows"
+        :maxlength="maxlength"
         class="w-full block bg-transparent outline-none border-none shadow-none text-on-surface placeholder:text-on-surface-variant/40 disabled:cursor-not-allowed"
         :class="[resizeClass, readonly ? 'cursor-pointer' : '', showClear ? 'pr-5' : '']"
         @input="handleInput(($event.target as HTMLTextAreaElement).value)"
@@ -176,6 +179,7 @@ const handleEscape = (event: KeyboardEvent): void => {
         :value="displayValue"
         :type="type"
         :placeholder="placeholder"
+        :maxlength="maxlength"
         :disabled="disabled"
         :readonly="readonly"
         class="flex-1 min-w-0 h-full bg-transparent outline-none border-none shadow-none text-on-surface placeholder:text-on-surface-variant/40 disabled:cursor-not-allowed"

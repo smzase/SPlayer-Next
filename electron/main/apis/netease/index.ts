@@ -63,6 +63,15 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "personal_fm",
   "fm_trash",
   "recommend_songs",
+  "pl_count",
+  "msg_private",
+  "msg_private_history",
+  "msg_private_revoke",
+  "msg_comments",
+  "msg_forwards",
+  "msg_notices",
+  "send_text",
+  "send_image",
 ]);
 
 /** 国内 IP 前缀池 */

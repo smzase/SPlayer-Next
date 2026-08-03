@@ -27,6 +27,8 @@ export interface STabsProps {
     | "flex-end";
   /** 是否启用动画 */
   animated?: boolean;
+  /** 是否启用高亮条位置动画 */
+  indicatorAnimated?: boolean;
   /** 圆角胶囊 */
   round?: boolean;
 }
@@ -35,10 +37,12 @@ const props = withDefaults(defineProps<STabsProps>(), {
   type: "bar",
   size: "medium",
   animated: false,
+  indicatorAnimated: true,
   round: false,
 });
 
 const emit = defineEmits<{
+  reselect: [value: string];
   "update:modelValue": [value: string];
 }>();
 
@@ -125,7 +129,11 @@ const onPanelAfterEnter = (): void => {
 
 /** 点击 tab 切换激活项 */
 const select = (tab: TabItem): void => {
-  if (tab.disabled || tab.key === props.modelValue) return;
+  if (tab.disabled) return;
+  if (tab.key === props.modelValue) {
+    emit("reselect", tab.key);
+    return;
+  }
   emit("update:modelValue", tab.key);
 };
 
@@ -226,7 +234,9 @@ const panelTransitionClasses = computed(() => {
     <div
       v-if="indicatorStyle.width"
       :class="[
-        'absolute pointer-events-none transition-[left,width] duration-320 ease-[cubic-bezier(0.4,0,0.2,1)]',
+        'absolute pointer-events-none',
+        indicatorAnimated &&
+          'transition-[left,width] duration-320 ease-[cubic-bezier(0.4,0,0.2,1)]',
         type === 'segment'
           ? ['bg-primary/12', round ? 'rounded-full' : 'rounded-md']
           : 'bottom-0.5 h-[3px] bg-primary rounded-full',

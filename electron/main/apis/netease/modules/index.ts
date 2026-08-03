@@ -39,6 +39,17 @@ import user_playlist from "./user_playlist";
 import user_record from "./user_record";
 import user_subcount from "./user_subcount";
 
+// 消息
+import pl_count from "./pl_count";
+import msg_private from "./msg_private";
+import msg_private_history from "./msg_private_history";
+import msg_private_revoke from "./msg_private_revoke";
+import msg_comments from "./msg_comments";
+import msg_forwards from "./msg_forwards";
+import msg_notices from "./msg_notices";
+import send_text from "./send_text";
+import send_image from "./send_image";
+
 // 搜索
 import cloudsearch from "./cloudsearch";
 import search from "./search";
@@ -132,6 +143,16 @@ export const modules: Record<string, NeteaseModule> = {
   user_playlist,
   user_record,
   user_subcount,
+
+  pl_count,
+  msg_private,
+  msg_private_history,
+  msg_private_revoke,
+  msg_comments,
+  msg_forwards,
+  msg_notices,
+  send_text,
+  send_image,
 
   cloudsearch,
   search,
