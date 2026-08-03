@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentSource, MusicCommentPage } from "@shared/types/comment";
+import type { CommentSource, CommentTarget, MusicCommentPage } from "@shared/types/comment";
 import { useStatusStore } from "@/stores/status";
 import { toast } from "@/composables/useToast";
 import { formatDate } from "@/utils/time";
@@ -15,6 +15,7 @@ const loadingCount = ref(0);
 const error = ref("");
 const listScrollRef = ref<HTMLElement | null>(null);
 let loadingEpoch = 0;
+let suppressSourceRefresh = false;
 const pages = reactive<Record<"hot" | "new", MusicCommentPage>>({
   hot: { list: [], total: 0, page: 1, limit: 20 },
   new: { list: [], total: 0, page: 1, limit: 20 },
@@ -38,13 +39,22 @@ const maxPage = computed(() =>
   Math.max(1, Math.ceil(page.value.total / Math.max(1, page.value.limit))),
 );
 
-const makeContextKey = (trackId: string, source: string): string => `${trackId}\n${source}`;
+const makeContextKey = (target: CommentTarget, source: string): string =>
+  `${target.kind}\n${target.id}\n${source}`;
 
 const loadSources = async (): Promise<void> => {
-  sources.value = await window.api.comments.sources();
+  const target = status.commentsTarget;
+  const available = await window.api.comments.sources();
+  sources.value =
+    target?.kind === "song"
+      ? available
+      : available.filter((source) => source.kind === "builtin" && source.platform === "netease");
+  suppressSourceRefresh = true;
   if (!sources.value.some((source) => source.id === sourceId.value)) {
     sourceId.value = sources.value[0]?.id ?? "";
   }
+  await nextTick();
+  suppressSourceRefresh = false;
 };
 
 const resetPages = (): void => {
@@ -55,26 +65,27 @@ const resetPages = (): void => {
 };
 
 const loadPage = async (type: "hot" | "new", pageNo = 1): Promise<void> => {
-  const track = status.commentsTrack;
-  if (!track || !sourceId.value) return;
+  const target = status.commentsTarget;
+  if (!target || !sourceId.value) return;
   const token = requestTokens[type] + 1;
   requestTokens[type] = token;
-  const contextKey = makeContextKey(track.id, sourceId.value);
+  const contextKey = makeContextKey(target, sourceId.value);
   const epoch = loadingEpoch;
   loadingCount.value += 1;
   error.value = "";
   try {
     const result = await window.api.comments.get({
       sourceId: sourceId.value,
-      track: toRaw(track),
+      target:
+        target.kind === "song" ? { ...toRaw(target), track: toRaw(target.track) } : toRaw(target),
       type,
       page: pageNo,
       limit: pages[type].limit,
     });
     if (!result.ok) throw new Error(result.error);
     if (!status.commentsOpen || requestTokens[type] !== token) return;
-    const currentTrack = status.commentsTrack;
-    if (!currentTrack || makeContextKey(currentTrack.id, sourceId.value) !== contextKey) return;
+    const currentTarget = status.commentsTarget;
+    if (!currentTarget || makeContextKey(currentTarget, sourceId.value) !== contextKey) return;
     pages[type] = result.data;
   } catch (err) {
     if (!status.commentsOpen || requestTokens[type] !== token) return;
@@ -116,7 +127,7 @@ watch(
 );
 
 watch(sourceId, (next, prev) => {
-  if (!status.commentsOpen || !next || !prev || next === prev) return;
+  if (suppressSourceRefresh || !status.commentsOpen || !next || !prev || next === prev) return;
   refresh().catch(() => {});
 });
 </script>
@@ -125,8 +136,8 @@ watch(sourceId, (next, prev) => {
   <SDialog
     v-model:open="status.commentsOpen"
     :title="
-      status.commentsTrack
-        ? t('comments.title', { name: status.commentsTrack.title })
+      status.commentsTarget
+        ? t('comments.title', { name: status.commentsTarget.title })
         : t('comments.name')
     "
     width="min(860px, 92vw)"

@@ -16,7 +16,7 @@ import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
 import type { TagEditRequest } from "@shared/types/tagEditor";
 import type { UpdateEvent } from "@shared/types/update";
 import type { CloudUploadProgress } from "@shared/types/cloudUpload";
-import type { MusicCommentQuery } from "@shared/types/comment";
+import type { CommentQuery } from "@shared/types/comment";
 import type { AiModelSaveInput } from "@shared/types/ai";
 
 /** 订阅主进程推送的事件 */
@@ -407,7 +407,7 @@ const api = {
   },
   comments: {
     sources: () => ipcRenderer.invoke("comments:sources"),
-    get: (args: MusicCommentQuery) => ipcRenderer.invoke("comments:get", args),
+    get: (args: CommentQuery) => ipcRenderer.invoke("comments:get", args),
   },
   download: {
     // 入队下载

@@ -3,13 +3,23 @@ import { pickBestCandidate, type LyricCandidate } from "@main/apis/common/lyric/
 import { pluginRegistry, type PluginRuntime } from "@main/plugins/registry";
 import { callMusicComment, callMusicSearch } from "@main/plugins/router";
 import { pluginLog } from "@main/utils/logger";
-import type { CommentSource, MusicCommentPage, MusicCommentQuery } from "@shared/types/comment";
+import type {
+  CommentQuery,
+  CommentSource,
+  CommentTarget,
+  MusicCommentPage,
+} from "@shared/types/comment";
 import type { MusicSearchCandidate } from "@shared/types/plugin";
 import type { Track } from "@shared/types/player";
 import { buildCommentSources, normalizeNeteaseCommentPage } from "./data";
 
 const NETEASE_SOURCE_ID = "builtin:netease";
-const NETEASE_RESOURCE_TYPE = "R_SO_4_";
+const NETEASE_RESOURCE_TYPES: Record<CommentTarget["kind"], string> = {
+  song: "R_SO_4_",
+  playlist: "A_PL_0_",
+  album: "R_AL_3_",
+  radio: "A_DJ_1_",
+};
 
 const PLATFORM_TO_PLUGIN_SOURCE: Record<string, string> = {
   netease: "wy",
@@ -97,14 +107,19 @@ const findNeteaseId = async (track: Track): Promise<string | null> => {
   return pickBestCandidate(candidates, track)?.extra.id ?? null;
 };
 
-const getNeteaseComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
-  const id = await findNeteaseId(args.track);
+const getNeteaseComments = async (args: CommentQuery): Promise<MusicCommentPage> => {
+  const id =
+    args.target.kind === "song"
+      ? await findNeteaseId(args.target.track)
+      : args.target.source === "netease"
+        ? args.target.id
+        : null;
   if (!id) return { list: [], total: 0, page: args.page, limit: args.limit };
 
   const apiName = args.type === "hot" ? "comment_hot" : "comment_music";
   const { body } = await callNetease(apiName, {
     id,
-    type: NETEASE_RESOURCE_TYPE,
+    type: NETEASE_RESOURCE_TYPES[args.target.kind],
     limit: args.limit,
     offset: (args.page - 1) * args.limit,
   });
@@ -113,12 +128,13 @@ const getNeteaseComments = async (args: MusicCommentQuery): Promise<MusicComment
 
 const getPluginComments = async (
   parsed: ParsedPluginSource,
-  args: MusicCommentQuery,
+  args: CommentQuery,
 ): Promise<MusicCommentPage> => {
+  if (args.target.kind !== "song") throw new Error("plugin comments only support songs");
   const rt = pluginRegistry.getRuntime(parsed.pluginId);
   if (!rt || rt.status.state !== "ready") throw new Error("plugin comment source is not ready");
   try {
-    const musicInfo = await findPluginMatch(rt, parsed.source, args.track);
+    const musicInfo = await findPluginMatch(rt, parsed.source, args.target.track);
     if (!musicInfo) return { list: [], total: 0, page: args.page, limit: args.limit };
     return await callMusicComment(rt, {
       source: parsed.source,
@@ -138,7 +154,7 @@ const getPluginComments = async (
   }
 };
 
-const normalizeQuery = (args: MusicCommentQuery): MusicCommentQuery => ({
+const normalizeQuery = (args: CommentQuery): CommentQuery => ({
   ...args,
   page: Math.max(1, Math.floor(Number(args.page) || 1)),
   limit: Math.min(MAX_LIMIT, Math.max(1, Math.floor(Number(args.limit) || DEFAULT_LIMIT))),
@@ -148,8 +164,8 @@ const normalizeQuery = (args: MusicCommentQuery): MusicCommentQuery => ({
 export const getCommentSources = (): CommentSource[] =>
   buildCommentSources(pluginRegistry.listInfo());
 
-/** 获取歌曲评论 */
-export const getMusicComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
+/** 获取歌曲、歌单或专辑评论 */
+export const getComments = async (args: CommentQuery): Promise<MusicCommentPage> => {
   const query = normalizeQuery(args);
   if (query.sourceId === NETEASE_SOURCE_ID) return getNeteaseComments(query);
   const parsed = parsePluginSource(query.sourceId);

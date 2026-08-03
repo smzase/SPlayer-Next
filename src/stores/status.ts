@@ -6,6 +6,7 @@ import type {
   Track,
 } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
+import type { CollectionCommentTarget, CommentTarget } from "@shared/types/comment";
 import type { ContentScope } from "@/types/collection";
 import type { SortField, SortOrder } from "@/types/list";
 export type { RepeatMode, ShuffleMode } from "@shared/types/player";
@@ -39,8 +40,8 @@ export const useStatusStore = defineStore(
     const searchOpen = ref(false);
     /** 评论弹窗状态 */
     const commentsOpen = ref(false);
-    /** 评论弹窗当前歌曲 */
-    const commentsTrack = shallowRef<Track | null>(null);
+    /** 评论弹窗当前目标 */
+    const commentsTarget = shallowRef<CommentTarget | null>(null);
     /** 全屏播放器是否展示歌词 */
     const showLyric = ref(true);
     /** 当前播放索引 */
@@ -106,7 +107,19 @@ export const useStatusStore = defineStore(
 
     /** 打开指定歌曲评论 */
     const showComments = (track: Track): void => {
-      commentsTrack.value = track;
+      commentsTarget.value = {
+        kind: "song",
+        id: track.id,
+        title: track.title,
+        source: track.source,
+        track,
+      };
+      commentsOpen.value = true;
+    };
+
+    /** 打开指定歌单或专辑评论 */
+    const showCollectionComments = (target: CollectionCommentTarget): void => {
+      commentsTarget.value = target;
       commentsOpen.value = true;
     };
 
@@ -126,7 +139,7 @@ export const useStatusStore = defineStore(
       fullQueueOpen,
       searchOpen,
       commentsOpen,
-      commentsTrack,
+      commentsTarget,
       showLyric,
       outputDevices,
       playIndex,
@@ -149,6 +162,7 @@ export const useStatusStore = defineStore(
       sortOrder,
       currentTrack,
       showComments,
+      showCollectionComments,
     };
   },
   {

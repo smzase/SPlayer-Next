@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import type { TrackSource } from "@shared/types/player";
+import type { CollectionCommentTarget } from "@shared/types/comment";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { loadCollection as loadCollectionService } from "@/services/collection";
 import { useCollectionSubscribe } from "@/composables/collection/useCollectionSubscribe";
 import { usePlaylistManage } from "@/composables/collection/usePlaylistManage";
+import { useCopyText } from "@/composables/useCopyText";
+import { useStatusStore } from "@/stores/status";
 import SongList from "@/components/list/SongList.vue";
 import { formatTime } from "@/utils/time";
+import { getCollectionShareUrl } from "@/utils/format/shareUrl";
 import * as player from "@/core/player";
 import IconLucidePencil from "~icons/lucide/pencil";
 import IconLucideTrash2 from "~icons/lucide/trash-2";
@@ -15,12 +19,16 @@ import IconLucideListMusic from "~icons/lucide/list-music";
 import IconLucideHourglass from "~icons/lucide/hourglass";
 import IconLucideCalendar from "~icons/lucide/calendar";
 import IconLucideUser from "~icons/lucide/user";
+import IconLucideMessageCircle from "~icons/lucide/message-circle";
+import IconLucideShare2 from "~icons/lucide/share-2";
 import IconMaterialSymbolsFavoriteRounded from "~icons/material-symbols/favorite-rounded";
 import IconMaterialSymbolsFavoriteOutlineRounded from "~icons/material-symbols/favorite-outline-rounded";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const status = useStatusStore();
+const { copy } = useCopyText();
 
 const source = route.params.source as TrackSource;
 const type = route.params.type as CollectionType;
@@ -117,6 +125,29 @@ const updateTimeText = computed(() => {
   return new Date(collection.value.updateTime).toLocaleDateString();
 });
 
+const commentTarget = computed<CollectionCommentTarget | null>(() => {
+  const current = collection.value;
+  if (
+    !current ||
+    current.source !== "netease" ||
+    (current.type !== "playlist" && current.type !== "album" && current.type !== "radio")
+  ) {
+    return null;
+  }
+  return {
+    kind: current.type,
+    id: current.id,
+    title: current.title,
+    source: current.source,
+  };
+});
+
+const shareUrl = computed(() => getCollectionShareUrl(collection.value));
+
+const handleComments = (): void => {
+  if (commentTarget.value) status.showCollectionComments(commentTarget.value);
+};
+
 const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
   player.playFrom(collection.value.tracks, 0);
@@ -143,9 +174,11 @@ const manage = usePlaylistManage(collection, {
 const editLabel = computed(() => t("collection.edit", { type: typeLabel.value }));
 
 const moreMenuItems = computed<DropdownMenuItem[]>(() => {
-  const list: DropdownMenuItem[] = [
-    { key: "batchManage", label: t("songList.batch.manage"), icon: IconLucideListChecks },
-  ];
+  const list: DropdownMenuItem[] = [];
+  if (shareUrl.value) {
+    list.push({ key: "share", label: t("collection.share"), icon: IconLucideShare2 });
+  }
+  list.push({ key: "batchManage", label: t("songList.batch.manage"), icon: IconLucideListChecks });
   if (manage.canManage.value) {
     list.push({ key: "edit", label: editLabel.value, icon: IconLucidePencil });
     list.push({
@@ -158,8 +191,11 @@ const moreMenuItems = computed<DropdownMenuItem[]>(() => {
   return list;
 });
 
-const handleMoreMenu = (key: string) => {
+const handleMoreMenu = async (key: string): Promise<void> => {
   switch (key) {
+    case "share":
+      await copy(shareUrl.value);
+      break;
     case "batchManage":
       songListRef.value?.enterBatch();
       break;
@@ -277,6 +313,12 @@ onBeforeUnmount(() => {
                       : "collection.subscribe",
                   )
                 }}
+              </SButton>
+              <SButton v-if="commentTarget" variant="secondary" round @click="handleComments">
+                <template #icon>
+                  <IconLucideMessageCircle />
+                </template>
+                {{ t("comments.action") }}
               </SButton>
               <SDropdownMenu
                 v-if="moreMenuItems.length > 0"

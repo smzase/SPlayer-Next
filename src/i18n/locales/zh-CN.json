@@ -112,6 +112,7 @@
   },
   "comments": {
     "name": "歌曲评论",
+    "action": "评论",
     "title": "「{name}」的评论",
     "hot": "热门评论",
     "new": "最新评论",
@@ -2055,6 +2056,7 @@
     "edit": "编辑{type}",
     "subscribe": "收藏",
     "unsubscribe": "取消收藏",
+    "share": "分享",
     "privacy": {
       "private": "设为私密"
     }

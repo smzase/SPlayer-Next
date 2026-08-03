@@ -124,6 +124,7 @@
   },
   "comments": {
     "name": "Song Comments",
+    "action": "Comments",
     "title": "Comments for \"{name}\"",
     "hot": "Top Comments",
     "new": "Latest Comments",
@@ -2067,6 +2068,7 @@
     "edit": "Edit {type}",
     "subscribe": "Subscribe",
     "unsubscribe": "Unsubscribe",
+    "share": "Share",
     "privacy": {
       "private": "Make private"
     }

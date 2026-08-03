@@ -1,4 +1,4 @@
-import type { Track } from "./player";
+import type { Track, TrackSource } from "./player";
 
 /** 评论来源类型 */
 export type CommentSourceKind = "builtin" | "plugin";
@@ -40,22 +40,42 @@ export interface MusicCommentPage {
   limit: number;
 }
 
+/** 评论目标 */
+export type CommentTarget =
+  | {
+      kind: "song";
+      id: string;
+      title: string;
+      source: TrackSource;
+      track: Track;
+    }
+  | CollectionCommentTarget;
+
+/** 歌单、专辑或电台评论目标 */
+export interface CollectionCommentTarget {
+  kind: "playlist" | "album" | "radio";
+  id: string;
+  title: string;
+  source: TrackSource;
+}
+
 /** 评论查询参数 */
-export interface MusicCommentQuery {
+export interface CommentQuery {
   sourceId: string;
-  track: Track;
+  target: CommentTarget;
   type: CommentTab;
   page: number;
   limit: number;
 }
 
 /** 评论 IPC 响应 */
-export type MusicCommentResponse =
-  | { ok: true; data: MusicCommentPage }
-  | { ok: false; error: string };
+export type CommentResponse = { ok: true; data: MusicCommentPage } | { ok: false; error: string };
+
+export type MusicCommentQuery = CommentQuery;
+export type MusicCommentResponse = CommentResponse;
 
 /** 渲染端评论 API */
 export interface CommentsApi {
   sources: () => Promise<CommentSource[]>;
-  get: (args: MusicCommentQuery) => Promise<MusicCommentResponse>;
+  get: (args: CommentQuery) => Promise<CommentResponse>;
 }
