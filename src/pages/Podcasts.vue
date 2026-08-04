@@ -89,12 +89,17 @@ const openPodcast = (item: CoverItem): void => {
   navigateToPodcast(item.id, item.title);
 };
 
-/** 使用应用登录态打开网易云播客管理页 */
+/** 使用应用登录态在系统浏览器打开网易云播客管理页 */
 const openPodcastManager = async (): Promise<void> => {
   if (managerOpening.value) return;
+  const userId = user.profile?.userId;
+  if (!userId) {
+    toast.error(t("podcasts.manageFailed"));
+    return;
+  }
   managerOpening.value = true;
   try {
-    const result = await window.api.apis.openPodcastManager();
+    const result = await window.api.apis.openPodcastManager(userId);
     if (!result.ok) toast.error(t("podcasts.manageFailed"));
   } finally {
     managerOpening.value = false;

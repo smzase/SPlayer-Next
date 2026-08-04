@@ -180,7 +180,9 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
 
     try {
       if (createdPodcast) {
-        const result = await window.api.apis.openPodcastManager();
+        const userId = user.profile?.userId;
+        if (!userId) throw new Error(t("podcasts.manageFailed"));
+        const result = await window.api.apis.openPodcastManager(userId);
         if (!result.ok) throw new Error(t("podcasts.manageFailed"));
         return;
       }

@@ -77,6 +77,7 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "msg_notices",
   "send_text",
   "send_image",
+  "sso_login_token",
 ]);
 
 /** 国内 IP 前缀池 */

@@ -19,6 +19,7 @@ import login_refresh from "./login_refresh";
 import login_status from "./login_status";
 import logout from "./logout";
 import register_anonimous from "./register_anonimous";
+import sso_login_token from "./sso_login_token";
 
 // 用户
 import user_account from "./user_account";
@@ -131,6 +132,7 @@ export const modules: Record<string, NeteaseModule> = {
   login_status,
   logout,
   register_anonimous,
+  sso_login_token,
 
   user_account,
   user_cloud,

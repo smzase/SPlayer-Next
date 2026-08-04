@@ -90,9 +90,9 @@ export const registerApisIpc = (): void => {
     return { ok: true };
   });
 
-  ipcMain.handle("apis:openPodcastManager", async () => {
+  ipcMain.handle("apis:openPodcastManager", async (_event, userId: number) => {
     try {
-      await openNeteasePodcastManager();
+      await openNeteasePodcastManager(userId);
       return { ok: true };
     } catch (err) {
       coreLog.warn("[apis] openPodcastManager failed:", err);
