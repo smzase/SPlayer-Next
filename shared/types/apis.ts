@@ -43,4 +43,8 @@ export interface ApisApi {
     platform: ApiPlatform,
     cookie: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * 使用应用内网易云登录态打开播客管理页
+   */
+  openPodcastManager: () => Promise<{ ok: true } | { ok: false; error: string }>;
 }

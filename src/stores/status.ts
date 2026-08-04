@@ -105,8 +105,18 @@ export const useStatusStore = defineStore(
      */
     const currentTrack = computed(() => queue.getTrack(playIndex.value));
 
-    /** 打开指定歌曲评论 */
+    /** 打开指定歌曲或播客节目评论 */
     const showComments = (track: Track): void => {
+      if (track.source === "netease" && track.extId) {
+        commentsTarget.value = {
+          kind: "radio",
+          id: track.extId,
+          title: track.title,
+          source: track.source,
+        };
+        commentsOpen.value = true;
+        return;
+      }
       commentsTarget.value = {
         kind: "song",
         id: track.id,

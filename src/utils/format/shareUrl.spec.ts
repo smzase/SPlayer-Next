@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { getCollectionShareUrl } from "./shareUrl";
+import { getCollectionShareUrl, getShareUrl } from "./shareUrl";
+
+describe("曲目分享链接", () => {
+  it("声音节目使用节目 ID 生成链接", () => {
+    expect(
+      getShareUrl({
+        id: "2725832901",
+        extId: "3081133072",
+        source: "netease",
+        title: "测试声音",
+        artists: [],
+        duration: 0,
+      }),
+    ).toBe("https://music.163.com/#/dj?id=3081133072");
+  });
+
+  it("普通网易云歌曲仍使用歌曲 ID 生成链接", () => {
+    expect(
+      getShareUrl({
+        id: "2725832901",
+        source: "netease",
+        title: "测试歌曲",
+        artists: [],
+        duration: 0,
+      }),
+    ).toBe("https://music.163.com/#/song?id=2725832901");
+  });
+});
 
 describe("集合分享链接", () => {
   it("生成网易云歌单和专辑链接", () => {
@@ -8,6 +35,9 @@ describe("集合分享链接", () => {
     );
     expect(getCollectionShareUrl({ id: "2", source: "netease", type: "album" })).toBe(
       "https://music.163.com/#/album?id=2",
+    );
+    expect(getCollectionShareUrl({ id: "7", source: "netease", type: "radio" })).toBe(
+      "https://music.163.com/#/djradio?id=7",
     );
   });
 

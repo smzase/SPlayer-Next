@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { TrackSource } from "@shared/types/player";
+import type { Track, TrackSource } from "@shared/types/player";
 import type { CollectionCommentTarget } from "@shared/types/comment";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { loadCollection as loadCollectionService } from "@/services/collection";
+import { fetchPodcastPrograms, searchPodcastPrograms } from "@/apis/podcast/netease";
 import { useCollectionSubscribe } from "@/composables/collection/useCollectionSubscribe";
 import { usePlaylistManage } from "@/composables/collection/usePlaylistManage";
 import { useCopyText } from "@/composables/useCopyText";
+import { toast } from "@/composables/useToast";
 import { useStatusStore } from "@/stores/status";
 import SongList from "@/components/list/SongList.vue";
 import { formatTime } from "@/utils/time";
@@ -37,11 +39,119 @@ const id = route.params.id as string;
 const collection = shallowRef<Collection | null>(null);
 /** 正在加载 */
 const loading = ref(false);
+const loadError = ref("");
+const podcastHasMore = ref(false);
+const podcastLoadingMore = ref(false);
+const podcastSearchResults = shallowRef<Track[]>([]);
+const podcastSearchLoading = ref(false);
+const searchQuery = ref("");
+let podcastSearchToken = 0;
 /** 取消当次加载 */
 let loadAbort: AbortController | null = null;
 
 /** 折叠状态 */
 const collapsed = ref(false);
+const descriptionExpanded = ref(false);
+const descriptionExpandable = ref(false);
+const descriptionTextRef = shallowRef<HTMLElement | null>(null);
+const descriptionButtonRef = shallowRef<HTMLButtonElement | null>(null);
+const descriptionAnimating = ref(false);
+let descriptionAnimations: Animation[] = [];
+let descriptionAnimationId = 0;
+
+/** 检查简介在单行状态下是否溢出 */
+const measureDescription = (): void => {
+  const element = descriptionTextRef.value;
+  if (!element || descriptionExpanded.value) return;
+  descriptionExpandable.value = element.scrollWidth > element.clientWidth + 1;
+};
+
+useResizeObserver(descriptionTextRef, measureDescription);
+
+/** 取消简介动画并释放动画对象 */
+const cancelDescriptionAnimations = (): void => {
+  descriptionAnimationId += 1;
+  descriptionAnimations.forEach((animation) => animation.cancel());
+  descriptionAnimations = [];
+  if (descriptionTextRef.value) descriptionTextRef.value.style.height = "";
+  descriptionAnimating.value = false;
+};
+
+const toggleDescription = async (): Promise<void> => {
+  const element = descriptionTextRef.value;
+  if (!element || descriptionAnimating.value) return;
+  const button = descriptionButtonRef.value;
+  const animationId = ++descriptionAnimationId;
+  descriptionAnimating.value = true;
+
+  const outgoing = [
+    element.animate(
+      [
+        { opacity: 1, transform: "translateY(0)" },
+        { opacity: 0, transform: "translateY(2px)" },
+      ],
+      { duration: 100, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" },
+    ),
+  ];
+  if (button) {
+    outgoing.push(
+      button.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 100,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        fill: "forwards",
+      }),
+    );
+  }
+  descriptionAnimations = outgoing;
+  await Promise.allSettled(outgoing.map((animation) => animation.finished));
+  if (animationId !== descriptionAnimationId) return;
+  outgoing.forEach((animation) => animation.cancel());
+
+  const startHeight = element.getBoundingClientRect().height;
+  element.style.height = `${startHeight}px`;
+  descriptionExpanded.value = !descriptionExpanded.value;
+  await nextTick();
+  if (animationId !== descriptionAnimationId) return;
+
+  element.style.height = "";
+  const endHeight = element.getBoundingClientRect().height;
+  element.style.height = `${endHeight}px`;
+  const incoming = [
+    element.animate([{ height: `${startHeight}px` }, { height: `${endHeight}px` }], {
+      duration: 300,
+      easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+    }),
+    element.animate(
+      [
+        { opacity: 0, transform: "translateY(2px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      {
+        duration: 200,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        fill: "both",
+      },
+    ),
+  ];
+  if (button) {
+    incoming.push(
+      button.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 200,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        fill: "both",
+      }),
+    );
+  }
+  descriptionAnimations = incoming;
+  await Promise.allSettled(incoming.map((animation) => animation.finished));
+  if (animationId !== descriptionAnimationId) return;
+
+  descriptionAnimations.forEach((animation) => animation.cancel());
+  descriptionAnimations = [];
+  element.style.height = "";
+  descriptionAnimating.value = false;
+  if (!descriptionExpanded.value) measureDescription();
+};
 
 /** 滚动超过阈值折叠 */
 const handleListScroll = (event: Event) => {
@@ -56,6 +166,15 @@ const handleListScroll = (event: Event) => {
 /** 加载数据 */
 const loadCollection = async (): Promise<void> => {
   collapsed.value = false;
+  cancelDescriptionAnimations();
+  descriptionExpanded.value = false;
+  descriptionExpandable.value = false;
+  loadError.value = "";
+  podcastHasMore.value = false;
+  podcastLoadingMore.value = false;
+  podcastSearchToken += 1;
+  podcastSearchResults.value = [];
+  podcastSearchLoading.value = false;
   loadAbort?.abort();
   const myAbort = new AbortController();
   loadAbort = myAbort;
@@ -68,12 +187,100 @@ const loadCollection = async (): Promise<void> => {
       onUpdate: (next) => {
         if (myAbort.signal.aborted) return;
         collection.value = next;
+        if (type === "radio") {
+          podcastHasMore.value = Boolean(
+            next && next.tracks.length < (next.trackCount ?? next.tracks.length),
+          );
+        }
+        void nextTick(measureDescription);
       },
     });
+  } catch {
+    if (!myAbort.signal.aborted) loadError.value = t("collection.loadFailed");
   } finally {
     if (!myAbort.signal.aborted) loading.value = false;
   }
 };
+
+/** 触底加载下一页播客节目 */
+const loadMorePodcastPrograms = async (): Promise<void> => {
+  const current = collection.value;
+  if (
+    type !== "radio" ||
+    !current ||
+    searchQuery.value.trim() ||
+    !podcastHasMore.value ||
+    podcastLoadingMore.value
+  ) {
+    return;
+  }
+  podcastLoadingMore.value = true;
+  try {
+    const page = await fetchPodcastPrograms(decodeURIComponent(current.id), current.tracks.length);
+    if (loadAbort?.signal.aborted || collection.value !== current) return;
+    if (page.items.length === 0) {
+      podcastHasMore.value = false;
+      return;
+    }
+    const tracks = [...current.tracks, ...page.items];
+    collection.value = {
+      ...current,
+      tracks,
+      trackCount: page.total || current.trackCount,
+    };
+    podcastHasMore.value = page.hasMore;
+  } catch {
+    if (!loadAbort?.signal.aborted) toast.error(t("collection.loadFailed"));
+  } finally {
+    podcastLoadingMore.value = false;
+  }
+};
+
+/** 使用网易云桌面端接口搜索指定播客内的声音 */
+const runPodcastSearch = useDebounceFn(async (token: number, keyword: string): Promise<void> => {
+  const current = collection.value;
+  if (type !== "radio" || !current) return;
+
+  try {
+    const remote = await searchPodcastPrograms(decodeURIComponent(current.id), keyword);
+    if (token !== podcastSearchToken || collection.value !== current) return;
+    const seen = new Set(current.tracks.map((track) => track.extId ?? track.id));
+    podcastSearchResults.value = [
+      ...current.tracks,
+      ...remote.filter((track) => {
+        const key = track.extId ?? track.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    ];
+  } catch {
+    if (token === podcastSearchToken) podcastSearchResults.value = current.tracks;
+  } finally {
+    if (token === podcastSearchToken) podcastSearchLoading.value = false;
+  }
+}, 300);
+
+watch(searchQuery, (value) => {
+  const token = ++podcastSearchToken;
+  const keyword = value.trim();
+  if (type !== "radio" || !keyword) {
+    podcastSearchLoading.value = false;
+    podcastSearchResults.value = [];
+    return;
+  }
+  podcastSearchResults.value = collection.value?.tracks ?? [];
+  podcastSearchLoading.value = true;
+  void runPodcastSearch(token, keyword);
+});
+
+/** 搜索时切换到当前播客的服务端搜索结果 */
+const displayedTracks = computed(() => {
+  const current = collection.value;
+  if (!current) return [];
+  if (type === "radio" && searchQuery.value.trim()) return podcastSearchResults.value;
+  return current.tracks;
+});
 
 /**
  * 乐观过滤本地 tracks
@@ -125,6 +332,14 @@ const updateTimeText = computed(() => {
   return new Date(collection.value.updateTime).toLocaleDateString();
 });
 
+/** 集合内容数量 */
+const contentCountText = computed(() => {
+  const current = collection.value;
+  if (!current) return "";
+  const count = current.trackCount ?? current.tracks.length;
+  return t(type === "radio" ? "common.totalVoices" : "common.totalSongs", { count });
+});
+
 const commentTarget = computed<CollectionCommentTarget | null>(() => {
   const current = collection.value;
   if (
@@ -134,9 +349,11 @@ const commentTarget = computed<CollectionCommentTarget | null>(() => {
   ) {
     return null;
   }
+  const commentId = current.type === "radio" ? current.tracks[0]?.extId : current.id;
+  if (!commentId) return null;
   return {
     kind: current.type,
-    id: current.id,
+    id: commentId,
     title: current.title,
     source: current.source,
   };
@@ -152,8 +369,6 @@ const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
   player.playFrom(collection.value.tracks, 0);
 };
-
-const searchQuery = ref("");
 
 /** 歌曲列表引用 */
 const songListRef = shallowRef<InstanceType<typeof SongList> | null>(null);
@@ -214,6 +429,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   loadAbort?.abort();
+  podcastSearchToken += 1;
+  cancelDescriptionAnimations();
 });
 </script>
 
@@ -254,9 +471,36 @@ onBeforeUnmount(() => {
                   {{ artistText }}
                 </div>
                 <!-- 描述 -->
-                <p v-if="type !== 'album'" class="text-sm text-on-surface-variant/70 truncate">
-                  {{ collection.description || t("collection.noDescription") }}
-                </p>
+                <div class="relative min-w-0 mb-1 text-sm text-on-surface-variant/70">
+                  <p
+                    ref="descriptionTextRef"
+                    class="min-w-0 overflow-hidden"
+                    :class="
+                      descriptionExpanded
+                        ? 'whitespace-pre-line break-words pb-6'
+                        : 'truncate pr-10'
+                    "
+                  >
+                    {{ collection.description || t("collection.noDescription") }}
+                  </p>
+                  <button
+                    v-if="collection.description && (descriptionExpandable || descriptionExpanded)"
+                    ref="descriptionButtonRef"
+                    type="button"
+                    class="appearance-none absolute p-0 border-0 bg-transparent text-primary font-medium cursor-pointer transition-opacity duration-150 hover:opacity-70 disabled:pointer-events-none"
+                    :class="descriptionExpanded ? 'right-0 bottom-0' : 'right-0 top-0'"
+                    :disabled="descriptionAnimating"
+                    @click="toggleDescription"
+                  >
+                    {{
+                      t(
+                        descriptionExpanded
+                          ? "collection.collapseDescription"
+                          : "collection.expandDescription",
+                      )
+                    }}
+                  </button>
+                </div>
                 <div
                   class="flex items-center gap-3 text-sm leading-none text-on-surface-variant/50"
                 >
@@ -266,7 +510,7 @@ onBeforeUnmount(() => {
                   </span>
                   <span class="flex items-center gap-1 shrink-0">
                     <IconLucideListMusic class="shrink-0" />
-                    {{ t("common.totalSongs", { count: collection.tracks.length }) }}
+                    {{ contentCountText }}
                   </span>
                   <span v-if="totalDuration" class="flex items-center gap-1 shrink-0">
                     <IconLucideHourglass class="shrink-0" />
@@ -281,7 +525,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <!-- 操作栏 -->
-          <div class="mt-auto flex items-center justify-between gap-4">
+          <div class="mt-auto pt-3 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
               <SButton
                 type="primary"
@@ -359,16 +603,23 @@ onBeforeUnmount(() => {
       >
         <SongList
           ref="songListRef"
-          :items="collection.tracks"
+          :items="displayedTracks"
           :search-query="searchQuery"
-          :show-album="type !== 'album'"
+          :show-album="type !== 'album' && type !== 'radio'"
+          :show-podcast-metadata="type === 'radio'"
+          :show-favorite="type !== 'radio'"
           :show-size="source === 'local'"
           :source="source"
           :collection-type="type"
           :collection-id="id"
           :can-remove="manage.canManage.value"
+          :has-more="type === 'radio' && !searchQuery.trim() && podcastHasMore"
+          :loading-more="
+            type === 'radio' && (searchQuery.trim() ? podcastSearchLoading : podcastLoadingMore)
+          "
           enable-sort
           @scroll="handleListScroll"
+          @reach-bottom="loadMorePodcastPrograms"
           @change="handleTracksRemoved"
         />
       </div>
@@ -379,11 +630,23 @@ onBeforeUnmount(() => {
           <div class="text-sm">{{ t("common.loading") }}</div>
         </div>
       </div>
+      <!-- 加载失败 -->
+      <div v-else-if="loadError" key="error" class="flex-1 flex items-center justify-center">
+        <div class="text-center text-on-surface-variant/60">
+          <IconLucideTriangleAlert class="size-12 mx-auto mb-3 text-red-500/70" />
+          <div class="text-sm mb-3">{{ loadError }}</div>
+          <SButton variant="secondary" round @click="loadCollection">
+            {{ t("common.retry") }}
+          </SButton>
+        </div>
+      </div>
       <!-- 空状态 -->
       <div v-else-if="collection" key="empty" class="flex-1 flex items-center justify-center">
         <div class="text-center text-on-surface-variant/50">
           <IconLucideMusic class="size-12 mx-auto mb-3 opacity-30" />
-          <div class="text-sm">{{ t("collection.empty") }}</div>
+          <div class="text-sm">
+            {{ t(type === "radio" ? "collection.emptyRadio" : "collection.empty") }}
+          </div>
         </div>
       </div>
     </Transition>

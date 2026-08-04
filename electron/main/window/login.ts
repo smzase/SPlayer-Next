@@ -21,7 +21,7 @@ const COOKIE_KEYS = ["MUSIC_U", "__csrf", "NMTID", "MUSIC_A"];
  * 伪装成普通桌面 Chrome
  * 默认 UA 含 "Electron/..."，NCM 会判定为不受支持环境，渲染极慢且无法跳转
  */
-const FAKE_UA =
+export const NETEASE_WEB_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 let activeWin: BrowserWindow | null = null;
@@ -69,7 +69,7 @@ export const openNeteaseLoginWindow = async (): Promise<Record<string, string> |
   const ses = getLoginSession();
   await ses.clearStorageData({ storages: ["cookies", "localstorage", "indexdb"] });
   // 整个分区都伪装 UA，否则部分 XHR 仍会被识别成 Electron
-  ses.setUserAgent(FAKE_UA);
+  ses.setUserAgent(NETEASE_WEB_USER_AGENT);
 
   const parent = getMainWindow() ?? undefined;
 
@@ -97,7 +97,7 @@ export const openNeteaseLoginWindow = async (): Promise<Record<string, string> |
   });
 
   // 顶层导航和 XHR 都使用伪装 UA
-  activeWin.webContents.setUserAgent(FAKE_UA);
+  activeWin.webContents.setUserAgent(NETEASE_WEB_USER_AGENT);
 
   // 阻止新窗口
   activeWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -129,7 +129,7 @@ export const openNeteaseLoginWindow = async (): Promise<Record<string, string> |
 
     activeWin!.on("closed", () => finish(null));
 
-    activeWin!.loadURL(LOGIN_URL, { userAgent: FAKE_UA }).catch((err) => {
+    activeWin!.loadURL(LOGIN_URL, { userAgent: NETEASE_WEB_USER_AGENT }).catch((err) => {
       coreLog.error("[login] loadURL failed:", err);
       finish(null);
     });

@@ -28,10 +28,15 @@ describe("网易云资源评论", () => {
       { id: "3", type: "R_AL_3_" } satisfies Query,
       request as unknown as RequestFn,
     );
+    await commentMusic(
+      { id: "4", type: "A_DJ_1_" } satisfies Query,
+      request as unknown as RequestFn,
+    );
 
     expect(request.mock.calls.map(([url]) => url)).toEqual([
       "/api/v1/resource/comments/A_PL_0_2",
       "/api/v1/resource/comments/R_AL_3_3",
+      "/api/v1/resource/comments/A_DJ_1_4",
     ]);
   });
 

@@ -379,6 +379,8 @@ const api = {
     // 手动写入 cookie 登录
     setCookie: (platform: string, cookie: string) =>
       ipcRenderer.invoke("apis:setCookie", platform, cookie),
+    // 使用应用登录态打开网易云播客管理页
+    openPodcastManager: () => ipcRenderer.invoke("apis:openPodcastManager"),
   },
   cloud: {
     // 弹出文件选择器选择待上传歌曲

@@ -38,6 +38,7 @@ import user_level from "./user_level";
 import user_playlist from "./user_playlist";
 import user_record from "./user_record";
 import user_subcount from "./user_subcount";
+import user_audio from "./user_audio";
 
 // 消息
 import pl_count from "./pl_count";
@@ -112,6 +113,11 @@ import artist_songs from "./artist_songs";
 import album_sublist from "./album_sublist";
 import artist_sub from "./artist_sub";
 import artist_sublist from "./artist_sublist";
+import dj_detail from "./dj_detail";
+import dj_program from "./dj_program";
+import dj_program_search from "./dj_program_search";
+import dj_sub from "./dj_sub";
+import dj_sublist from "./dj_sublist";
 
 export const modules: Record<string, NeteaseModule> = {
   captcha_sent,
@@ -143,6 +149,7 @@ export const modules: Record<string, NeteaseModule> = {
   user_playlist,
   user_record,
   user_subcount,
+  user_audio,
 
   pl_count,
   msg_private,
@@ -207,4 +214,9 @@ export const modules: Record<string, NeteaseModule> = {
   album_sublist,
   artist_sub,
   artist_sublist,
+  dj_detail,
+  dj_program,
+  dj_program_search,
+  dj_sub,
+  dj_sublist,
 };
