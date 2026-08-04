@@ -48,6 +48,15 @@ declare global {
         ) => () => void;
         listFonts: () => Promise<string[]>;
         fetchRemoteBytes: (url: string) => Promise<IpcResponse<Buffer | null>>;
+        openImage: (
+          data: ArrayBuffer,
+          fileName: string,
+        ) => Promise<{ success: boolean; error?: string }>;
+        copyImage: (data: ArrayBuffer) => Promise<{ success: boolean; error?: string }>;
+        saveFileAs: (
+          data: ArrayBuffer,
+          fileName: string,
+        ) => Promise<{ success: boolean; canceled?: boolean; path?: string; error?: string }>;
         saveFile: (
           data: ArrayBuffer,
           fileName: string,

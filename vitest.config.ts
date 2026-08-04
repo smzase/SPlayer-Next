@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/vite";
+import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 
@@ -26,6 +27,10 @@ export default defineConfig({
     vue(),
     AutoImport({
       imports: ["vue", "pinia", "vue-router", "@vueuse/core", "vue-i18n"],
+    }),
+    Icons({
+      compiler: "vue3",
+      scale: 1,
     }),
   ],
   test: {

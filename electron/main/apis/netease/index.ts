@@ -77,6 +77,17 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "msg_notices",
   "send_text",
   "send_image",
+  "event_feed",
+  "event_user_history",
+  "event_detail",
+  "event_like",
+  "event_forward",
+  "event_delete",
+  "event_comments",
+  "event_comment_add",
+  "event_comment_delete",
+  "event_publish",
+  "event_upload_image",
   "sso_login_token",
 ]);
 

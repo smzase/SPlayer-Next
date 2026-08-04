@@ -13,6 +13,8 @@
   "onboarding": {
     "next": "Next",
     "back": "Back",
+    "remove": "Remove",
+    "back": "Back",
     "finish": "Finish",
     "footer": "You can adjust anything skipped here anytime in Settings",
     "welcome": {
@@ -126,6 +128,14 @@
     "totalPodcasts": "{count} podcasts",
     "totalVoices": "{count} episodes"
   },
+  "inputMenu": {
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "delete": "Delete",
+    "selectAll": "Select all",
+    "pasteFailed": "Could not read the clipboard"
+  },
   "resourceMenu": {
     "view": "View",
     "play": "Play",
@@ -210,6 +220,97 @@
       "notice": "sent you a notification"
     }
   },
+  "follow": {
+    "title": "Following",
+    "subtitle": "See what the people you follow have shared",
+    "loginRequired": "Sign in to view your following feed",
+    "loginHint": "Sign in with your NetEase Cloud Music account first",
+    "empty": "No new music posts yet",
+    "end": "You're all caught up",
+    "imagePreview": "View image",
+    "imageAlt": "Post image",
+    "imageMenu": {
+      "open": "Open with system image viewer",
+      "copy": "Copy",
+      "saveAs": "Save as",
+      "loadFailed": "Failed to load image",
+      "openFailed": "Could not open the system image viewer",
+      "copyDone": "Image copied",
+      "copyFailed": "Failed to copy image",
+      "saveDone": "Image saved",
+      "saveFailed": "Failed to save image"
+    },
+    "resource": {
+      "song": "Song",
+      "artist": "Artist",
+      "album": "Album",
+      "playlist": "Playlist",
+      "podcast": "Podcast",
+      "unavailable": "This music item is unavailable"
+    },
+    "composer": {
+      "topic": "Add topic",
+      "mention": "Mention someone",
+      "searchUsers": "Search users",
+      "noMentions": "No followed users. Search for someone else",
+      "noUsers": "No matching users",
+      "emoji": "Add emoji",
+      "image": "Add images"
+    },
+    "action": {
+      "like": "Like",
+      "forward": "Repost",
+      "comment": "Comment",
+      "delete": "Delete"
+    },
+    "publish": {
+      "button": "Publish",
+      "title": "New music post",
+      "placeholder": "Share something about music~",
+      "resourceRequired": "Linked music",
+      "resourceHint": "One item is required before publishing",
+      "selectResource": "Choose music",
+      "searchResource": "Search songs, artists, albums, playlists or podcasts",
+      "searchHint": "Enter keywords to find music to link",
+      "submit": "Publish",
+      "done": "Post published",
+      "exitTitle": "Exit editor",
+      "exitConfirm": "Keep this draft for later, or exit and discard it.",
+      "keep": "Keep",
+      "exit": "Exit",
+      "imageLimit": "Add up to 9 images, no more than 10 MB each",
+      "removeImage": "Remove image",
+      "uploading": "Uploading image {current}/{total}"
+    },
+    "forward": {
+      "title": "Repost",
+      "placeholder": "Add a message",
+      "submit": "Repost",
+      "done": "Reposted"
+    },
+    "delete": {
+      "title": "Delete post",
+      "confirm": "Delete this post? This cannot be undone.",
+      "done": "Post deleted"
+    },
+    "detail": {
+      "title": "Post details",
+      "subtitle": "View this post and its comments"
+    },
+    "comment": {
+      "title": "Comments ({count})",
+      "placeholder": "Write a comment",
+      "submit": "Post comment",
+      "done": "Comment posted",
+      "empty": "No comments yet",
+      "loadMore": "Load more comments",
+      "collapse": "Collapse",
+      "copy": "Copy",
+      "deleteTitle": "Delete comment",
+      "deleteConfirm": "Delete this comment? This cannot be undone.",
+      "deleteDone": "Comment deleted"
+    }
+  },
   "equalizer": {
     "title": "Equalizer",
     "preamp": "Preamp",
@@ -267,6 +368,7 @@
   },
   "nav": {
     "home": "Home",
+    "follow": "Following",
     "library": "Library",
     "liked": "Liked Songs",
     "history": "Play History",

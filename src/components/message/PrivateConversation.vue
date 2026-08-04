@@ -8,6 +8,8 @@ import {
 import { songsByIds } from "@/apis/song/netease";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { toast } from "@/composables/useToast";
+import SEmojiPicker from "@/components/ui/SEmojiPicker.vue";
+import SImagePreviewDialog from "@/components/ui/SImagePreviewDialog.vue";
 import * as player from "@/core/player";
 import { useMessageStore } from "@/stores/message";
 import type {
@@ -85,168 +87,6 @@ const markLatestMessageRead = (items: PrivateChatMessage[]): void => {
   messageStore.markPrivateThreadRead(props.currentUserId, props.user.userId, latestTime);
 };
 
-const EMOJIS = [
-  "😀",
-  "😃",
-  "😄",
-  "😁",
-  "😆",
-  "😅",
-  "😂",
-  "🤣",
-  "😊",
-  "😇",
-  "🙂",
-  "🙃",
-  "😉",
-  "😌",
-  "😍",
-  "🥰",
-  "😘",
-  "😗",
-  "😙",
-  "😚",
-  "😋",
-  "😛",
-  "😝",
-  "😜",
-  "🤪",
-  "🤨",
-  "🧐",
-  "🤓",
-  "😎",
-  "🥸",
-  "🤩",
-  "🥳",
-  "😏",
-  "😒",
-  "😞",
-  "😔",
-  "😟",
-  "😕",
-  "🙁",
-  "☹️",
-  "😣",
-  "😖",
-  "😫",
-  "😩",
-  "🥺",
-  "😢",
-  "😭",
-  "😤",
-  "😠",
-  "😡",
-  "🤬",
-  "🤯",
-  "😳",
-  "🥵",
-  "🥶",
-  "😱",
-  "😨",
-  "😰",
-  "😥",
-  "😓",
-  "🤗",
-  "🤔",
-  "🫣",
-  "🤭",
-  "🫢",
-  "🫡",
-  "🤫",
-  "🤥",
-  "😶",
-  "😐",
-  "😑",
-  "😬",
-  "🙄",
-  "😯",
-  "😦",
-  "😧",
-  "😮",
-  "😲",
-  "🥱",
-  "😴",
-  "🤤",
-  "😪",
-  "😵",
-  "🤐",
-  "🤢",
-  "🤮",
-  "🤧",
-  "😷",
-  "🤒",
-  "🤕",
-  "👍",
-  "👎",
-  "👌",
-  "🤌",
-  "🤏",
-  "✌️",
-  "🤞",
-  "🫰",
-  "🤟",
-  "🤘",
-  "🤙",
-  "👈",
-  "👉",
-  "👆",
-  "👇",
-  "☝️",
-  "✋",
-  "🤚",
-  "🖐️",
-  "🖖",
-  "👋",
-  "🤝",
-  "👏",
-  "🙌",
-  "🫶",
-  "🙏",
-  "💪",
-  "✍️",
-  "❤️",
-  "🧡",
-  "💛",
-  "💚",
-  "💙",
-  "💜",
-  "🖤",
-  "🤍",
-  "🤎",
-  "💔",
-  "❤️‍🔥",
-  "❤️‍🩹",
-  "❣️",
-  "💕",
-  "💞",
-  "💓",
-  "💗",
-  "💖",
-  "💘",
-  "💝",
-  "💟",
-  "🔥",
-  "✨",
-  "⭐",
-  "🌟",
-  "💫",
-  "🎉",
-  "🎊",
-  "🎵",
-  "🎶",
-  "🎧",
-  "🌹",
-  "🌸",
-  "🌈",
-  "☀️",
-  "🌙",
-  "🍀",
-  "☕",
-  "🍻",
-  "🎂",
-  "🎁",
-] as const;
-
 const mergeMessages = (
   older: PrivateChatMessage[],
   current: PrivateChatMessage[],
@@ -296,7 +136,6 @@ const insertEmoji = async (emoji: string): Promise<void> => {
   const nextDraft = `${draft.value.slice(0, start)}${emoji}${draft.value.slice(end)}`;
   if (nextDraft.length > MAX_MESSAGE_CHARS) return;
   draft.value = nextDraft;
-  emojiOpen.value = false;
   await nextTick();
   const nextTextarea = inputRef.value?.$el.querySelector<HTMLTextAreaElement>("textarea");
   nextTextarea?.focus();
@@ -902,32 +741,12 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div class="mt-2 flex items-center gap-1.5">
-        <SPopover v-model:open="emojiOpen" side="top" align="start" :side-offset="8">
-          <template #trigger>
-            <SButton
-              variant="ghost"
-              size="small"
-              circle
-              :title="t('messages.emoji')"
-              :aria-label="t('messages.emoji')"
-              :disabled="sending"
-            >
-              <template #icon><IconLucideSmilePlus /></template>
-            </SButton>
-          </template>
-          <div class="grid max-h-64 w-72 grid-cols-9 gap-1 overflow-y-auto pr-1">
-            <button
-              v-for="emoji in EMOJIS"
-              :key="emoji"
-              type="button"
-              class="emoji-picker-button flex size-7 cursor-pointer items-center justify-center rounded-md text-lg focus-visible:ring-2 focus-visible:ring-primary/40"
-              :aria-label="emoji"
-              @click="insertEmoji(emoji)"
-            >
-              {{ emoji }}
-            </button>
-          </div>
-        </SPopover>
+        <SEmojiPicker
+          v-model:open="emojiOpen"
+          :title="t('messages.emoji')"
+          :disabled="sending"
+          @select="insertEmoji"
+        />
         <SButton
           variant="ghost"
           size="small"
@@ -993,54 +812,16 @@ onBeforeUnmount(() => {
     </footer>
   </div>
 
-  <SDialog
+  <SImagePreviewDialog
     :open="previewImage !== null"
     :title="t('messages.imagePreview')"
-    width="min(92vw, 1120px)"
-    height="min(86vh, 840px)"
-    :content-style="{ padding: 0, overflow: 'hidden' }"
-    destroy-on-close
+    :src="previewImageUrl"
+    :alt="t('messages.imageMessage')"
     @update:open="setImagePreviewOpen"
-  >
-    <div class="flex size-full min-h-0 items-center justify-center bg-black/80 p-4">
-      <img
-        v-if="previewImage"
-        :src="previewImageUrl"
-        :alt="t('messages.imageMessage')"
-        class="max-h-full max-w-full object-contain"
-        decoding="async"
-        draggable="false"
-        referrerpolicy="no-referrer"
-      />
-    </div>
-  </SDialog>
+  />
 </template>
 
 <style scoped>
-.emoji-picker-button {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
-  line-height: 1;
-  transition:
-    color 150ms,
-    background-color 150ms,
-    transform 150ms;
-}
-
-.emoji-picker-button:hover {
-  background-color: rgb(var(--s-on-surface) / 0.12);
-  transform: scale(1.12);
-}
-
-.emoji-picker-button:active {
-  background-color: rgb(var(--s-primary) / 0.18);
-  transform: scale(0.9);
-}
-
 .private-message-input {
   padding-bottom: 1.25rem;
 }

@@ -1,7 +1,7 @@
-import { app, ipcMain, shell } from "electron";
-import { writeFile } from "node:fs/promises";
+import { app, clipboard, dialog, ipcMain, nativeImage, shell } from "electron";
+import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join, basename, extname } from "node:path";
 import { getFonts } from "font-list";
 import type { LocaleCode } from "@shared/types/settings";
 import { setLocale } from "@main/utils/i18n";
@@ -14,6 +14,11 @@ import { logsDir } from "@main/utils/paths";
 import { consumePendingOrpheusUrl } from "@main/services/orpheus";
 import { testNetworkProxy } from "@main/utils/proxy";
 import { store } from "@main/store";
+
+const sanitizeFileName = (fileName: string): string =>
+  basename(fileName)
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .trim();
 
 /**
  * 注册系统相关的 IPC 事件
@@ -91,13 +96,63 @@ export const registerSystemIpc = (): void => {
     return { success: true, data: buf };
   });
 
+  // 使用系统图片查看器打开图片
+  ipcMain.handle("system:openImage", async (_event, data: ArrayBuffer, fileName: string) => {
+    try {
+      const safeName = sanitizeFileName(fileName);
+      const sourceExt = extname(safeName).toLowerCase();
+      const extension = /^\.(?:jpe?g|png|webp|gif|bmp)$/.test(sourceExt) ? sourceExt : ".png";
+      const dir = join(app.getPath("temp"), "SPlayer-Next", "image-preview");
+      await mkdir(dir, { recursive: true });
+      const target = join(dir, `preview${extension}`);
+      await writeFile(target, Buffer.from(data));
+      const error = await shell.openPath(target);
+      return error ? { success: false, error } : { success: true };
+    } catch (error) {
+      systemLog.error("[system] openImage failed", error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // 将图片写入系统剪贴板
+  ipcMain.handle("system:copyImage", (_event, data: ArrayBuffer) => {
+    try {
+      const image = nativeImage.createFromBuffer(Buffer.from(data));
+      if (image.isEmpty()) return { success: false, error: "invalid image" };
+      clipboard.writeImage(image);
+      return { success: true };
+    } catch (error) {
+      systemLog.error("[system] copyImage failed", error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // 通过系统对话框另存图片
+  ipcMain.handle("system:saveFileAs", async (_event, data: ArrayBuffer, fileName: string) => {
+    try {
+      const safeName = sanitizeFileName(fileName);
+      if (!safeName || safeName === "." || safeName === "..") {
+        return { success: false, error: "invalid file name" };
+      }
+      const options = { defaultPath: join(app.getPath("pictures"), safeName) };
+      const win = getMainWindow();
+      const result = win
+        ? await dialog.showSaveDialog(win, options)
+        : await dialog.showSaveDialog(options);
+      if (result.canceled || !result.filePath) return { success: false, canceled: true };
+      await writeFile(result.filePath, Buffer.from(data));
+      return { success: true, path: result.filePath };
+    } catch (error) {
+      systemLog.error("[system] saveFileAs failed", error);
+      return { success: false, error: String(error) };
+    }
+  });
+
   // 保存文件到下载目录
   ipcMain.handle("system:saveFile", async (_event, data: ArrayBuffer, fileName: string) => {
     try {
       // 只取末段并清洗非法字符
-      const safeName = basename(fileName)
-        .replace(/[\\/:*?"<>|]/g, " ")
-        .trim();
+      const safeName = sanitizeFileName(fileName);
       if (!safeName || safeName === "." || safeName === "..") {
         return { success: false, error: "invalid file name" };
       }

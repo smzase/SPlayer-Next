@@ -7,15 +7,19 @@ const props = withDefaults(
     items: DropdownMenuItem[];
     /** 对齐方式 */
     alignOffset?: number;
+    /** 菜单打开和关闭时保留触发元素的焦点 */
+    preserveFocus?: boolean;
   }>(),
   {
     alignOffset: 0,
+    preserveFocus: false,
   },
 );
 
 /** 选择菜单项事件 */
 const emit = defineEmits<{
   select: [key: string];
+  closed: [];
 }>();
 
 /** 显示的项 */
@@ -25,6 +29,23 @@ const visibleItems = computed(() => props.items.filter((item) => item.show !== f
 const handleSelect = (item: DropdownMenuItem): void => {
   if (item.disabled) return;
   emit("select", item.key);
+};
+
+/**
+ * 保留文本输入框焦点，避免右键菜单清除可见选区
+ * @param event - 菜单自动聚焦事件
+ */
+const handleOpenAutoFocus = (event: Event): void => {
+  if (props.preserveFocus) event.preventDefault();
+};
+
+/**
+ * 阻止菜单关闭时覆盖文本选区
+ * @param event - 菜单自动聚焦事件
+ */
+const handleCloseAutoFocus = (event: Event): void => {
+  if (props.preserveFocus) event.preventDefault();
+  emit("closed");
 };
 
 /** 内容区域样式 */
@@ -48,6 +69,8 @@ const menuItemClass =
         :avoid-collisions="true"
         :collision-padding="12"
         :class="contentClass"
+        @open-auto-focus="handleOpenAutoFocus"
+        @close-auto-focus="handleCloseAutoFocus"
       >
         <slot name="header" />
         <SDivider v-if="$slots.header" class="mx-1.5 my-0.5" />

@@ -52,6 +52,19 @@ import msg_notices from "./msg_notices";
 import send_text from "./send_text";
 import send_image from "./send_image";
 
+// 关注动态
+import event_feed from "./event_feed";
+import event_user_history from "./event_user_history";
+import event_detail from "./event_detail";
+import event_like from "./event_like";
+import event_forward from "./event_forward";
+import event_delete from "./event_delete";
+import event_comments from "./event_comments";
+import event_comment_add from "./event_comment_add";
+import event_comment_delete from "./event_comment_delete";
+import event_publish from "./event_publish";
+import event_upload_image from "./event_upload_image";
+
 // 搜索
 import cloudsearch from "./cloudsearch";
 import search from "./search";
@@ -162,6 +175,18 @@ export const modules: Record<string, NeteaseModule> = {
   msg_notices,
   send_text,
   send_image,
+
+  event_feed,
+  event_user_history,
+  event_detail,
+  event_like,
+  event_forward,
+  event_delete,
+  event_comments,
+  event_comment_add,
+  event_comment_delete,
+  event_publish,
+  event_upload_image,
 
   cloudsearch,
   search,

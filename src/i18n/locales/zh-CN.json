@@ -96,6 +96,8 @@
     "retry": "重试",
     "prev": "上一页",
     "next": "下一页",
+    "back": "返回",
+    "remove": "移除",
     "search": "搜索",
     "loading": "加载中",
     "noData": "暂无数据",
@@ -113,6 +115,14 @@
     "totalPlaylists": "共 {count} 个歌单",
     "totalPodcasts": "共 {count} 个播客",
     "totalVoices": "共 {count} 个声音"
+  },
+  "inputMenu": {
+    "cut": "剪切",
+    "copy": "复制",
+    "paste": "粘贴",
+    "delete": "删除",
+    "selectAll": "全选",
+    "pasteFailed": "无法读取剪贴板"
   },
   "resourceMenu": {
     "view": "查看",
@@ -198,6 +208,97 @@
       "notice": "向你发送了一条通知"
     }
   },
+  "follow": {
+    "title": "关注",
+    "subtitle": "看看你关注的人最近分享了什么",
+    "loginRequired": "登录后查看关注动态",
+    "loginHint": "请先登录网易云音乐账号",
+    "empty": "暂时没有新的音乐笔记",
+    "end": "已经看到这里了",
+    "imagePreview": "查看图片",
+    "imageAlt": "笔记图片",
+    "imageMenu": {
+      "open": "使用系统图片查看器打开",
+      "copy": "复制",
+      "saveAs": "另存为",
+      "loadFailed": "图片加载失败",
+      "openFailed": "无法使用系统图片查看器打开",
+      "copyDone": "图片已复制",
+      "copyFailed": "图片复制失败",
+      "saveDone": "图片已保存",
+      "saveFailed": "图片保存失败"
+    },
+    "resource": {
+      "song": "单曲",
+      "artist": "歌手",
+      "album": "专辑",
+      "playlist": "歌单",
+      "podcast": "播客",
+      "unavailable": "无法获取此音乐内容"
+    },
+    "composer": {
+      "topic": "添加话题",
+      "mention": "{'@'}人",
+      "searchUsers": "搜索用户昵称",
+      "noMentions": "暂无已关注用户，可以搜索其他用户",
+      "noUsers": "没有找到相关用户",
+      "emoji": "添加 Emoji",
+      "image": "添加图片"
+    },
+    "action": {
+      "like": "点赞",
+      "forward": "转发",
+      "comment": "评论",
+      "delete": "删除"
+    },
+    "publish": {
+      "button": "发布",
+      "title": "发笔记",
+      "placeholder": "一起聊聊音乐吧~",
+      "resourceRequired": "关联音乐内容",
+      "resourceHint": "发布前必须选择一项",
+      "selectResource": "选择音乐内容",
+      "searchResource": "搜索单曲、歌手、专辑、歌单或播客",
+      "searchHint": "输入关键词搜索要关联的音乐内容",
+      "submit": "发布笔记",
+      "done": "笔记已发布",
+      "exitTitle": "退出编辑",
+      "exitConfirm": "是否退出本次编辑？可以保留当前内容稍后继续，或直接退出并清空。",
+      "keep": "保留",
+      "exit": "退出",
+      "imageLimit": "最多添加 9 张图片，单张图片不能超过 10 MB",
+      "removeImage": "移除图片",
+      "uploading": "正在上传图片 {current}/{total}"
+    },
+    "forward": {
+      "title": "转发",
+      "placeholder": "说点什么吧",
+      "submit": "转发",
+      "done": "已转发"
+    },
+    "delete": {
+      "title": "删除笔记",
+      "confirm": "确定删除这篇笔记吗？删除后无法恢复。",
+      "done": "笔记已删除"
+    },
+    "detail": {
+      "title": "笔记详情",
+      "subtitle": "查看笔记内容与评论"
+    },
+    "comment": {
+      "title": "评论（{count}）",
+      "placeholder": "写下你的评论",
+      "submit": "发布评论",
+      "done": "评论已发布",
+      "empty": "还没有评论，来说两句吧",
+      "loadMore": "加载更多评论",
+      "collapse": "收起",
+      "copy": "复制",
+      "deleteTitle": "删除评论",
+      "deleteConfirm": "确定删除这条评论吗？删除后无法恢复。",
+      "deleteDone": "评论已删除"
+    }
+  },
   "equalizer": {
     "title": "均衡器",
     "preamp": "前级",
@@ -255,6 +356,7 @@
   },
   "nav": {
     "home": "首页",
+    "follow": "关注",
     "library": "音乐库",
     "liked": "我喜欢的音乐",
     "history": "播放历史",

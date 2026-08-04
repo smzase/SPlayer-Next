@@ -131,6 +131,14 @@ const api = {
     listFonts: () => ipcRenderer.invoke("system:listFonts"),
     // 拉远端字节回渲染层
     fetchRemoteBytes: (url: string) => ipcRenderer.invoke("system:fetchRemoteBytes", url),
+    // 使用系统图片查看器打开图片
+    openImage: (data: ArrayBuffer, fileName: string) =>
+      ipcRenderer.invoke("system:openImage", data, fileName),
+    // 将图片写入系统剪贴板
+    copyImage: (data: ArrayBuffer) => ipcRenderer.invoke("system:copyImage", data),
+    // 通过系统对话框另存图片
+    saveFileAs: (data: ArrayBuffer, defaultName: string) =>
+      ipcRenderer.invoke("system:saveFileAs", data, defaultName),
     // 保存文件到下载目录
     saveFile: (data: ArrayBuffer, defaultName: string) =>
       ipcRenderer.invoke("system:saveFile", data, defaultName),

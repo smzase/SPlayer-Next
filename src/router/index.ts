@@ -23,6 +23,16 @@ const router = createRouter({
           component: () => import("@/pages/Home.vue"),
         },
         {
+          path: "follow",
+          name: "follow",
+          component: () => import("@/pages/Follow.vue"),
+        },
+        {
+          path: "follow/:uid/:id",
+          name: "follow-detail",
+          component: () => import("@/pages/FollowDetail.vue"),
+        },
+        {
           path: "library",
           name: "library",
           component: () => import("@/pages/Library.vue"),

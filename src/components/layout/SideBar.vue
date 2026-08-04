@@ -10,6 +10,7 @@ import { useDownloadStore } from "@/stores/download";
 import { useHeartMode } from "@/composables/useHeartMode";
 import * as player from "@/core/player";
 import IconLucideHome from "~icons/lucide/home";
+import IconLucideUsersRound from "~icons/lucide/users-round";
 import IconLucideMusic from "~icons/lucide/music";
 import IconLucideUser from "~icons/lucide/user";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
@@ -151,6 +152,7 @@ const subscribedItems = computed<SMenuItem[]>(() => {
 const menuItems = computed<SMenuItem[]>(() => [
   // 本地音乐分组
   { key: "/", label: t("nav.home"), icon: markRaw(IconLucideHome) },
+  { key: "/follow", label: t("nav.follow"), icon: markRaw(IconLucideUsersRound) },
   { key: "/library", label: t("nav.library"), icon: markRaw(IconLucideMusic) },
   { key: "/artists/local", label: t("artist.label"), icon: markRaw(IconLucideUser) },
   { key: "/albums/local", label: t("album.label"), icon: markRaw(IconLucideDisc3) },
