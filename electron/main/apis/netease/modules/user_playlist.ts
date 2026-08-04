@@ -11,6 +11,7 @@ const userPlaylist: NeteaseModule = (query, request) => {
     limit: query.limit ?? 30,
     offset: query.offset ?? 0,
     includeVideo: true,
+    timestamp: query.timestamp ?? Date.now(),
   };
   return request("/api/user/playlist", data, createOption(query, "weapi"));
 };

@@ -15,6 +15,7 @@ const albumSublist: NeteaseModule = (query, request) => {
     limit: query.limit ?? 50,
     offset: query.offset ?? 0,
     total: true,
+    timestamp: query.timestamp ?? Date.now(),
   };
   return request("/api/album/sublist", data, createOption(query, "weapi"));
 };

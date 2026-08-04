@@ -75,6 +75,16 @@ const sendShortcutLabel = computed(() =>
 const previewImageUrl = computed(
   () => previewImage.value?.url.replace(/\?param=\d+y\d+$/, "") ?? "",
 );
+/**
+ * 记录当前会话已展示的最新消息
+ * @param items - 当前会话消息
+ */
+const markLatestMessageRead = (items: PrivateChatMessage[]): void => {
+  let latestTime = 0;
+  for (const item of items) latestTime = Math.max(latestTime, item.time);
+  messageStore.markPrivateThreadRead(props.currentUserId, props.user.userId, latestTime);
+};
+
 const EMOJIS = [
   "😀",
   "😃",
@@ -422,6 +432,7 @@ const loadConversation = async (reset: boolean, showLoading = true): Promise<voi
     } else {
       messages.value = mergeMessages(pageItems, messages.value);
     }
+    markLatestMessageRead(messages.value);
     cursor.value = page.cursor ?? cursor.value;
     more.value = page.more && messages.value.length < MAX_MESSAGES;
     await nextTick();
@@ -463,6 +474,7 @@ const refreshConversation = async (): Promise<void> => {
         ? messages.value.filter((item) => item.time < earliestTime)
         : [];
     const nextMessages = mergeMessages(older, latest).slice(-MAX_MESSAGES);
+    markLatestMessageRead(nextMessages);
     const unchanged =
       nextMessages.length === messages.value.length &&
       nextMessages.every((item, index) => {

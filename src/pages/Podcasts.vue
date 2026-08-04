@@ -5,9 +5,11 @@ import { useUserStore } from "@/stores/user";
 import { podcastToCoverItem } from "@/utils/format/podcast";
 import { navigateToPodcast } from "@/utils/navigate";
 import { toast } from "@/composables/useToast";
+import { useResourceCardMenu, type ResourceCardType } from "@/composables/useResourceCardMenu";
 import CoverList from "@/components/list/CoverList.vue";
 import IconLucideExternalLink from "~icons/lucide/external-link";
 import IconLucidePodcast from "~icons/lucide/podcast";
+import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -45,9 +47,12 @@ const subscribedItems = computed<CoverItem[]>(() => user.subscribedPodcasts.map(
 const currentItems = computed(() =>
   activeTab.value === "created" ? createdItems.value : subscribedItems.value,
 );
+const resourceType = computed<ResourceCardType>(() => "radio");
+const resourceMenu = useResourceCardMenu(resourceType);
 
 const error = ref("");
 const managerOpening = ref(false);
+const refreshing = ref(false);
 
 /** 按需加载个人播客 */
 const loadPodcasts = async (): Promise<void> => {
@@ -56,6 +61,19 @@ const loadPodcasts = async (): Promise<void> => {
     await user.ensurePodcasts();
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
+  }
+};
+
+/** 从服务器刷新创建和收藏的播客 */
+const refreshPodcasts = async (): Promise<void> => {
+  if (refreshing.value || !user.isLoggedIn) return;
+  refreshing.value = true;
+  try {
+    await user.refreshPodcasts();
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : t("common.refreshFailed"));
+  } finally {
+    refreshing.value = false;
   }
 };
 
@@ -115,7 +133,22 @@ const openPodcastManager = async (): Promise<void> => {
           {{ t("podcasts.manage") }}
         </SButton>
       </div>
-      <STabs :model-value="activeTab" :tabs="tabs" @update:model-value="onTabSwitch" />
+      <div class="flex items-center justify-between gap-3">
+        <STabs :model-value="activeTab" :tabs="tabs" @update:model-value="onTabSwitch" />
+        <SButton
+          v-if="user.isLoggedIn"
+          variant="text"
+          circle
+          :size="32"
+          :icon-size="16"
+          :loading="refreshing"
+          :title="t('common.refresh')"
+          :aria-label="t('common.refresh')"
+          @click="refreshPodcasts"
+        >
+          <template #icon><IconLucideRefreshCw /></template>
+        </SButton>
+      </div>
     </div>
 
     <div v-if="!user.isLoggedIn" class="flex-1 flex items-center justify-center">
@@ -146,7 +179,9 @@ const openPodcastManager = async (): Promise<void> => {
           :padding-x="20"
           :padding-top="8"
           :padding-bottom="20"
+          :context-menu-items="resourceMenu.menuItems.value"
           @click="openPodcast"
+          @context-menu="resourceMenu.handleSelect"
         />
       </div>
       <div v-else key="empty" class="flex-1 flex items-center justify-center">

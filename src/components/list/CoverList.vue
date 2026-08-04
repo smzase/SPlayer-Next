@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CoverItem } from "@/types/artist";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import type { SVirtualListExposed } from "@/components/ui/SVirtualList.vue";
 import { useFloatingPlayerBar, PLAYER_BAR_GAP } from "@/composables/useFloatingPlayerBar";
 
@@ -28,6 +29,8 @@ export interface CoverListProps {
   hasMore?: boolean;
   /** 触底加载中 */
   loadingMore?: boolean;
+  /** 卡片右键菜单 */
+  contextMenuItems?: DropdownMenuItem[];
 }
 
 const props = withDefaults(defineProps<CoverListProps>(), {
@@ -41,6 +44,7 @@ const props = withDefaults(defineProps<CoverListProps>(), {
   paddingBottom: 0,
   hasMore: false,
   loadingMore: false,
+  contextMenuItems: () => [],
 });
 
 const { t } = useI18n();
@@ -55,6 +59,7 @@ const virtualPaddingBottom = computed(() =>
 const emit = defineEmits<{
   click: [item: CoverItem];
   reachBottom: [];
+  contextMenu: [key: string, item: CoverItem];
 }>();
 
 const virtualListRef = ref<SVirtualListExposed | null>(null);
@@ -141,15 +146,29 @@ const getRowKey = (row: Row): string => row.id;
           gap: `${gap}px`,
         }"
       >
-        <CoverCard
-          v-for="item in row.items"
-          :key="item.id"
-          :item="item"
-          :type="type"
-          :rounded="rounded"
-          :fallback="fallback"
-          @click="emit('click', item)"
-        />
+        <template v-for="item in row.items" :key="item.id">
+          <SContextMenu
+            v-if="contextMenuItems.length > 0"
+            :items="contextMenuItems"
+            @select="emit('contextMenu', $event, item)"
+          >
+            <CoverCard
+              :item="item"
+              :type="type"
+              :rounded="rounded"
+              :fallback="fallback"
+              @click="emit('click', item)"
+            />
+          </SContextMenu>
+          <CoverCard
+            v-else
+            :item="item"
+            :type="type"
+            :rounded="rounded"
+            :fallback="fallback"
+            @click="emit('click', item)"
+          />
+        </template>
       </div>
     </template>
   </SVirtualList>
@@ -163,14 +182,28 @@ const getRowKey = (row: Row): string => row.id;
       gap: `${gap}px`,
     }"
   >
-    <CoverCard
-      v-for="item in items"
-      :key="item.id"
-      :item="item"
-      :type="type"
-      :rounded="rounded"
-      :fallback="fallback"
-      @click="emit('click', item)"
-    />
+    <template v-for="item in items" :key="item.id">
+      <SContextMenu
+        v-if="contextMenuItems.length > 0"
+        :items="contextMenuItems"
+        @select="emit('contextMenu', $event, item)"
+      >
+        <CoverCard
+          :item="item"
+          :type="type"
+          :rounded="rounded"
+          :fallback="fallback"
+          @click="emit('click', item)"
+        />
+      </SContextMenu>
+      <CoverCard
+        v-else
+        :item="item"
+        :type="type"
+        :rounded="rounded"
+        :fallback="fallback"
+        @click="emit('click', item)"
+      />
+    </template>
   </div>
 </template>

@@ -15,9 +15,22 @@ const EMPTY_COUNTS: MessageUnreadCounts = {
   notice: 0,
 };
 
+interface MessageReadBaseline {
+  counts: MessageUnreadCounts;
+  updatedAt: number;
+}
+
+const MESSAGE_CATEGORIES: readonly MessageCategory[] = [
+  "private",
+  "comment",
+  "mention",
+  "notice",
+];
 const VIEW_RETENTION_MS = 180_000;
 const MAX_DRAFTS = 50;
 const MAX_HIDDEN_PRIVATE_MESSAGES = 500;
+const MAX_PRIVATE_THREAD_READ_TIMES = 500;
+const MAX_READ_BASELINES = 5;
 const DEFAULT_PANEL_SIZE = { width: 600, height: 620 };
 
 export const useMessageStore = defineStore(
@@ -29,11 +42,31 @@ export const useMessageStore = defineStore(
     const sendShortcut = ref<MessageSendShortcut>("ctrlEnter");
     const drafts = ref<Record<string, MessageDraft>>({});
     const hiddenPrivateMessages = ref<Record<string, number>>({});
+    const privateThreadReadTimes = ref<Record<string, number>>({});
+    const readBaselines = ref<Record<string, MessageReadBaseline>>({});
+    const serverUnread = ref<MessageUnreadCounts>({ ...EMPTY_COUNTS });
     const totalUnread = computed(() =>
       Object.values(unread.value).reduce((sum, value) => sum + value, 0),
     );
     let requestToken = 0;
     let viewState: MessageViewState | null = null;
+
+    /**
+     * 保存指定账号的服务器未读基线
+     * @param userId - 当前用户 ID
+     * @param counts - 已查看时的服务器未读数量
+     */
+    const saveReadBaseline = (userId: number, counts: MessageUnreadCounts): void => {
+      const next = {
+        ...readBaselines.value,
+        [String(userId)]: { counts: { ...counts }, updatedAt: Date.now() },
+      };
+      readBaselines.value = Object.fromEntries(
+        Object.entries(next)
+          .sort(([, left], [, right]) => right.updatedAt - left.updatedAt)
+          .slice(0, MAX_READ_BASELINES),
+      );
+    };
 
     /** 更新消息浮窗尺寸 */
     const setPanelSize = (width: number, height: number): void => {
@@ -121,13 +154,71 @@ export const useMessageStore = defineStore(
       );
     };
 
+    /** 生成按账号隔离的私信会话已读键 */
+    const privateThreadReadKey = (currentUserId: number, peerUserId: number): string =>
+      String(currentUserId) + ":" + String(peerUserId);
+
+    /**
+     * 判断会话最新消息是否已在本地查看
+     * @param currentUserId - 当前登录用户 ID
+     * @param peerUserId - 对方用户 ID
+     * @param latestMessageTime - 会话最新消息时间
+     */
+    const isPrivateThreadRead = (
+      currentUserId: number,
+      peerUserId: number,
+      latestMessageTime: number,
+    ): boolean =>
+      latestMessageTime > 0 &&
+      latestMessageTime <=
+        (privateThreadReadTimes.value[privateThreadReadKey(currentUserId, peerUserId)] ?? 0);
+
+    /**
+     * 记录私信会话已查看到的最新消息时间
+     * @param currentUserId - 当前登录用户 ID
+     * @param peerUserId - 对方用户 ID
+     * @param latestMessageTime - 已查看的最新消息时间
+     */
+    const markPrivateThreadRead = (
+      currentUserId: number,
+      peerUserId: number,
+      latestMessageTime: number,
+    ): void => {
+      if (latestMessageTime <= 0) return;
+      const key = privateThreadReadKey(currentUserId, peerUserId);
+      if ((privateThreadReadTimes.value[key] ?? 0) >= latestMessageTime) return;
+      privateThreadReadTimes.value = Object.fromEntries(
+        Object.entries({
+          ...privateThreadReadTimes.value,
+          [key]: latestMessageTime,
+        })
+          .sort(([, left], [, right]) => right - left)
+          .slice(0, MAX_PRIVATE_THREAD_READ_TIMES),
+      );
+    };
+
     /** 刷新服务器未读数量 */
-    const refreshUnread = async (): Promise<void> => {
+    const refreshUnread = async (userId: number): Promise<void> => {
       const token = ++requestToken;
       loading.value = true;
       try {
         const next = await fetchMessageUnreadCounts();
-        if (token === requestToken) unread.value = next;
+        if (token !== requestToken) return;
+        const baseline = {
+          ...(readBaselines.value[String(userId)]?.counts ?? EMPTY_COUNTS),
+        };
+        let baselineChanged = false;
+        const visible = { ...EMPTY_COUNTS };
+        for (const category of MESSAGE_CATEGORIES) {
+          if (next[category] < baseline[category]) {
+            baseline[category] = 0;
+            baselineChanged = true;
+          }
+          visible[category] = Math.max(0, next[category] - baseline[category]);
+        }
+        serverUnread.value = { ...next };
+        unread.value = visible;
+        if (baselineChanged) saveReadBaseline(userId, baseline);
       } finally {
         if (token === requestToken) loading.value = false;
       }
@@ -137,9 +228,17 @@ export const useMessageStore = defineStore(
      * 清除单个分类的本地未读标记
      * @param category - 消息分类
      */
-    const markCategoryRead = (category: MessageCategory): void => {
-      if (unread.value[category] === 0) return;
-      unread.value = { ...unread.value, [category]: 0 };
+    const markCategoryRead = (category: MessageCategory, userId: number): void => {
+      const current = readBaselines.value[String(userId)]?.counts ?? EMPTY_COUNTS;
+      if (current[category] !== serverUnread.value[category]) {
+        saveReadBaseline(userId, {
+          ...current,
+          [category]: serverUnread.value[category],
+        });
+      }
+      if (unread.value[category] !== 0) {
+        unread.value = { ...unread.value, [category]: 0 };
+      }
     };
 
     /** 读取所有分类并同步清除未读标记 */
@@ -147,6 +246,7 @@ export const useMessageStore = defineStore(
       loading.value = true;
       try {
         await readAllMessageCategories(userId);
+        saveReadBaseline(userId, serverUnread.value);
         unread.value = { ...EMPTY_COUNTS };
       } finally {
         loading.value = false;
@@ -157,6 +257,7 @@ export const useMessageStore = defineStore(
     const clear = (): void => {
       requestToken += 1;
       unread.value = { ...EMPTY_COUNTS };
+      serverUnread.value = { ...EMPTY_COUNTS };
       loading.value = false;
       viewState = null;
     };
@@ -168,6 +269,8 @@ export const useMessageStore = defineStore(
       sendShortcut,
       drafts,
       hiddenPrivateMessages,
+      privateThreadReadTimes,
+      readBaselines,
       totalUnread,
       setPanelSize,
       setSendShortcut,
@@ -177,6 +280,8 @@ export const useMessageStore = defineStore(
       setDraft,
       isPrivateMessageHidden,
       hidePrivateMessage,
+      isPrivateThreadRead,
+      markPrivateThreadRead,
       refreshUnread,
       markCategoryRead,
       markAllRead,
@@ -186,7 +291,14 @@ export const useMessageStore = defineStore(
   {
     persist: {
       storage: localStorage,
-      pick: ["panelSize", "sendShortcut", "drafts", "hiddenPrivateMessages"],
+      pick: [
+        "panelSize",
+        "sendShortcut",
+        "drafts",
+        "hiddenPrivateMessages",
+        "privateThreadReadTimes",
+        "readBaselines",
+      ],
     },
   },
 );

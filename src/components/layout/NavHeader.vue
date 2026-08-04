@@ -190,7 +190,7 @@ watch(
       message.clear();
       return;
     }
-    void message.refreshUnread().catch(() => undefined);
+    void message.refreshUnread(userId).catch(() => undefined);
   },
   { immediate: true },
 );
@@ -199,10 +199,11 @@ const documentVisibility = useDocumentVisibility();
 const { pause: pauseBackgroundMessagePolling, resume: resumeBackgroundMessagePolling } =
   useIntervalFn(
     () => {
-      if (!user.isLoggedIn || (messageOpen.value && documentVisibility.value === "visible")) {
+      const userId = user.profile?.userId;
+      if (!userId || (messageOpen.value && documentVisibility.value === "visible")) {
         return;
       }
-      void message.refreshUnread().catch(() => undefined);
+      void message.refreshUnread(userId).catch(() => undefined);
     },
     BACKGROUND_MESSAGE_POLL_INTERVAL_MS,
     { immediate: false },

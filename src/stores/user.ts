@@ -76,6 +76,17 @@ interface CloudCache {
   cachedAt: number;
 }
 
+type SubscriptionResourceType = "playlist" | "album" | "artist" | "radio";
+
+interface SubscriptionTombstone {
+  userId: number;
+  type: SubscriptionResourceType;
+  id: string;
+  removedAt: number;
+}
+
+const SUBSCRIPTION_TOMBSTONE_TTL_MS = 30 * 60 * 1000;
+const MAX_SUBSCRIPTION_TOMBSTONES = 200;
 const cacheDb = localforage.createInstance({ name: "splayer", storeName: "user-cache" });
 
 const EMPTY_SUBCOUNT: UserSubcount = {
@@ -105,6 +116,8 @@ export const useUserStore = defineStore(
     const createdPodcasts = shallowRef<Podcast[]>([]);
     /** 用户收藏的播客 */
     const subscribedPodcasts = shallowRef<Podcast[]>([]);
+    /** 等待服务器收藏列表同步的本地取消记录 */
+    const subscriptionTombstones = ref<SubscriptionTombstone[]>([]);
     /** 个人播客是否已按需加载 */
     const podcastsLoaded = ref(false);
     /** 是否正在拉取个人播客 */
@@ -154,6 +167,76 @@ export const useUserStore = defineStore(
 
     /** 是否红心 */
     const isLiked = (trackId: string): boolean => likedSongIds.value.has(trackId);
+
+    /** 清理已过期的取消收藏协调记录 */
+    const pruneSubscriptionTombstones = (): void => {
+      const cutoff = Date.now() - SUBSCRIPTION_TOMBSTONE_TTL_MS;
+      const next = subscriptionTombstones.value.filter((item) => item.removedAt > cutoff);
+      if (next.length !== subscriptionTombstones.value.length) {
+        subscriptionTombstones.value = next;
+      }
+    };
+
+    /**
+     * 记录取消收藏，防止服务器旧列表在重新加载时恢复条目
+     * @param type - 收藏资源类型
+     * @param id - 资源 ID
+     */
+    const rememberSubscriptionRemoval = (type: SubscriptionResourceType, id: string): void => {
+      const userId = profile.value?.userId;
+      if (!userId) return;
+      pruneSubscriptionTombstones();
+      subscriptionTombstones.value = [
+        {
+          userId,
+          type,
+          id: String(id),
+          removedAt: Date.now(),
+        },
+        ...subscriptionTombstones.value.filter(
+          (item) => !(item.userId === userId && item.type === type && item.id === String(id)),
+        ),
+      ].slice(0, MAX_SUBSCRIPTION_TOMBSTONES);
+    };
+
+    /**
+     * 收藏成功后移除对应的本地取消记录
+     * @param type - 收藏资源类型
+     * @param id - 资源 ID
+     */
+    const forgetSubscriptionRemoval = (type: SubscriptionResourceType, id: string): void => {
+      const userId = profile.value?.userId;
+      if (!userId) return;
+      const next = subscriptionTombstones.value.filter(
+        (item) => !(item.userId === userId && item.type === type && item.id === String(id)),
+      );
+      if (next.length !== subscriptionTombstones.value.length) {
+        subscriptionTombstones.value = next;
+      }
+    };
+
+    /**
+     * 过滤仍处于服务器同步窗口内的已取消资源
+     * @param type - 收藏资源类型
+     * @param items - 服务器返回的资源列表
+     * @param userId - 当前用户 ID
+     * @returns 可展示的资源列表
+     */
+    const filterRemovedSubscriptions = <T extends { id?: string }>(
+      type: SubscriptionResourceType,
+      items: T[],
+      userId: number,
+    ): T[] => {
+      pruneSubscriptionTombstones();
+      const removed = new Set(
+        subscriptionTombstones.value
+          .filter((item) => item.userId === userId && item.type === type)
+          .map((item) => item.id),
+      );
+      return removed.size > 0
+        ? items.filter((item) => !removed.has(String(item.id)))
+        : items;
+    };
 
     /** 持久化红心 id 列表 */
     const persistLikedSongIds = (): void => {
@@ -400,7 +483,11 @@ export const useUserStore = defineStore(
           likedSongIds.value = new Set(cachedIds.ids);
         }
         if (cachedPlaylists?.userId === userId) {
-          playlists.value = cachedPlaylists.playlists;
+          playlists.value = filterRemovedSubscriptions(
+            "playlist",
+            cachedPlaylists.playlists,
+            userId,
+          );
         }
       } catch {
         console.error("[user] hydrate content from cache failed");
@@ -415,7 +502,11 @@ export const useUserStore = defineStore(
       const sub = await fetchSubcount();
       subcount.value = sub;
       const total = (sub.createdPlaylistCount || 0) + (sub.subPlaylistCount || 0) || 50;
-      const list = await fetchUserPlaylists(uid, total);
+      const list = filterRemovedSubscriptions(
+        "playlist",
+        await fetchUserPlaylists(uid, total),
+        uid,
+      );
       playlists.value = list;
       const payload: PlaylistsCache = {
         userId: uid,
@@ -444,8 +535,12 @@ export const useUserStore = defineStore(
       if (likeRes.status === "fulfilled") {
         applyLikedSongIds(likeRes.value);
       }
-      if (albumRes.status === "fulfilled") albums.value = albumRes.value;
-      if (artistRes.status === "fulfilled") artists.value = artistRes.value;
+      if (albumRes.status === "fulfilled") {
+        albums.value = filterRemovedSubscriptions("album", albumRes.value, uid);
+      }
+      if (artistRes.status === "fulfilled") {
+        artists.value = filterRemovedSubscriptions("artist", artistRes.value, uid);
+      }
       if (levelRes.status === "fulfilled") level.value = levelRes.value;
       for (const result of settled) {
         if (result.status === "rejected") {
@@ -491,6 +586,26 @@ export const useUserStore = defineStore(
       } catch (err) {
         console.warn("[user] refreshPlaylists failed:", err);
       }
+    };
+
+    /** 从服务器刷新“我的收藏”的全部分类 */
+    const refreshFavorites = async (): Promise<void> => {
+      const uid = profile.value?.userId;
+      if (!uid) return;
+      const settled = await Promise.allSettled([
+        fetchAndApplyPlaylists(uid),
+        fetchUserAlbums(),
+        fetchUserArtists(),
+      ]);
+      const [, albumResult, artistResult] = settled;
+      if (albumResult.status === "fulfilled") {
+        albums.value = filterRemovedSubscriptions("album", albumResult.value, uid);
+      }
+      if (artistResult.status === "fulfilled") {
+        artists.value = filterRemovedSubscriptions("artist", artistResult.value, uid);
+      }
+      const failed = settled.find((result) => result.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
     };
 
     /**
@@ -579,19 +694,43 @@ export const useUserStore = defineStore(
       subscribe: boolean,
     ): Promise<void> => {
       await subscribePlaylist(playlistId, subscribe);
+      if (!subscribe) {
+        rememberSubscriptionRemoval("playlist", playlistId);
+        playlists.value = playlists.value.filter(
+          (playlist) => String(playlist.id) !== String(playlistId),
+        );
+        return;
+      }
+      forgetSubscriptionRemoval("playlist", playlistId);
       await refreshPlaylists();
     };
 
     /** 收藏 / 取消收藏专辑 */
     const toggleAlbumSubscribe = async (albumId: string, subscribe: boolean): Promise<void> => {
       await subscribeAlbum(albumId, subscribe);
-      albums.value = await fetchUserAlbums();
+      if (!subscribe) {
+        rememberSubscriptionRemoval("album", albumId);
+        albums.value = albums.value.filter((album) => String(album.id) !== String(albumId));
+        return;
+      }
+      forgetSubscriptionRemoval("album", albumId);
+      const userId = profile.value?.userId;
+      const next = await fetchUserAlbums();
+      albums.value = userId ? filterRemovedSubscriptions("album", next, userId) : next;
     };
 
     /** 收藏 / 取消收藏歌手 */
     const toggleArtistSubscribe = async (artistId: string, subscribe: boolean): Promise<void> => {
       await subscribeArtist(artistId, subscribe);
-      artists.value = await fetchUserArtists();
+      if (!subscribe) {
+        rememberSubscriptionRemoval("artist", artistId);
+        artists.value = artists.value.filter((artist) => String(artist.id) !== String(artistId));
+        return;
+      }
+      forgetSubscriptionRemoval("artist", artistId);
+      const userId = profile.value?.userId;
+      const next = await fetchUserArtists();
+      artists.value = userId ? filterRemovedSubscriptions("artist", next, userId) : next;
     };
 
     /** 刷新用户创建和收藏的播客 */
@@ -607,7 +746,7 @@ export const useUserStore = defineStore(
         ]);
         if (profile.value?.userId !== uid) return;
         createdPodcasts.value = created;
-        subscribedPodcasts.value = subscribed;
+        subscribedPodcasts.value = filterRemovedSubscriptions("radio", subscribed, uid);
         podcastsLoaded.value = true;
       })();
       podcastLoadPromise = task;
@@ -628,6 +767,14 @@ export const useUserStore = defineStore(
     /** 收藏或取消收藏播客 */
     const togglePodcastSubscribe = async (podcastId: string, subscribe: boolean): Promise<void> => {
       await subscribePodcast(podcastId, subscribe);
+      if (!subscribe) {
+        rememberSubscriptionRemoval("radio", podcastId);
+        subscribedPodcasts.value = subscribedPodcasts.value.filter(
+          (podcast) => String(podcast.id) !== String(podcastId),
+        );
+        return;
+      }
+      forgetSubscriptionRemoval("radio", podcastId);
       if (podcastLoadPromise) await podcastLoadPromise;
       await refreshPodcasts();
     };
@@ -703,6 +850,7 @@ export const useUserStore = defineStore(
       artists,
       createdPodcasts,
       subscribedPodcasts,
+      subscriptionTombstones,
       podcastsLoaded,
       podcastsLoading,
       level,
@@ -726,6 +874,7 @@ export const useUserStore = defineStore(
       ensureCloud,
       refreshCloud,
       removeCloudTracks,
+      refreshFavorites,
 
       createPlaylist,
       deletePlaylist,
@@ -743,7 +892,7 @@ export const useUserStore = defineStore(
   {
     persist: {
       storage: localStorage,
-      pick: ["profile", "lastRefreshAt", "level"],
+      pick: ["profile", "lastRefreshAt", "level", "subscriptionTombstones"],
     },
   },
 );

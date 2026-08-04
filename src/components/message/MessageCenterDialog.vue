@@ -175,10 +175,16 @@ const loadPrivate = async (reset: boolean): Promise<void> => {
     }
     const page = await fetchPrivateThreads(currentUserId, offset, limit);
     if (token !== requestTokens.private || !props.open) return;
-    privateThreads.value = reset ? page.items : mergeById(privateThreads.value, page.items);
+    const pageItems = page.items.map((thread) =>
+      thread.unreadCount > 0 &&
+      message.isPrivateThreadRead(currentUserId, thread.user.userId, thread.lastMessageTime)
+        ? { ...thread, unreadCount: 0 }
+        : thread,
+    );
+    privateThreads.value = reset ? pageItems : mergeById(privateThreads.value, pageItems);
     more.private = page.more && privateThreads.value.length < MAX_LIST_ITEMS;
     loaded.private = true;
-    message.markCategoryRead("private");
+    message.markCategoryRead("private", currentUserId);
     await restoreListScroll("private");
   } catch (cause) {
     if (token !== requestTokens.private) return;
@@ -225,7 +231,7 @@ const loadActivity = async (category: ActivityCategory, reset: boolean): Promise
     else if (page.cursor !== undefined) cursors[category] = page.cursor;
     more[category] = page.more && activityItems.value[category].length < MAX_LIST_ITEMS;
     loaded[category] = true;
-    message.markCategoryRead(category);
+    message.markCategoryRead(category, currentUserId);
     await restoreListScroll(category);
   } catch (cause) {
     if (token !== requestTokens[category]) return;
@@ -243,10 +249,21 @@ const loadCategory = (category: MessageCategory, reset: boolean): Promise<void> 
   category === "private" ? loadPrivate(reset) : loadActivity(category, reset);
 
 /** 进入指定私信会话 */
-const openThread = (threadUser: MessageUser): void => {
+const openThread = (thread: PrivateMessageThread): void => {
   saveListScroll("private");
+  const currentUserId = user.profile?.userId;
+  if (currentUserId) {
+    message.markPrivateThreadRead(
+      currentUserId,
+      thread.user.userId,
+      thread.lastMessageTime,
+    );
+    privateThreads.value = privateThreads.value.map((item) =>
+      item.user.userId === thread.user.userId ? { ...item, unreadCount: 0 } : item,
+    );
+  }
   void loadPrivate(true);
-  currentThread.value = { ...threadUser };
+  currentThread.value = { ...thread.user };
 };
 
 /** 返回私信会话列表 */
@@ -271,7 +288,9 @@ const markAllRead = async (): Promise<void> => {
 /** 刷新当前可见的消息分类 */
 const pollVisibleCategory = async (): Promise<void> => {
   const category = activeTab.value;
+  const currentUserId = user.profile?.userId;
   if (
+    !currentUserId ||
     !props.open ||
     currentThread.value ||
     document.hidden ||
@@ -281,7 +300,7 @@ const pollVisibleCategory = async (): Promise<void> => {
     return;
   }
   try {
-    await message.refreshUnread();
+    await message.refreshUnread(currentUserId);
   } catch {
     // 未读数量刷新失败不阻止当前分类继续更新
   }
@@ -312,7 +331,8 @@ watch(
 
 watch(activeTab, (category) => {
   currentThread.value = null;
-  message.markCategoryRead(category);
+  const currentUserId = user.profile?.userId;
+  if (currentUserId) message.markCategoryRead(category, currentUserId);
   if (props.open && !loaded[category] && !loading[category]) void loadCategory(category, true);
   else void restoreListScroll(category);
 });
@@ -337,7 +357,8 @@ watch(
     const category = restored?.category ?? "private";
     activeTab.value = category;
     currentThread.value = null;
-    message.markCategoryRead(category);
+    const currentUserId = user.profile?.userId;
+    if (currentUserId) message.markCategoryRead(category, currentUserId);
     void loadCategory(category, true);
     if (category === "private" && restored?.thread) {
       const restoredThread = { ...restored.thread };
@@ -433,8 +454,8 @@ watch(
               role="button"
               tabindex="0"
               class="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-3 outline-none transition-colors duration-200 hover:bg-on-surface/5 focus-visible:ring-2 focus-visible:ring-primary/35"
-              @click="openThread(thread.user)"
-              @keydown.enter="openThread(thread.user)"
+              @click="openThread(thread)"
+              @keydown.enter="openThread(thread)"
             >
               <MessageAvatar :user="thread.user" />
               <div class="min-w-0 flex-1">

@@ -112,7 +112,9 @@
     "loading": "Loading",
     "noData": "No data",
     "noMore": "No more ~",
+    "refresh": "Refresh",
     "refreshCache": "Refresh cache",
+    "refreshFailed": "Refresh failed",
     "success": "Success",
     "copied": "Copied",
     "copyFailed": "Copy failed",
@@ -123,6 +125,24 @@
     "totalPlaylists": "{count} playlists",
     "totalPodcasts": "{count} podcasts",
     "totalVoices": "{count} episodes"
+  },
+  "resourceMenu": {
+    "view": "View",
+    "play": "Play",
+    "share": "Share",
+    "downloadAll": "Download All",
+    "delete": {
+      "playlist": "Delete Playlist",
+      "album": "Delete Album",
+      "artist": "Delete Artist",
+      "radio": "Delete Podcast"
+    },
+    "loading": "Loading “{title}”...",
+    "loadFailed": "Unable to load “{title}”",
+    "deleteConfirm": "Delete “{title}”?",
+    "deleteCreatedPodcastConfirm": "Created podcasts can only be deleted in NetEase Music Creator Center. Open the podcast manager?",
+    "deleted": "Deleted “{title}”",
+    "deleteFailed": "Delete failed"
   },
   "comments": {
     "name": "Song Comments",

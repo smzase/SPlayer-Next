@@ -244,6 +244,11 @@ export const useSettingsStore = defineStore(
 
     /** 本地配置写入后处理 */
     const afterLocalChange = (path: string, value: unknown): void => {
+      if (path === "appearance.sidebarCollapsed" && value === true) {
+        appearance.sidebarHoverExpand = false;
+      } else if (path === "appearance.sidebarHoverExpand" && value === true) {
+        appearance.sidebarCollapsed = false;
+      }
       if (path === "lyric.springPreset" && value !== "custom") {
         const params = SPRING_PRESETS[value as Exclude<SpringPreset, "custom">];
         lyric.springMass = params.mass;

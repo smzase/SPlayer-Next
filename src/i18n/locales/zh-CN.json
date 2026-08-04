@@ -100,7 +100,9 @@
     "loading": "加载中",
     "noData": "暂无数据",
     "noMore": "没有更多了 ~",
+    "refresh": "刷新",
     "refreshCache": "刷新缓存",
+    "refreshFailed": "刷新失败",
     "success": "成功",
     "copied": "已复制",
     "copyFailed": "复制失败",
@@ -111,6 +113,24 @@
     "totalPlaylists": "共 {count} 个歌单",
     "totalPodcasts": "共 {count} 个播客",
     "totalVoices": "共 {count} 个声音"
+  },
+  "resourceMenu": {
+    "view": "查看",
+    "play": "播放",
+    "share": "分享",
+    "downloadAll": "下载全部",
+    "delete": {
+      "playlist": "删除歌单",
+      "album": "删除专辑",
+      "artist": "删除歌手",
+      "radio": "删除播客"
+    },
+    "loading": "正在加载“{title}”...",
+    "loadFailed": "无法加载“{title}”",
+    "deleteConfirm": "确定要删除“{title}”吗？",
+    "deleteCreatedPodcastConfirm": "创建的播客只能在网易云音乐创作者中心删除。是否打开“管理播客”页面？",
+    "deleted": "已删除“{title}”",
+    "deleteFailed": "删除失败"
   },
   "comments": {
     "name": "歌曲评论",

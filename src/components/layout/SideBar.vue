@@ -31,6 +31,9 @@ import SPopselect from "@/components/ui/SPopselect.vue";
 const props = defineProps<{
   collapsed: boolean;
 }>();
+const emit = defineEmits<{
+  hoverLock: [open: boolean];
+}>();
 
 const { t } = useI18n();
 const router = useRouter();
@@ -77,6 +80,7 @@ const renderMyHeader = () =>
         side: "bottom",
         align: "start",
         "onUpdate:modelValue": (v) => (status.myPlaylistSource = v as ContentScope),
+        "onUpdate:open": (open) => emit("hoverLock", open),
       },
       {
         trigger: () =>
@@ -172,8 +176,8 @@ const menuItems = computed<SMenuItem[]>(() => [
       ),
   },
   { key: "/favorites", label: t("nav.favorites"), icon: markRaw(IconLucideStar) },
-  { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
   { key: "/podcasts", label: t("nav.podcasts"), icon: markRaw(IconLucidePodcast) },
+  { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
   ...(systemSettings.download.enabled
     ? ([
         {

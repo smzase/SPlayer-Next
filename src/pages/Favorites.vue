@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { CoverItem } from "@/types/artist";
 import { useUserStore } from "@/stores/user";
+import { useResourceCardMenu, type ResourceCardType } from "@/composables/useResourceCardMenu";
+import { toast } from "@/composables/useToast";
 import {
   albumsToCoverItems,
   artistsToCoverItems,
@@ -10,6 +12,7 @@ import CoverList from "@/components/list/CoverList.vue";
 import IconLucideListMusic from "~icons/lucide/list-music";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideUser from "~icons/lucide/user";
+import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 
 const { t } = useI18n();
@@ -55,6 +58,22 @@ const currentItems = computed<CoverItem[]>(() => {
   if (activeTab.value === "album") return albumItems.value;
   return artistItems.value;
 });
+const resourceType = computed<ResourceCardType>(() => activeTab.value);
+const resourceMenu = useResourceCardMenu(resourceType);
+const refreshing = ref(false);
+
+/** 从服务器刷新全部收藏分类 */
+const refreshFavorites = async (): Promise<void> => {
+  if (refreshing.value || !user.isLoggedIn) return;
+  refreshing.value = true;
+  try {
+    await user.refreshFavorites();
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t("common.refreshFailed"));
+  } finally {
+    refreshing.value = false;
+  }
+};
 
 const countMeta = computed(() => {
   switch (activeTab.value) {
@@ -105,7 +124,22 @@ const handleClick = (item: CoverItem): void => {
           </span>
         </Transition>
       </div>
-      <STabs :model-value="activeTab" :tabs="tabs" @update:model-value="onTabSwitch" />
+      <div class="flex items-center justify-between gap-3">
+        <STabs :model-value="activeTab" :tabs="tabs" @update:model-value="onTabSwitch" />
+        <SButton
+          v-if="user.isLoggedIn"
+          variant="text"
+          circle
+          :size="32"
+          :icon-size="16"
+          :loading="refreshing"
+          :title="t('common.refresh')"
+          :aria-label="t('common.refresh')"
+          @click="refreshFavorites"
+        >
+          <template #icon><IconLucideRefreshCw /></template>
+        </SButton>
+      </div>
     </div>
     <!-- 未登录 -->
     <div v-if="!user.isLoggedIn" class="flex-1 flex items-center justify-center">
@@ -124,7 +158,9 @@ const handleClick = (item: CoverItem): void => {
           :padding-x="20"
           :padding-top="8"
           :padding-bottom="20"
+          :context-menu-items="resourceMenu.menuItems.value"
           @click="handleClick"
+          @context-menu="resourceMenu.handleSelect"
         />
       </div>
       <div v-else key="empty" class="flex-1 flex items-center justify-center">

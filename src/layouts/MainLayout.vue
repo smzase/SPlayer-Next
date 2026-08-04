@@ -18,12 +18,38 @@ const { appearance } = settings;
 
 /** 侧边栏悬停展开状态 */
 const sidebarHovered = ref(false);
+const sidebarInteractionOpen = ref(false);
+const sidebarElement = ref<HTMLElement | null>(null);
+let sidebarUnlockTimer: ReturnType<typeof setTimeout> | null = null;
 const sidebarHoverExpandActive = computed(
   () => appearance.sidebarHoverExpand && !appearance.sidebarCollapsed,
 );
 const isSidebarCollapsed = computed(
-  () => appearance.sidebarCollapsed || (sidebarHoverExpandActive.value && !sidebarHovered.value),
+  () =>
+    appearance.sidebarCollapsed ||
+    (sidebarHoverExpandActive.value && !sidebarHovered.value && !sidebarInteractionOpen.value),
 );
+
+/** 浮层退出后再恢复侧边栏的真实悬停状态 */
+const handleSidebarHoverLock = (open: boolean): void => {
+  if (sidebarUnlockTimer) {
+    clearTimeout(sidebarUnlockTimer);
+    sidebarUnlockTimer = null;
+  }
+  if (open) {
+    sidebarInteractionOpen.value = true;
+    return;
+  }
+  sidebarUnlockTimer = setTimeout(() => {
+    sidebarHovered.value = sidebarElement.value?.matches(":hover") ?? false;
+    sidebarInteractionOpen.value = false;
+    sidebarUnlockTimer = null;
+  }, 160);
+};
+
+onBeforeUnmount(() => {
+  if (sidebarUnlockTimer) clearTimeout(sidebarUnlockTimer);
+});
 
 /** 路由切换动效 */
 const routeTransitionName = computed(() => {
@@ -89,12 +115,13 @@ const playerBarInnerClass = computed(() => {
   >
     <!-- 侧边栏 -->
     <aside
+      ref="sidebarElement"
       class="shrink-0 bg-surface-panel overflow-y-auto z-10 transition-[width,margin] duration-300"
       :class="[isSidebarCollapsed ? 'w-16' : 'w-60', sidebarClass]"
       @mouseenter="sidebarHovered = true"
       @mouseleave="sidebarHovered = false"
     >
-      <SideBar :collapsed="isSidebarCollapsed" />
+      <SideBar :collapsed="isSidebarCollapsed" @hover-lock="handleSidebarHoverLock" />
     </aside>
 
     <!-- 右侧主区域 -->

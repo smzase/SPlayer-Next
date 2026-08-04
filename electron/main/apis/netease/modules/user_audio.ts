@@ -9,6 +9,10 @@ import { createOption } from "../core/option";
 import type { NeteaseModule } from "../core/types";
 
 const userAudio: NeteaseModule = (query, request) =>
-  request("/api/djradio/get/byuser", { userId: query.uid }, createOption(query, "weapi"));
+  request(
+    "/api/djradio/get/byuser",
+    { userId: query.uid, timestamp: query.timestamp ?? Date.now() },
+    createOption(query, "weapi"),
+  );
 
 export default userAudio;
