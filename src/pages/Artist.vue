@@ -151,6 +151,12 @@ const handleToggleSubscribe = async (): Promise<void> => {
   }
 };
 
+/** 打开歌手绑定的网易云用户主页 */
+const openUserProfile = (): void => {
+  if (!artist.value?.userId) return;
+  router.push({ name: "user-profile", params: { uid: artist.value.userId } });
+};
+
 const searchQuery = ref("");
 
 /** 歌曲列表引用 */
@@ -279,6 +285,10 @@ const albumItems = computed<CoverItem[]>(() => {
                   <IconMaterialSymbolsFavoriteOutlineRounded v-else />
                 </template>
                 {{ t(isArtistSubscribed ? "collection.unsubscribe" : "collection.subscribe") }}
+              </SButton>
+              <SButton v-if="artist.userId" variant="secondary" round @click="openUserProfile">
+                <template #icon><IconLucideUserRound /></template>
+                {{ t("artist.userProfile") }}
               </SButton>
               <SDropdownMenu
                 :items="moreMenuItems"

@@ -50,6 +50,7 @@ export const loadNeteaseCollection = async (
         cover: withPicSize(radio.picUrl),
         description: radio.desc,
         creator: radio.dj?.nickname,
+        creatorId: radio.dj?.userId,
         tracks: [...tracks],
         trackCount: trackCount || tracks.length,
         createTime: radio.createTime,
@@ -83,6 +84,7 @@ export const loadNeteaseCollection = async (
     cover?: string;
     description?: string;
     creator?: string;
+    creatorId?: number;
     count?: number;
   };
   const current = (): Collection | null =>
@@ -95,6 +97,7 @@ export const loadNeteaseCollection = async (
           cover: meta.cover,
           description: meta.description,
           creator: meta.creator,
+          creatorId: meta.creatorId,
           tracks: [...tracks],
           trackCount: meta.count ?? tracks.length,
         }
@@ -107,6 +110,7 @@ export const loadNeteaseCollection = async (
         cover: value.cover,
         description: value.description,
         creator: value.owner,
+        creatorId: value.ownerId ? Number(value.ownerId) : undefined,
         count: value.trackCount,
       };
       if (!options.signal?.aborted) options.onUpdate(current());

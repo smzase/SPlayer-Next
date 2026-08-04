@@ -269,7 +269,7 @@ const panelTransitionClasses = computed(() => {
       ]"
       @click="select(tab)"
     >
-      <span>{{ tab.label ?? tab.key }}</span>
+      <span class="-translate-y-px leading-none">{{ tab.label ?? tab.key }}</span>
     </div>
   </div>
 

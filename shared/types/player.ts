@@ -45,6 +45,8 @@ export interface Playlist {
   trackCount?: number;
   /** 创建者 */
   owner?: string;
+  /** 创建者用户 ID */
+  ownerId?: string;
 }
 
 /** 音质信息 */

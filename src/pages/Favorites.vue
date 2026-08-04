@@ -159,6 +159,7 @@ const handleClick = (item: CoverItem): void => {
           :padding-top="8"
           :padding-bottom="20"
           :context-menu-items="resourceMenu.menuItems.value"
+          shrink-on-sidebar-hover
           @click="handleClick"
           @context-menu="resourceMenu.handleSelect"
         />

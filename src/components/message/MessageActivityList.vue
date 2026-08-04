@@ -13,9 +13,17 @@ defineProps<{
 const emit = defineEmits<{
   retry: [];
   loadMore: [];
+  navigate: [];
 }>();
 
 const { t, locale } = useI18n();
+const router = useRouter();
+
+const openUser = (userId?: number): void => {
+  if (!userId) return;
+  router.push({ name: "user-profile", params: { uid: userId } });
+  emit("navigate");
+};
 </script>
 
 <template>
@@ -49,13 +57,18 @@ const { t, locale } = useI18n();
       :key="item.id"
       class="flex gap-3 px-2 py-3.5 transition-colors duration-200 hover:bg-on-surface/4"
     >
-      <MessageAvatar :user="item.user" />
+      <MessageAvatar :user="item.user" @navigate="emit('navigate')" />
       <div class="min-w-0 flex-1">
         <div class="flex items-start justify-between gap-3">
           <p class="min-w-0 text-sm leading-5">
-            <span class="font-medium text-primary">
+            <button
+              type="button"
+              class="border-0 bg-transparent p-0 font-medium text-primary hover:underline"
+              :disabled="!item.user?.userId"
+              @click="openUser(item.user?.userId)"
+            >
               {{ item.user?.nickname || t("messages.systemUser") }}
-            </span>
+            </button>
             <span class="ml-1 text-on-surface-variant">
               {{ t(`messages.action.${item.kind}`) }}
             </span>

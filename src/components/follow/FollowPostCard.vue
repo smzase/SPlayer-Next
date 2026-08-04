@@ -26,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const router = useRouter();
 const { menuItems: imageMenuItems, handleAction: handleImageAction } = useImageActions();
 const likeLoading = ref(false);
 const localLiked = ref(props.post.liked);
@@ -91,21 +92,37 @@ const openImagePreview = (index: number): void => {
 const setImagePreviewOpen = (open: boolean): void => {
   if (!open) previewImageIndex.value = null;
 };
+
+const openUser = (): void => {
+  router.push({ name: "user-profile", params: { uid: props.post.user.id } });
+};
 </script>
 
 <template>
   <SCard radius="xl" size="large" class="overflow-hidden">
     <article>
       <header class="flex items-start gap-3">
-        <SImg
-          v-if="post.user.avatar"
-          :src="post.user.avatar"
-          :alt="post.user.name"
-          class="size-10 shrink-0 rounded-full ring-1 ring-on-surface/10"
-        />
-        <div v-else class="size-10 shrink-0 rounded-full bg-on-surface/8" />
+        <button
+          type="button"
+          class="size-10 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0 ring-1 ring-on-surface/10 transition-transform duration-200 hover:scale-105"
+          @click="openUser"
+        >
+          <SImg
+            v-if="post.user.avatar"
+            :src="post.user.avatar"
+            :alt="post.user.name"
+            class="size-full"
+          />
+          <IconLucideUserRound v-else class="m-auto size-4 text-on-surface-variant/45" />
+        </button>
         <div class="min-w-0 flex-1">
-          <div class="truncate text-sm font-semibold text-on-surface">{{ post.user.name }}</div>
+          <button
+            type="button"
+            class="max-w-full truncate border-0 bg-transparent p-0 text-left text-sm font-semibold text-on-surface transition-colors hover:text-primary"
+            @click="openUser"
+          >
+            {{ post.user.name }}
+          </button>
           <div class="mt-0.5 text-xs text-on-surface-variant/45">{{ createdAt }}</div>
         </div>
         <SDropdownMenu
@@ -132,8 +149,14 @@ const setImagePreviewOpen = (open: boolean): void => {
 
         <div
           v-if="post.images.length"
-          class="mt-3 grid gap-1.5 overflow-hidden rounded-xl"
-          :class="post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'"
+          class="mt-3 grid max-h-[400px] gap-1.5 overflow-hidden rounded-xl"
+          :class="
+            post.images.length === 1
+              ? 'w-fit max-w-full grid-cols-1'
+              : post.images.length <= 4
+                ? 'w-full max-w-[400px] grid-cols-2'
+                : 'w-full max-w-[400px] grid-cols-3'
+          "
         >
           <SContextMenu
             v-for="(image, index) in post.images.slice(0, 9)"
@@ -143,8 +166,10 @@ const setImagePreviewOpen = (open: boolean): void => {
           >
             <button
               type="button"
-              class="relative min-h-28 cursor-zoom-in overflow-hidden border-0 bg-on-surface/6 p-0 outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/50"
-              :class="post.images.length === 1 ? 'max-h-105' : 'aspect-square'"
+              class="relative cursor-zoom-in overflow-hidden border-0 bg-on-surface/6 p-0 outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/50"
+              :class="
+                post.images.length === 1 ? 'max-h-[400px] max-w-full' : 'aspect-square min-h-0'
+              "
               :title="t('follow.imagePreview')"
               :aria-label="t('follow.imagePreview')"
               @click.stop="openImagePreview(index)"
@@ -153,7 +178,11 @@ const setImagePreviewOpen = (open: boolean): void => {
                 :src="image.url"
                 :alt="t('follow.imageAlt')"
                 decoding="async"
-                class="size-full object-cover"
+                :class="
+                  post.images.length === 1
+                    ? 'block h-auto max-h-[400px] w-auto max-w-full object-contain'
+                    : 'size-full object-cover'
+                "
                 referrerpolicy="no-referrer"
               />
               <div

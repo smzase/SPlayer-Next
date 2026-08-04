@@ -10,17 +10,19 @@ import { ensureOk, songsToTracks, toAlbum, toArtist } from "@/utils/format/netea
  */
 export const fetchArtist = async (
   artistId: string,
-): Promise<{ artist: Artist; tracks: Track[]; albums: Album[] } | null> => {
+): Promise<{ artist: Artist; tracks: Track[]; albums: Album[]; userId?: number } | null> => {
   const [profile, albums] = await Promise.all([
     neteaseApi.artists({ id: artistId }),
     neteaseApi.artist_album({ id: artistId, limit: 200 }),
   ]);
   const rawArtist = profile?.artist;
   if (!rawArtist) return null;
+  const userId = Number(rawArtist.accountId ?? rawArtist.userId);
   return {
     artist: toArtist(rawArtist),
     tracks: songsToTracks(profile?.hotSongs),
     albums: (albums?.hotAlbums ?? []).map(toAlbum),
+    userId: Number.isFinite(userId) && userId > 0 ? userId : undefined,
   };
 };
 

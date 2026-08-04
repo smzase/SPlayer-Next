@@ -185,6 +185,7 @@ const openPodcastManager = async (): Promise<void> => {
           :padding-top="8"
           :padding-bottom="20"
           :context-menu-items="resourceMenu.menuItems.value"
+          shrink-on-sidebar-hover
           @click="openPodcast"
           @context-menu="resourceMenu.handleSelect"
         />

@@ -35,6 +35,16 @@ const SESSION_MUTATING: ReadonlySet<string> = new Set([
 
 /** 不采用缓存的实时接口 */
 const NON_CACHEABLE: ReadonlySet<string> = new Set([
+  "user_detail",
+  "user_detail_new",
+  "user_follows",
+  "user_followeds",
+  "follow",
+  "user_follow_mixed",
+  "user_mutualfollow_get",
+  "user_record",
+  "user_update",
+  "user_blacklist_update",
   "song_url",
   "song_download_url",
   "scrobble",

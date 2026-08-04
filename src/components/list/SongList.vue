@@ -49,6 +49,8 @@ const props = withDefaults(
     showSize?: boolean;
     /** 显示播客节目的更新日期、播放量和点赞数 */
     showPodcastMetadata?: boolean;
+    /** 单独显示播放次数 */
+    showPlayCount?: boolean;
     /** 显示喜欢按钮 */
     showFavorite?: boolean;
     /** 是否启用排序交互 */
@@ -74,6 +76,7 @@ const props = withDefaults(
     showDuration: true,
     showSize: false,
     showPodcastMetadata: false,
+    showPlayCount: false,
     showFavorite: true,
     enableSort: false,
     source: "local",
@@ -536,6 +539,9 @@ defineExpose({
                 <div class="w-20 shrink-0 text-center">{{ t("songList.playCount") }}</div>
                 <div class="w-16 shrink-0 text-center">{{ t("songList.likedCount") }}</div>
               </template>
+              <div v-else-if="showPlayCount" class="w-20 shrink-0 text-center">
+                {{ t("songList.playTimes") }}
+              </div>
               <div v-if="showFavorite" class="w-7 shrink-0 text-center">
                 {{ t("songList.actions") }}
               </div>
@@ -731,6 +737,13 @@ defineExpose({
                   {{ item.likedCount?.toLocaleString() ?? "-" }}
                 </div>
               </template>
+              <div
+                v-else-if="showPlayCount"
+                class="w-20 shrink-0 text-center text-sm tabular-nums"
+                :class="playingId === item.id ? 'text-primary/60' : 'text-on-surface-variant'"
+              >
+                {{ item.playCount?.toLocaleString() ?? "-" }}
+              </div>
               <!-- 红心：批量模式下隐藏，其余始终显示 -->
               <div
                 v-if="showFavorite && !batch.active.value"

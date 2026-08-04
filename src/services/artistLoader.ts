@@ -100,6 +100,7 @@ const loadNetease = async (id: string, options: LoadArtistOptions): Promise<void
     id,
     name: result.artist.name,
     avatar: result.artist.avatar,
+    userId: result.userId,
     source: "netease",
     tracks: result.tracks,
     albums,

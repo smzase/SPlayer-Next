@@ -32,7 +32,29 @@ const actualFallback = computed(() => (props.type === "artist" ? artistFallback 
   >
     <!-- 封面 -->
     <div class="relative overflow-hidden group-hover:will-change-transform" :class="coverRounded">
+      <div
+        v-if="item.coverVariant === 'listening-rank'"
+        class="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/50 via-primary/24 to-on-surface/10 transition-[transform,filter] duration-300 ease-out group-hover:scale-108 group-hover:brightness-95"
+      >
+        <img
+          v-if="item.cover"
+          :src="item.cover"
+          alt=""
+          decoding="async"
+          class="pointer-events-none absolute -inset-[8%] h-[116%] w-[116%] scale-110 object-cover opacity-40 blur-[12px]"
+          referrerpolicy="no-referrer"
+        />
+        <div class="absolute inset-0 bg-primary/6" />
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="flex h-[46%] w-[40%] items-end justify-between">
+            <span class="h-[70%] w-[18%] rounded-full bg-on-primary/90 shadow-sm" />
+            <span class="h-full w-[18%] rounded-full bg-on-primary/90 shadow-sm" />
+            <span class="h-[52%] w-[18%] rounded-full bg-on-primary/90 shadow-sm" />
+          </div>
+        </div>
+      </div>
       <SImg
+        v-else
         :src="item.cover"
         :fallback="actualFallback"
         :alt="item.title"
@@ -40,6 +62,7 @@ const actualFallback = computed(() => (props.type === "artist" ? artistFallback 
       />
       <!-- 播放按钮 -->
       <div
+        v-if="item.coverVariant !== 'listening-rank'"
         class="absolute size-9 flex items-center justify-center rounded-full opacity-0 transition-[opacity,transform] duration-300 group-hover:opacity-100"
         :class="
           type === 'artist'

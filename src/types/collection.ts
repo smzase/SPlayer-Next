@@ -35,6 +35,8 @@ export interface Collection {
   description?: string;
   /** 创建者/歌手 */
   creator?: string;
+  /** 创建者用户 ID */
+  creatorId?: number;
   /** 歌手列表（专辑用） */
   artists?: Artist[];
   /** 歌曲列表 */

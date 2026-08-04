@@ -533,7 +533,7 @@ onBeforeUnmount(() => {
       >
         <template #icon><IconLucideArrowLeft /></template>
       </SButton>
-      <MessageAvatar :user="user" size="small" />
+      <MessageAvatar :user="user" size="small" @navigate="emit('navigate')" />
       <div class="min-w-0 flex-1">
         <div class="truncate text-sm font-semibold">
           {{ user.nickname || t("messages.unknownUser") }}
@@ -589,7 +589,12 @@ onBeforeUnmount(() => {
             @select="handleMessageAction($event, item)"
           >
             <div :class="['flex items-start gap-2', item.mine ? 'justify-end' : 'justify-start']">
-              <MessageAvatar v-if="!item.mine" :user="user" size="small" />
+              <MessageAvatar
+                v-if="!item.mine"
+                :user="user"
+                size="small"
+                @navigate="emit('navigate')"
+              />
               <div :class="['max-w-[72%]', item.mine && 'text-right']">
                 <div
                   :class="[

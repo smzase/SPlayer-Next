@@ -20,12 +20,7 @@ interface MessageReadBaseline {
   updatedAt: number;
 }
 
-const MESSAGE_CATEGORIES: readonly MessageCategory[] = [
-  "private",
-  "comment",
-  "mention",
-  "notice",
-];
+const MESSAGE_CATEGORIES: readonly MessageCategory[] = ["private", "comment", "mention", "notice"];
 const VIEW_RETENTION_MS = 180_000;
 const MAX_DRAFTS = 50;
 const MAX_HIDDEN_PRIVATE_MESSAGES = 500;
@@ -45,11 +40,24 @@ export const useMessageStore = defineStore(
     const privateThreadReadTimes = ref<Record<string, number>>({});
     const readBaselines = ref<Record<string, MessageReadBaseline>>({});
     const serverUnread = ref<MessageUnreadCounts>({ ...EMPTY_COUNTS });
+    const requestedThread = shallowRef<MessageUser | null>(null);
     const totalUnread = computed(() =>
       Object.values(unread.value).reduce((sum, value) => sum + value, 0),
     );
     let requestToken = 0;
     let viewState: MessageViewState | null = null;
+
+    /** 请求顶栏消息浮窗打开指定私信 */
+    const requestPrivateThread = (thread: MessageUser): void => {
+      requestedThread.value = { ...thread };
+    };
+
+    /** 消费待打开的私信请求 */
+    const consumeRequestedThread = (): MessageUser | null => {
+      const thread = requestedThread.value;
+      requestedThread.value = null;
+      return thread ? { ...thread } : null;
+    };
 
     /**
      * 保存指定账号的服务器未读基线
@@ -258,6 +266,7 @@ export const useMessageStore = defineStore(
       requestToken += 1;
       unread.value = { ...EMPTY_COUNTS };
       serverUnread.value = { ...EMPTY_COUNTS };
+      requestedThread.value = null;
       loading.value = false;
       viewState = null;
     };
@@ -272,6 +281,9 @@ export const useMessageStore = defineStore(
       privateThreadReadTimes,
       readBaselines,
       totalUnread,
+      requestedThread,
+      requestPrivateThread,
+      consumeRequestedThread,
       setPanelSize,
       setSendShortcut,
       rememberView,

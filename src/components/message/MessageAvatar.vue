@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { MessageUser } from "@/types/message";
-import { openExternal } from "@/utils/url";
 
 const props = withDefaults(
   defineProps<{
@@ -10,16 +9,22 @@ const props = withDefaults(
   { size: "medium" },
 );
 
+const emit = defineEmits<{
+  navigate: [];
+}>();
+
 const { t } = useI18n();
+const router = useRouter();
 
 const sizeClass = computed(
   () => ({ small: "size-8", medium: "size-11", large: "size-12" })[props.size],
 );
 
-/** 打开网易云用户主页 */
+/** 打开应用内用户主页 */
 const openUser = (): void => {
   if (!props.user?.userId) return;
-  openExternal(`https://music.163.com/#/user/home?id=${props.user.userId}`);
+  router.push({ name: "user-profile", params: { uid: props.user.userId } });
+  emit("navigate");
 };
 </script>
 

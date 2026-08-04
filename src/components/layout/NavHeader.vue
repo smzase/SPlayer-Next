@@ -195,6 +195,13 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => message.requestedThread,
+  (thread) => {
+    if (thread) messageOpen.value = true;
+  },
+);
+
 const documentVisibility = useDocumentVisibility();
 const { pause: pauseBackgroundMessagePolling, resume: resumeBackgroundMessagePolling } =
   useIntervalFn(

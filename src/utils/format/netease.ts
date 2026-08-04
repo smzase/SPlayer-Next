@@ -126,6 +126,7 @@ export const toPlaylist = (raw: any): Playlist => ({
   description: raw.description,
   trackCount: raw.trackCount,
   owner: raw.creator?.nickname,
+  ownerId: raw.creator?.userId ? String(raw.creator.userId) : undefined,
 });
 
 /** 收藏专辑（/album/sublist 元素）→ 应用层 Album */

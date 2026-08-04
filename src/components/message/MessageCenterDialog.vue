@@ -23,10 +23,18 @@ const emit = defineEmits<{ navigate: [] }>();
 type ActivityCategory = Exclude<MessageCategory, "private">;
 
 const { t, locale } = useI18n();
+const router = useRouter();
 const user = useUserStore();
 const message = useMessageStore();
 const activeTab = ref<MessageCategory>("private");
 const currentThread = shallowRef<MessageUser | null>(null);
+
+/** 从私信列表打开用户主页 */
+const openUser = (threadUser: MessageUser): void => {
+  if (!threadUser.userId) return;
+  emit("navigate");
+  router.push({ name: "user-profile", params: { uid: threadUser.userId } });
+};
 const privateThreads = shallowRef<PrivateMessageThread[]>([]);
 const activityItems = shallowRef<Record<ActivityCategory, ActivityMessage[]>>({
   comment: [],
@@ -253,11 +261,7 @@ const openThread = (thread: PrivateMessageThread): void => {
   saveListScroll("private");
   const currentUserId = user.profile?.userId;
   if (currentUserId) {
-    message.markPrivateThreadRead(
-      currentUserId,
-      thread.user.userId,
-      thread.lastMessageTime,
-    );
+    message.markPrivateThreadRead(currentUserId, thread.user.userId, thread.lastMessageTime);
     privateThreads.value = privateThreads.value.map((item) =>
       item.user.userId === thread.user.userId ? { ...item, unreadCount: 0 } : item,
     );
@@ -349,7 +353,8 @@ watch(
       return;
     }
     resetLists();
-    const restored = message.restoreView();
+    const requestedThread = message.consumeRequestedThread();
+    const restored = requestedThread ? null : message.restoreView();
     for (const category of ["private", "comment", "mention", "notice"] as MessageCategory[]) {
       listScrollPositions[category] = restored?.scrollPositions[category] ?? 0;
     }
@@ -360,14 +365,26 @@ watch(
     const currentUserId = user.profile?.userId;
     if (currentUserId) message.markCategoryRead(category, currentUserId);
     void loadCategory(category, true);
-    if (category === "private" && restored?.thread) {
-      const restoredThread = { ...restored.thread };
+    const thread = requestedThread ?? restored?.thread;
+    if (category === "private" && thread) {
+      const restoredThread = { ...thread };
       void nextTick(() => {
         if (props.open) currentThread.value = restoredThread;
       });
     }
   },
   { immediate: true },
+);
+
+watch(
+  () => message.requestedThread,
+  (thread) => {
+    if (!props.open || !thread) return;
+    const requested = message.consumeRequestedThread();
+    if (!requested) return;
+    activeTab.value = "private";
+    currentThread.value = requested;
+  },
 );
 </script>
 
@@ -457,12 +474,16 @@ watch(
               @click="openThread(thread)"
               @keydown.enter="openThread(thread)"
             >
-              <MessageAvatar :user="thread.user" />
+              <MessageAvatar :user="thread.user" @navigate="emit('navigate')" />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-3">
-                  <span class="truncate text-sm font-medium text-primary">
+                  <button
+                    type="button"
+                    class="min-w-0 truncate border-0 bg-transparent p-0 text-left text-sm font-medium text-primary hover:underline"
+                    @click.stop="openUser(thread.user)"
+                  >
                     {{ thread.user.nickname || t("messages.unknownUser") }}
-                  </span>
+                  </button>
                   <time class="shrink-0 text-xs tabular-nums text-on-surface-variant/50">
                     {{ formatMessageTime(thread.lastMessageTime, locale) }}
                   </time>
@@ -511,6 +532,7 @@ watch(
           :more="more[activeTab]"
           @retry="loadActivity(activeTab, true)"
           @load-more="loadActivity(activeTab, false)"
+          @navigate="emit('navigate')"
         />
       </div>
 

@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { FollowComment, FollowPost } from "@/types/follow";
+import type { FollowPost } from "@/types/follow";
 import {
   FOLLOW_PAGE_SIZE,
-  addFollowComment,
   deleteFollowPost,
-  fetchFollowComments,
   fetchFollowFeed,
   fetchFollowUserHistory,
   fetchMentionUsers,
 } from "@/apis/follow/netease";
+import FollowInlineComments from "@/components/follow/FollowInlineComments.vue";
 import { useUserStore } from "@/stores/user";
 import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
 import { dialog } from "@/composables/useDialog";
@@ -30,10 +29,7 @@ const publishOpen = ref(false);
 const forwardOpen = ref(false);
 const forwardPost = shallowRef<FollowPost | null>(null);
 const inlineCommentPostId = ref<string | null>(null);
-const inlineCommentText = ref("");
-const inlineComments = shallowRef<FollowComment[]>([]);
-const inlineCommentsLoading = ref(false);
-const sendingComment = ref(false);
+const inlineCommentBusy = ref(false);
 const HISTORY_SOURCE_LIMIT = 20;
 const HISTORY_REQUEST_CONCURRENCY = 4;
 
@@ -52,7 +48,6 @@ type HistoryResult = PromiseSettledResult<{
 let feedMore = false;
 let historySources: HistorySource[] = [];
 let requestToken = 0;
-let inlineCommentRequestToken = 0;
 
 const currentUserId = computed(() => userStore.profile?.userId ?? 0);
 
@@ -207,11 +202,8 @@ watch(
     feedMore = false;
     historySources = [];
     more.value = false;
-    inlineCommentRequestToken += 1;
     inlineCommentPostId.value = null;
-    inlineCommentText.value = "";
-    inlineComments.value = [];
-    inlineCommentsLoading.value = false;
+    inlineCommentBusy.value = false;
     if (id) void load();
   },
   { immediate: true },
@@ -243,97 +235,22 @@ const openForward = (post: FollowPost): void => {
 };
 
 const collapseInlineComment = (): void => {
-  inlineCommentRequestToken += 1;
   inlineCommentPostId.value = null;
-  inlineCommentText.value = "";
-  inlineComments.value = [];
-  inlineCommentsLoading.value = false;
+  inlineCommentBusy.value = false;
 };
 
-const loadInlineComments = async (post: FollowPost, clear = false): Promise<void> => {
-  const token = ++inlineCommentRequestToken;
-  if (clear) inlineComments.value = [];
-  inlineCommentsLoading.value = true;
-  try {
-    const page = await fetchFollowComments(post.threadId, 0, 5);
-    if (token === inlineCommentRequestToken && inlineCommentPostId.value === post.id) {
-      inlineComments.value = page.items.slice(0, 5);
-    }
-  } catch (cause) {
-    if (token === inlineCommentRequestToken) {
-      toast.error(cause instanceof Error ? cause.message : String(cause));
-    }
-  } finally {
-    if (token === inlineCommentRequestToken) inlineCommentsLoading.value = false;
-  }
-};
-
-const toggleInlineComment = async (post: FollowPost): Promise<void> => {
-  if (sendingComment.value) return;
+const toggleInlineComment = (post: FollowPost): void => {
+  if (inlineCommentBusy.value) return;
   if (inlineCommentPostId.value === post.id) {
     collapseInlineComment();
     return;
   }
   inlineCommentPostId.value = post.id;
-  inlineCommentText.value = "";
-  inlineComments.value = [];
-  void loadInlineComments(post, true);
-  await nextTick();
-  scrollRef.value
-    ?.querySelector<HTMLTextAreaElement>("[data-follow-inline-comment] textarea")
-    ?.focus();
 };
 
-const submitInlineComment = async (post: FollowPost): Promise<void> => {
-  const content = inlineCommentText.value.trim();
-  if (!content || sendingComment.value || inlineCommentPostId.value !== post.id) return;
-  sendingComment.value = true;
-  try {
-    const comment = await addFollowComment(post.threadId, content);
-    items.value = items.value.map((item) =>
-      item.id === post.id ? { ...item, commentCount: item.commentCount + 1 } : item,
-    );
-    inlineCommentText.value = "";
-    if (comment) {
-      inlineComments.value = [
-        comment,
-        ...inlineComments.value.filter((item) => item.id !== comment.id),
-      ].slice(0, 5);
-    } else {
-      const profile = userStore.profile;
-      inlineComments.value = [
-        {
-          id: `local-${Date.now()}`,
-          user: {
-            id: profile?.userId ?? currentUserId.value,
-            name: profile?.nickname ?? "",
-            ...(profile?.avatarUrl ? { avatar: profile.avatarUrl } : {}),
-          },
-          text: content,
-          createdAt: Date.now(),
-          liked: false,
-          likeCount: 0,
-        },
-        ...inlineComments.value,
-      ].slice(0, 5);
-      setTimeout(() => {
-        if (inlineCommentPostId.value === post.id) void loadInlineComments(post);
-      }, 1000);
-    }
-    toast.success(t("follow.comment.done"));
-  } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : String(cause));
-  } finally {
-    sendingComment.value = false;
-  }
-};
-
-const removeInlineComment = (postId: string, commentId: string): void => {
-  if (inlineCommentPostId.value === postId) {
-    inlineComments.value = inlineComments.value.filter((comment) => comment.id !== commentId);
-  }
+const updateCommentCount = (postId: string, delta: number): void => {
   items.value = items.value.map((item) =>
-    item.id === postId ? { ...item, commentCount: Math.max(0, item.commentCount - 1) } : item,
+    item.id === postId ? { ...item, commentCount: Math.max(0, item.commentCount + delta) } : item,
   );
 };
 
@@ -446,61 +363,14 @@ const removePost = async (post: FollowPost): Promise<void> => {
             @liked="updateLiked"
           >
             <template #comment>
-              <div v-if="inlineCommentPostId === post.id" data-follow-inline-comment class="mt-3">
-                <FollowTextComposer
-                  v-model="inlineCommentText"
-                  :user-id="currentUserId"
-                  :placeholder="t('follow.comment.placeholder')"
-                  :maxlength="500"
-                  :rows="3"
-                  :disabled="sendingComment"
-                  show-emoji
-                />
-                <div class="mt-2 flex justify-end">
-                  <SButton
-                    type="primary"
-                    round
-                    :disabled="!inlineCommentText.trim()"
-                    :loading="sendingComment"
-                    @click="submitInlineComment(post)"
-                  >
-                    {{ t("follow.comment.submit") }}
-                  </SButton>
-                </div>
-                <div
-                  v-if="inlineCommentsLoading && !inlineComments.length"
-                  class="flex items-center justify-center gap-2 py-5 text-xs text-on-surface-variant/50"
-                >
-                  <SLoading />
-                  {{ t("common.loading") }}
-                </div>
-                <div
-                  v-else-if="!inlineComments.length"
-                  class="py-4 text-center text-xs text-on-surface-variant/45"
-                >
-                  {{ t("follow.comment.empty") }}
-                </div>
-                <div v-else class="mt-3 space-y-2">
-                  <FollowCommentCard
-                    v-for="comment in inlineComments"
-                    :key="comment.id"
-                    :comment="comment"
-                    :current-user-id="currentUserId"
-                    :thread-id="post.threadId"
-                    @deleted="removeInlineComment(post.id, $event)"
-                  />
-                </div>
-                <div class="mt-2 flex justify-center">
-                  <SButton
-                    variant="text"
-                    size="small"
-                    :disabled="sendingComment"
-                    @click="collapseInlineComment"
-                  >
-                    {{ t("follow.comment.collapse") }}
-                  </SButton>
-                </div>
-              </div>
+              <FollowInlineComments
+                v-if="inlineCommentPostId === post.id"
+                :post="post"
+                :current-user-id="currentUserId"
+                @collapse="collapseInlineComment"
+                @busy="inlineCommentBusy = $event"
+                @comment-count-changed="updateCommentCount"
+              />
             </template>
           </FollowPostCard>
           <div

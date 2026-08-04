@@ -3,6 +3,7 @@ import type { CoverItem } from "@/types/artist";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import type { SVirtualListExposed } from "@/components/ui/SVirtualList.vue";
 import { useFloatingPlayerBar, PLAYER_BAR_GAP } from "@/composables/useFloatingPlayerBar";
+import { useSidebarHoverLayout } from "@/composables/useSidebarHoverLayout";
 
 export interface CoverListProps {
   /** 列表数据 */
@@ -31,6 +32,8 @@ export interface CoverListProps {
   loadingMore?: boolean;
   /** 卡片右键菜单 */
   contextMenuItems?: DropdownMenuItem[];
+  /** 悬停展开侧边栏时保持列数并缩放卡片 */
+  shrinkOnSidebarHover?: boolean;
 }
 
 const props = withDefaults(defineProps<CoverListProps>(), {
@@ -45,6 +48,7 @@ const props = withDefaults(defineProps<CoverListProps>(), {
   hasMore: false,
   loadingMore: false,
   contextMenuItems: () => [],
+  shrinkOnSidebarHover: false,
 });
 
 const { t } = useI18n();
@@ -73,10 +77,80 @@ const innerWidth = computed(() => Math.max(0, scrollWidth.value - props.paddingX
 const INFO_HEIGHT = 76;
 
 /** CSS auto-fill 等价计算：列数 = floor((W + G) / (M + G)) */
-const columnCount = computed(() => {
-  if (!innerWidth.value) return 1;
-  return Math.max(1, Math.floor((innerWidth.value + props.gap) / (props.minSize + props.gap)));
-});
+const calculateColumnCount = (width: number): number => {
+  if (!width) return 1;
+  return Math.max(1, Math.floor((width + props.gap) / (props.minSize + props.gap)));
+};
+
+const targetColumnCount = computed(() => calculateColumnCount(innerWidth.value));
+const sidebarHoverLayout = useSidebarHoverLayout();
+const keepColumnsDuringSidebarHover = computed(
+  () => props.shrinkOnSidebarHover && sidebarHoverLayout?.hoverExpandActive.value === true,
+);
+const lockedColumnCount = ref(1);
+const columnCount = computed(() =>
+  keepColumnsDuringSidebarHover.value ? lockedColumnCount.value : targetColumnCount.value,
+);
+const SIDEBAR_WIDTH_DELTA = 176;
+const SIDEBAR_TRANSITION_MS = 300;
+let columnLockReady = false;
+let previousHoverExpandActive = false;
+let previousCollapsed = true;
+let sidebarResizeTimer: ReturnType<typeof setTimeout> | undefined;
+
+const clearSidebarResizeTimer = (): void => {
+  if (!sidebarResizeTimer) return;
+  clearTimeout(sidebarResizeTimer);
+  sidebarResizeTimer = undefined;
+};
+
+watch(
+  () =>
+    [
+      innerWidth.value,
+      props.minSize,
+      props.gap,
+      keepColumnsDuringSidebarHover.value,
+      sidebarHoverLayout?.collapsed.value ?? true,
+    ] as const,
+  ([width, , , hoverExpandActive, collapsed]) => {
+    if (width <= 0) return;
+    if (!columnLockReady) {
+      const initialWidth = hoverExpandActive && !collapsed ? width + SIDEBAR_WIDTH_DELTA : width;
+      lockedColumnCount.value = calculateColumnCount(initialWidth);
+      previousHoverExpandActive = hoverExpandActive;
+      previousCollapsed = collapsed;
+      columnLockReady = true;
+      return;
+    }
+
+    if (!hoverExpandActive) {
+      clearSidebarResizeTimer();
+      lockedColumnCount.value = targetColumnCount.value;
+    } else if (!previousHoverExpandActive) {
+      const initialWidth = collapsed ? width : width + SIDEBAR_WIDTH_DELTA;
+      lockedColumnCount.value = calculateColumnCount(initialWidth);
+    } else if (collapsed !== previousCollapsed) {
+      clearSidebarResizeTimer();
+      if (collapsed) {
+        sidebarResizeTimer = setTimeout(() => {
+          sidebarResizeTimer = undefined;
+          if (keepColumnsDuringSidebarHover.value && sidebarHoverLayout?.collapsed.value) {
+            lockedColumnCount.value = targetColumnCount.value;
+          }
+        }, SIDEBAR_TRANSITION_MS);
+      }
+    } else if (collapsed && !sidebarResizeTimer) {
+      lockedColumnCount.value = targetColumnCount.value;
+    }
+
+    previousHoverExpandActive = hoverExpandActive;
+    previousCollapsed = collapsed;
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(clearSidebarResizeTimer);
 
 /** 单列实际宽度 */
 const colWidth = computed(() => {

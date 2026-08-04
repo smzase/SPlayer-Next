@@ -6,7 +6,14 @@ import { formatDate } from "@/utils/time";
 import IconLucideThumbsUp from "~icons/lucide/thumbs-up";
 
 const { t } = useI18n();
+const router = useRouter();
 const status = useStatusStore();
+
+const openUser = (userId?: string): void => {
+  if (!userId) return;
+  status.commentsOpen = false;
+  router.push({ name: "user-profile", params: { uid: userId } });
+};
 
 const sources = shallowRef<CommentSource[]>([]);
 const sourceId = ref("");
@@ -201,17 +208,26 @@ watch(sourceId, (next, prev) => {
         <div class="space-y-1.5">
           <SCard v-for="item in page.list" :key="item.id" size="small" radius="lg">
             <div class="flex gap-3">
-              <SImg
-                v-if="item.avatar"
-                :src="item.avatar"
-                class="h-9 w-9 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/10"
-                alt=""
-              />
-              <div v-else class="h-9 w-9 shrink-0 rounded-full bg-on-surface/8" />
+              <button
+                type="button"
+                class="h-9 w-9 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0 ring-1 ring-black/10 dark:ring-white/10"
+                :disabled="!item.userId"
+                @click="openUser(item.userId)"
+              >
+                <SImg v-if="item.avatar" :src="item.avatar" class="size-full" alt="" />
+                <IconLucideUserRound v-else class="m-auto size-4 text-on-surface-variant/45" />
+              </button>
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <div class="truncate text-sm font-medium">{{ item.userName }}</div>
+                    <button
+                      type="button"
+                      class="max-w-full truncate border-0 bg-transparent p-0 text-left text-sm font-medium transition-colors hover:text-primary"
+                      :disabled="!item.userId"
+                      @click="openUser(item.userId)"
+                    >
+                      {{ item.userName }}
+                    </button>
                     <div class="mt-0.5 flex gap-2 text-xs text-on-surface-variant">
                       <span v-if="item.time">{{ formatDate(item.time) }}</span>
                       <span v-if="item.location">

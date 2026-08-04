@@ -3,6 +3,7 @@ import { useStatusStore } from "@/stores/status";
 import { useMediaStore } from "@/stores/media";
 import { useSettingsStore } from "@/stores/settings";
 import { useOrpheusProtocol } from "@/composables/useOrpheusProtocol";
+import { provideSidebarHoverLayout } from "@/composables/useSidebarHoverLayout";
 
 const route = useRoute();
 const status = useStatusStore();
@@ -29,6 +30,11 @@ const isSidebarCollapsed = computed(
     appearance.sidebarCollapsed ||
     (sidebarHoverExpandActive.value && !sidebarHovered.value && !sidebarInteractionOpen.value),
 );
+
+provideSidebarHoverLayout({
+  hoverExpandActive: sidebarHoverExpandActive,
+  collapsed: isSidebarCollapsed,
+});
 
 /** 浮层退出后再恢复侧边栏的真实悬停状态 */
 const handleSidebarHoverLock = (open: boolean): void => {

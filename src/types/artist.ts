@@ -8,6 +8,8 @@ export interface CoverItem {
   title: string;
   /** 封面 */
   cover?: string;
+  /** 封面视觉类型 */
+  coverVariant?: "listening-rank";
   /** 副标题/描述 */
   subtitle?: string;
   /** 歌曲数量 */
@@ -22,6 +24,8 @@ export interface ArtistProfile {
   name: string;
   /** 头像 */
   avatar?: string;
+  /** 绑定的网易云用户 ID */
+  userId?: number;
   /** 数据来源 */
   source: TrackSource;
   /** 歌曲列表 */

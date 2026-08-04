@@ -56,6 +56,14 @@ const handleStatClick = (key: "playlist" | "album" | "artist"): void => {
   router.push({ path: "/favorites", query: { tab: key } });
 };
 
+/** 打开当前登录用户的主页 */
+const openProfile = (): void => {
+  const uid = user.profile?.userId;
+  if (!uid) return;
+  popoverOpen.value = false;
+  router.push({ name: "user-profile", params: { uid } });
+};
+
 const handleLogout = async (): Promise<void> => {
   popoverOpen.value = false;
   const ok = await dialog.confirm({
@@ -81,22 +89,31 @@ const handleLogout = async (): Promise<void> => {
       <div
         class="app-no-drag inline-flex items-center gap-2 h-10 pl-1 pr-3 rounded-full bg-on-surface/6 hover:bg-on-surface/10 transition-colors cursor-pointer select-none"
       >
-        <span
-          class="size-8 rounded-full overflow-hidden bg-on-surface/10 flex items-center justify-center"
+        <button
+          type="button"
+          class="inline-flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-on-surface"
+          @pointerdown.stop
+          @click.stop="openProfile"
         >
-          <img
-            v-if="user.profile?.avatarUrl"
-            :src="user.profile.avatarUrl"
-            alt="avatar"
-            class="size-full object-cover"
-            referrerpolicy="no-referrer"
-          />
-          <IconLucideUserRound v-else class="size-4 text-on-surface-variant" />
-        </span>
-        <span class="text-sm text-on-surface max-w-[7rem] truncate">
-          {{ user.profile?.nickname || t("login.unknownUser") }}
-        </span>
-        <img v-if="isVip" :src="vipImg" alt="VIP" class="h-4 shrink-0" />
+          <span
+            class="size-8 shrink-0 rounded-full overflow-hidden bg-on-surface/10 flex items-center justify-center"
+          >
+            <img
+              v-if="user.profile?.avatarUrl"
+              :src="user.profile.avatarUrl"
+              alt="avatar"
+              class="size-full object-cover"
+              referrerpolicy="no-referrer"
+            />
+            <IconLucideUserRound v-else class="size-4 text-on-surface-variant" />
+          </span>
+          <span
+            class="inline-flex h-8 max-w-[7rem] -translate-y-px items-center truncate text-sm leading-none text-on-surface"
+          >
+            {{ user.profile?.nickname || t("login.unknownUser") }}
+          </span>
+          <img v-if="isVip" :src="vipImg" alt="VIP" class="h-4 shrink-0" />
+        </button>
         <IconLucideChevronDown
           :class="[
             'size-3 text-on-surface-variant transition-transform duration-200',
@@ -107,8 +124,10 @@ const handleLogout = async (): Promise<void> => {
     </template>
 
     <div class="flex flex-col items-center gap-2">
-      <span
-        class="size-12 rounded-full overflow-hidden bg-on-surface/10 flex items-center justify-center"
+      <button
+        type="button"
+        class="size-12 rounded-full overflow-hidden border-0 p-0 bg-on-surface/10 flex items-center justify-center transition-transform duration-200 hover:scale-105"
+        @click="openProfile"
       >
         <img
           v-if="user.profile?.avatarUrl"
@@ -118,10 +137,21 @@ const handleLogout = async (): Promise<void> => {
           referrerpolicy="no-referrer"
         />
         <IconLucideUserRound v-else class="size-5 text-on-surface-variant" />
-      </span>
-      <span class="w-full text-sm font-semibold text-on-surface text-center truncate">
+      </button>
+      <button
+        type="button"
+        class="w-full truncate border-0 bg-transparent p-0 text-center text-sm font-semibold text-on-surface transition-colors hover:text-primary"
+        @click="openProfile"
+      >
         {{ user.profile?.nickname || t("login.unknownUser") }}
-      </span>
+      </button>
+      <button
+        type="button"
+        class="border-0 bg-transparent p-0 text-[11px] text-on-surface-variant/45 transition-colors hover:text-primary"
+        @click="openProfile"
+      >
+        {{ t("userProfile.id", { id: user.profile?.userId }) }}
+      </button>
       <div v-if="user.level !== undefined || isVip" class="flex items-center gap-1.5">
         <span
           v-if="user.level !== undefined"

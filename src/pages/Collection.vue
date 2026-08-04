@@ -326,6 +326,12 @@ const creatorText = computed(() => {
   return collection.value?.creator ?? "";
 });
 
+/** 打开歌单或播客创建人的用户主页 */
+const openCreator = (): void => {
+  const creatorId = collection.value?.creatorId;
+  if (creatorId) router.push({ name: "user-profile", params: { uid: creatorId } });
+};
+
 /** 更新时间文本 */
 const updateTimeText = computed(() => {
   if (!collection.value?.updateTime) return "";
@@ -504,10 +510,19 @@ onBeforeUnmount(() => {
                 <div
                   class="flex items-center gap-3 text-sm leading-none text-on-surface-variant/50"
                 >
-                  <span v-if="creatorText" class="flex items-center gap-1 min-w-0">
+                  <button
+                    v-if="creatorText"
+                    type="button"
+                    class="flex min-w-0 items-center gap-1 border-0 bg-transparent p-0 text-inherit transition-colors"
+                    :class="
+                      collection.creatorId ? 'cursor-pointer hover:text-primary' : 'cursor-default'
+                    "
+                    :disabled="!collection.creatorId"
+                    @click="openCreator"
+                  >
                     <IconLucideUser class="shrink-0" />
                     <span class="truncate">{{ creatorText }}</span>
-                  </span>
+                  </button>
                   <span class="flex items-center gap-1 shrink-0">
                     <IconLucideListMusic class="shrink-0" />
                     {{ contentCountText }}

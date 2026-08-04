@@ -12,6 +12,7 @@ export interface UserProfile {
   /** 0=普通，非 0=黑胶 VIP */
   vipType?: number;
   gender?: number;
+  birthday?: number;
   province?: number;
   city?: number;
 }

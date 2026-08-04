@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const router = useRouter();
 const { copy } = useCopyText();
 const deleting = ref(false);
 const own = computed(() => props.comment.user.id === props.currentUserId);
@@ -82,6 +83,10 @@ const handleMenu = (key: string): void => {
     void remove();
   }
 };
+
+const openUser = (): void => {
+  router.push({ name: "user-profile", params: { uid: props.comment.user.id } });
+};
 </script>
 
 <template>
@@ -89,16 +94,24 @@ const handleMenu = (key: string): void => {
     <SContextMenu :items="menuItems" @select="handleMenu">
       <SCard size="small" radius="lg" class="select-text">
         <div class="flex gap-3">
-          <SImg
-            v-if="comment.user.avatar"
-            :src="comment.user.avatar"
-            class="size-9 shrink-0 rounded-full"
-          />
-          <div v-else class="size-9 shrink-0 rounded-full bg-on-surface/8" />
+          <button
+            type="button"
+            class="size-9 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0"
+            @click="openUser"
+          >
+            <SImg v-if="comment.user.avatar" :src="comment.user.avatar" class="size-full" />
+            <IconLucideUserRound v-else class="m-auto size-4 text-on-surface-variant/45" />
+          </button>
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <div class="text-sm font-medium text-on-surface">{{ comment.user.name }}</div>
+                <button
+                  type="button"
+                  class="border-0 bg-transparent p-0 text-sm font-medium text-on-surface transition-colors hover:text-primary"
+                  @click="openUser"
+                >
+                  {{ comment.user.name }}
+                </button>
                 <div class="mt-0.5 text-xs text-on-surface-variant/40">{{ createdAt }}</div>
               </div>
               <div

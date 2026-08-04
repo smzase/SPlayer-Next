@@ -11,6 +11,7 @@ export const toPodcast = (radio: NeteaseDjRadio): Podcast => ({
   cover: withPicSize(radio.picUrl),
   description: radio.desc,
   creator: radio.dj?.nickname,
+  creatorId: radio.dj?.userId,
   programCount: radio.programCount ?? 0,
   createTime: radio.createTime,
   updateTime: radio.lastProgramCreateTime,

@@ -7,6 +7,12 @@
 
 import type { NeteaseModule } from "../core/types";
 
+import follow from "./follow";
+import user_follow_mixed from "./user_follow_mixed";
+import user_mutualfollow_get from "./user_mutualfollow_get";
+import user_update from "./user_update";
+import user_blacklist_update from "./user_blacklist_update";
+
 // 登录 / 会话
 import captcha_sent from "./captcha_sent";
 import captcha_verify from "./captcha_verify";
@@ -158,12 +164,17 @@ export const modules: Record<string, NeteaseModule> = {
   cloud_song_import,
   user_detail,
   user_detail_new,
+  follow,
+  user_follow_mixed,
   user_followeds,
   user_follows,
   user_level,
+  user_mutualfollow_get,
   user_playlist,
   user_record,
   user_subcount,
+  user_update,
+  user_blacklist_update,
   user_audio,
 
   pl_count,

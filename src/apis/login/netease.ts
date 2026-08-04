@@ -78,6 +78,7 @@ export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
     signature: profile.signature,
     vipType: profile.vipType,
     gender: profile.gender,
+    birthday: profile.birthday,
     province: profile.province,
     city: profile.city,
   };

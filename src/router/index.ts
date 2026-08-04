@@ -33,6 +33,21 @@ const router = createRouter({
           component: () => import("@/pages/FollowDetail.vue"),
         },
         {
+          path: "user/:uid",
+          name: "user-profile",
+          component: () => import("@/pages/UserProfile.vue"),
+        },
+        {
+          path: "user/:uid/connections",
+          name: "user-connections",
+          component: () => import("@/pages/UserConnections.vue"),
+        },
+        {
+          path: "user/:uid/listening-rank",
+          name: "user-listening-rank",
+          component: () => import("@/pages/UserListeningRank.vue"),
+        },
+        {
           path: "library",
           name: "library",
           component: () => import("@/pages/Library.vue"),

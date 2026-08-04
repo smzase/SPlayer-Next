@@ -5,6 +5,7 @@ export interface Podcast {
   cover?: string;
   description?: string;
   creator?: string;
+  creatorId?: number;
   programCount: number;
   createTime?: number;
   updateTime?: number;
