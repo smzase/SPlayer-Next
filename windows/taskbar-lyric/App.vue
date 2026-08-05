@@ -22,6 +22,7 @@ import {
   getNowPlayingCurrentMs,
   useNowPlayingSync,
 } from "@windows/shared/composables/useNowPlayingSync";
+import { formatArtists } from "@shared/utils/track";
 
 const config = reactive<TaskbarLyricSettings>({
   position: "auto",
@@ -291,7 +292,7 @@ const songInfoVisible = computed(() => !config.pureLyricMode && controlsVisible.
 
 const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next");
 const artistsText = computed<string>(
-  () => track.value?.artists?.map((artist) => artist.name).join(" / ") || "未知艺术家",
+  () => formatArtists(track.value?.artists) || "未知艺术家",
 );
 
 const effectiveTheme = computed<"light" | "dark">(() => {

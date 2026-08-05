@@ -116,6 +116,7 @@ export const defaultSystemConfig: SystemConfig = {
     databaseRefreshIntervalDays: 7,
     songCache: {
       enabled: false,
+      cacheStreaming: false,
       sizeLimitGb: 10,
     },
   },
