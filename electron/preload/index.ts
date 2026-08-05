@@ -16,7 +16,13 @@ import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
 import type { TagEditRequest } from "@shared/types/tagEditor";
 import type { UpdateEvent } from "@shared/types/update";
 import type { CloudUploadProgress } from "@shared/types/cloudUpload";
-import type { CommentQuery } from "@shared/types/comment";
+import type {
+  CommentAddArgs,
+  CommentDeleteArgs,
+  CommentLikeArgs,
+  CommentQuery,
+  CommentReplyArgs,
+} from "@shared/types/comment";
 import type { AiModelSaveInput } from "@shared/types/ai";
 import type {
   LegacyPlaylistRecord,
@@ -438,6 +444,10 @@ const api = {
   comments: {
     sources: () => ipcRenderer.invoke("comments:sources"),
     get: (args: CommentQuery) => ipcRenderer.invoke("comments:get", args),
+    add: (args: CommentAddArgs) => ipcRenderer.invoke("comments:add", args),
+    reply: (args: CommentReplyArgs) => ipcRenderer.invoke("comments:reply", args),
+    like: (args: CommentLikeArgs) => ipcRenderer.invoke("comments:like", args),
+    delete: (args: CommentDeleteArgs) => ipcRenderer.invoke("comments:delete", args),
   },
   download: {
     // 入队下载

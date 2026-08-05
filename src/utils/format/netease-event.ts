@@ -289,6 +289,7 @@ const toComment = (value: unknown): FollowComment | undefined => {
     ...(replied
       ? {
           replyTo: {
+            userId: firstNumber(asRecord(replied.user)?.userId, asRecord(replied.user)?.id),
             userName: firstString(asRecord(replied.user)?.nickname),
             text: firstString(replied.content),
           },

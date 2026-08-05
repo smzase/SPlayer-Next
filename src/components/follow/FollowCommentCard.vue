@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import type { FollowComment } from "@/types/follow";
-import { deleteFollowComment } from "@/apis/follow/netease";
+import ExpandableCommentContent from "@/components/comment/ExpandableCommentContent.vue";
+import { deleteFollowComment, likeFollowComment } from "@/apis/follow/netease";
 import { dialog } from "@/composables/useDialog";
 import { toast } from "@/composables/useToast";
 import { useCopyText } from "@/composables/useCopyText";
@@ -16,12 +17,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   deleted: [commentId: string];
+  liked: [commentId: string, liked: boolean];
+  reply: [comment: FollowComment];
 }>();
 
 const { t } = useI18n();
 const router = useRouter();
 const { copy } = useCopyText();
 const deleting = ref(false);
+const liking = ref(false);
+const liked = ref(props.comment.liked);
+const likeCount = ref(props.comment.likeCount);
 const own = computed(() => props.comment.user.id === props.currentUserId);
 const canDelete = computed(() => own.value && !props.comment.id.startsWith("local-"));
 const menuItems = computed<DropdownMenuItem[]>(() => [
@@ -53,6 +59,14 @@ const createdAt = computed(() =>
         minute: "2-digit",
       }).format(new Date(props.comment.createdAt))
     : "",
+);
+
+watch(
+  () => [props.comment.liked, props.comment.likeCount] as const,
+  ([nextLiked, nextCount]) => {
+    liked.value = nextLiked;
+    likeCount.value = nextCount;
+  },
 );
 
 const remove = async (): Promise<void> => {
@@ -87,6 +101,30 @@ const handleMenu = (key: string): void => {
 const openUser = (): void => {
   router.push({ name: "user-profile", params: { uid: props.comment.user.id } });
 };
+
+const openReplyUser = (): void => {
+  if (!props.comment.replyTo?.userId) return;
+  router.push({ name: "user-profile", params: { uid: props.comment.replyTo.userId } });
+};
+
+const toggleLike = async (): Promise<void> => {
+  if (liking.value || props.comment.id.startsWith("local-")) return;
+  const previousLiked = liked.value;
+  const previousCount = likeCount.value;
+  liked.value = !previousLiked;
+  likeCount.value = Math.max(0, previousCount + (liked.value ? 1 : -1));
+  liking.value = true;
+  try {
+    await likeFollowComment(props.threadId, props.comment.id, liked.value);
+    emit("liked", props.comment.id, liked.value);
+  } catch (cause) {
+    liked.value = previousLiked;
+    likeCount.value = previousCount;
+    toast.error(cause instanceof Error ? cause.message : String(cause));
+  } finally {
+    liking.value = false;
+  }
+};
 </script>
 
 <template>
@@ -114,21 +152,57 @@ const openUser = (): void => {
                 </button>
                 <div class="mt-0.5 text-xs text-on-surface-variant/40">{{ createdAt }}</div>
               </div>
-              <div
-                v-if="comment.likeCount"
-                class="flex items-center gap-1 text-xs text-on-surface-variant/45"
-              >
-                <IconLucideThumbsUp class="size-3.5" />
-                {{ comment.likeCount }}
-              </div>
             </div>
-            <FollowRichText class="mt-2" :text="comment.text" />
-            <div
+            <ExpandableCommentContent class="mt-2" :content-key="comment.text">
+              <FollowRichText class="m-0" :text="comment.text" />
+            </ExpandableCommentContent>
+            <ExpandableCommentContent
               v-if="comment.replyTo"
+              :content-key="comment.replyTo.text"
+              :line-height="20"
+              compact
               class="mt-2 rounded-lg bg-on-surface/5 px-3 py-2 text-xs leading-5 text-on-surface-variant/65"
             >
-              <span class="font-medium text-on-surface">@{{ comment.replyTo.userName }}：</span>
-              {{ comment.replyTo.text }}
+              <button
+                v-if="comment.replyTo.userId"
+                type="button"
+                class="cursor-pointer border-0 bg-transparent p-0 font-medium text-primary select-text hover:underline"
+                @click="openReplyUser"
+              >
+                @{{ comment.replyTo.userName }}：
+              </button>
+              <FollowRichText
+                v-else
+                class="inline text-xs leading-5 text-on-surface-variant/65"
+                :text="`@${comment.replyTo.userName}：`"
+              />
+              <FollowRichText
+                class="m-0 inline text-xs leading-5 text-on-surface-variant/65"
+                :text="comment.replyTo.text"
+              />
+            </ExpandableCommentContent>
+            <div class="mt-2 flex select-none items-center justify-end gap-1">
+              <SButton
+                variant="ghost"
+                size="small"
+                :class="liked ? 'text-primary' : 'text-on-surface-variant/55'"
+                :loading="liking"
+                :disabled="comment.id.startsWith('local-')"
+                :title="t(liked ? 'comments.actions.unlike' : 'comments.actions.like')"
+                @click="toggleLike"
+              >
+                <template #icon><IconLucideThumbsUp /></template>
+                <span v-if="likeCount">{{ likeCount }}</span>
+              </SButton>
+              <SButton
+                variant="ghost"
+                circle
+                size="small"
+                :title="t('comments.actions.reply')"
+                @click="emit('reply', comment)"
+              >
+                <template #icon><IconLucideReply /></template>
+              </SButton>
             </div>
           </div>
         </div>

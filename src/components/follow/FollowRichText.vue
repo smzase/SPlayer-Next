@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { openExternal } from "@/utils/url";
+import { searchMentionUsers } from "@/apis/follow/netease";
+import { toast } from "@/composables/useToast";
 
 const props = defineProps<{
   text: string;
 }>();
+
+const emit = defineEmits<{
+  navigate: [];
+}>();
+
+const { t } = useI18n();
+const router = useRouter();
+const openingMention = ref(false);
 
 interface TextPart {
   type: "text" | "topic" | "mention" | "link";
@@ -29,6 +39,29 @@ const parts = computed<TextPart[]>(() => {
   }
   return result;
 });
+
+const openMention = async (value: string): Promise<void> => {
+  if (openingMention.value || window.getSelection()?.toString()) return;
+  const nickname = value.slice(1);
+  openingMention.value = true;
+  try {
+    const users = await searchMentionUsers(nickname);
+    const user =
+      users.find(
+        (item) => item.name.localeCompare(nickname, undefined, { sensitivity: "base" }) === 0,
+      ) ?? users[0];
+    if (!user) {
+      toast.warning(t("follow.composer.noUsers"));
+      return;
+    }
+    emit("navigate");
+    await router.push({ name: "user-profile", params: { uid: user.id } });
+  } catch (cause) {
+    toast.error(cause instanceof Error ? cause.message : String(cause));
+  } finally {
+    openingMention.value = false;
+  }
+};
 </script>
 
 <template>
@@ -41,7 +74,15 @@ const parts = computed<TextPart[]>(() => {
       >
         {{ part.value }}
       </button>
-      <span v-else-if="part.type !== 'text'" class="text-primary">{{ part.value }}</span>
+      <button
+        v-else-if="part.type === 'mention'"
+        type="button"
+        class="cursor-pointer border-0 bg-transparent p-0 text-left text-primary select-text hover:underline"
+        @click.stop="openMention(part.value)"
+      >
+        {{ part.value }}
+      </button>
+      <span v-else-if="part.type === 'topic'" class="text-primary">{{ part.value }}</span>
       <template v-else>{{ part.value }}</template>
     </template>
   </p>

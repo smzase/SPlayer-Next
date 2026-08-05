@@ -49,6 +49,7 @@ export interface FollowComment {
   liked: boolean;
   likeCount: number;
   replyTo?: {
+    userId?: number;
     userName: string;
     text: string;
   };

@@ -21,6 +21,7 @@ const user = useUserStore();
 const rootRef = ref<HTMLElement | null>(null);
 const text = ref("");
 const comments = shallowRef<FollowComment[]>([]);
+const replyTarget = shallowRef<FollowComment | null>(null);
 const loading = ref(false);
 const sending = ref(false);
 let requestToken = 0;
@@ -50,8 +51,10 @@ const submit = async (): Promise<void> => {
   sending.value = true;
   emit("busy", true);
   try {
-    const comment = await addFollowComment(props.post.threadId, content);
+    const target = replyTarget.value;
+    const comment = await addFollowComment(props.post.threadId, content, target?.id);
     text.value = "";
+    replyTarget.value = null;
     emit("commentCountChanged", props.post.id, 1);
     if (comment) {
       comments.value = [comment, ...comments.value.filter((item) => item.id !== comment.id)].slice(
@@ -72,6 +75,15 @@ const submit = async (): Promise<void> => {
           createdAt: Date.now(),
           liked: false,
           likeCount: 0,
+          ...(target
+            ? {
+                replyTo: {
+                  userId: target.user.id,
+                  userName: target.user.name,
+                  text: target.text,
+                },
+              }
+            : {}),
         },
         ...comments.value,
       ].slice(0, 5);
@@ -90,6 +102,24 @@ const submit = async (): Promise<void> => {
 const removeComment = (commentId: string): void => {
   comments.value = comments.value.filter((comment) => comment.id !== commentId);
   emit("commentCountChanged", props.post.id, -1);
+};
+
+const updateCommentLiked = (commentId: string, liked: boolean): void => {
+  comments.value = comments.value.map((comment) =>
+    comment.id === commentId
+      ? {
+          ...comment,
+          liked,
+          likeCount: Math.max(0, comment.likeCount + (liked ? 1 : -1)),
+        }
+      : comment,
+  );
+};
+
+const startReply = async (comment: FollowComment): Promise<void> => {
+  replyTarget.value = comment;
+  await nextTick();
+  rootRef.value?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
 };
 
 /** 打开笔记详情并查看完整评论 */
@@ -115,11 +145,26 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="rootRef" class="mt-3">
+    <div
+      v-if="replyTarget"
+      class="mb-2 flex items-center justify-between rounded-lg bg-on-surface/5 px-3 py-1.5 text-xs text-on-surface-variant"
+    >
+      <span>{{ t("comments.editor.replyingTo", { name: replyTarget.user.name }) }}</span>
+      <SButton
+        variant="ghost"
+        circle
+        size="tiny"
+        :title="t('common.close')"
+        @click="replyTarget = null"
+      >
+        <template #icon><IconLucideX /></template>
+      </SButton>
+    </div>
     <FollowTextComposer
       v-model="text"
       :user-id="currentUserId"
       :placeholder="t('follow.comment.placeholder')"
-      :maxlength="500"
+      :maxlength="1000"
       :rows="3"
       :disabled="sending || !currentUserId"
       show-emoji
@@ -153,6 +198,8 @@ onBeforeUnmount(() => {
         :current-user-id="currentUserId"
         :thread-id="post.threadId"
         @deleted="removeComment"
+        @liked="updateCommentLiked"
+        @reply="startReply"
       />
     </div>
     <div class="relative mt-2 flex items-center justify-center">

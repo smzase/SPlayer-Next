@@ -169,7 +169,28 @@
     "empty": "暂无评论",
     "noSource": "没有可用的评论来源",
     "location": "来自{location}",
-    "page": "第 {page} / {total} 页"
+    "page": "第 {page} / {total} 页",
+    "writeUnavailable": "请先登录，并切换到网易云评论来源",
+    "publishDone": "评论已发布",
+    "replyDone": "回复已发布",
+    "deleteTitle": "删除评论",
+    "deleteConfirm": "确定删除这条评论吗？此操作无法撤销。",
+    "deleteDone": "评论已删除",
+    "actions": {
+      "copy": "复制",
+      "like": "点赞",
+      "unlike": "取消点赞",
+      "reply": "回复"
+    },
+    "editor": {
+      "title": "发表评论",
+      "replyTitle": "回复 {name}",
+      "placeholder": "写下你的评论",
+      "replyPlaceholder": "回复 {name}",
+      "replyingTo": "正在回复 @{name}",
+      "submit": "发布",
+      "exitConfirm": "是否退出本次编辑？保留的评论草稿将在一天后自动清除。"
+    }
   },
   "messages": {
     "title": "消息",
@@ -1010,8 +1031,8 @@
     "singleTrackQueueMode": {
       "label": "单曲播放列表行为",
       "description": "点击歌曲列表中的单曲播放时，如何更新当前播放列表",
-      "replace": "用歌曲所在列表替换",
-      "append": "仅添加当前单曲"
+      "replace": "直接替换整个播放列表",
+      "append": "将单曲添加至当前播放列表"
     },
     "showLyricInBar": {
       "label": "播放时显示歌词",

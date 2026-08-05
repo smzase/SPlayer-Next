@@ -22,7 +22,6 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const publishing = ref(false);
 const uploadProgress = ref(0);
 const exitConfirmOpen = ref(false);
-const editorVersion = ref(0);
 
 const dirty = computed(
   () => !!text.value.trim() || resource.value !== null || images.value.length > 0,
@@ -53,7 +52,6 @@ const close = (): void => {
 
 const cancelExit = (): void => {
   exitConfirmOpen.value = false;
-  editorVersion.value += 1;
 };
 
 const keepAndClose = (): void => {
@@ -121,7 +119,6 @@ onBeforeUnmount(releaseImages);
 
 <template>
   <SDialog
-    :key="editorVersion"
     :open="open"
     :title="t('follow.publish.title')"
     :closable="false"

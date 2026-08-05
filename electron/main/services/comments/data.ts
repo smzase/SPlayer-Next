@@ -41,6 +41,13 @@ interface NeteaseCommentBody {
   };
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): UnknownRecord | undefined =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as UnknownRecord)
+    : undefined;
+
 const toStringId = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "bigint") return String(value);
@@ -76,9 +83,19 @@ export const normalizeNeteaseComment = (raw: NeteaseComment): MusicCommentItem |
   const location = optionalString(raw.ipLocation?.location);
   if (location) item.location = location;
   if (typeof raw.likedCount === "number") item.likedCount = raw.likedCount;
+  if (typeof raw.liked === "boolean") item.liked = raw.liked;
   if (typeof raw.replyCount === "number") item.replyTotal = raw.replyCount;
   if (reply.length) item.reply = reply;
   return item;
+};
+
+/** 转换评论写操作返回的评论项 */
+export const normalizeNeteaseMutationComment = (body: unknown): MusicCommentItem | undefined => {
+  const root = asRecord(body);
+  const data = asRecord(root?.data);
+  const raw = asRecord(root?.comment) ?? asRecord(data?.comment) ?? data;
+  if (!raw || (!raw.commentId && !raw.beRepliedCommentId)) return undefined;
+  return normalizeNeteaseComment(raw as NeteaseComment) ?? undefined;
 };
 
 /** 转换网易云评论分页 */

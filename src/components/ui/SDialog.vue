@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
 });
 
 const setOpen = (val: boolean): void => {
-  isOpen.value = val;
+  if (props.open === undefined) isOpen.value = val;
   emit("update:open", val);
 };
 </script>

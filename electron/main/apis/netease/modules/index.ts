@@ -90,6 +90,10 @@ import cloud_lyric_get from "./cloud_lyric_get";
 // 评论
 import comment_music from "./comment_music";
 import comment_hot from "./comment_hot";
+import comment_add from "./comment_add";
+import comment_reply from "./comment_reply";
+import comment_delete from "./comment_delete";
+import comment_like from "./comment_like";
 
 // 播放
 import song_detail from "./song_detail";
@@ -217,6 +221,10 @@ export const modules: Record<string, NeteaseModule> = {
 
   comment_music,
   comment_hot,
+  comment_add,
+  comment_reply,
+  comment_delete,
+  comment_like,
 
   song_detail,
   song_url,

@@ -26,6 +26,7 @@ export interface MusicCommentItem {
   time?: number;
   location?: string;
   likedCount?: number;
+  liked?: boolean;
   images?: string[];
   replyTotal?: number;
   reply?: MusicCommentItem[];
@@ -68,8 +69,40 @@ export interface CommentQuery {
   limit: number;
 }
 
+/** 评论写操作的共同参数 */
+export interface CommentMutationBase {
+  sourceId: string;
+  target: CommentTarget;
+}
+
+/** 发布评论参数 */
+export interface CommentAddArgs extends CommentMutationBase {
+  content: string;
+}
+
+/** 回复评论参数 */
+export interface CommentReplyArgs extends CommentAddArgs {
+  commentId: string;
+}
+
+/** 点赞或取消点赞参数 */
+export interface CommentLikeArgs extends CommentMutationBase {
+  commentId: string;
+  liked: boolean;
+}
+
+/** 删除评论参数 */
+export interface CommentDeleteArgs extends CommentMutationBase {
+  commentId: string;
+}
+
 /** 评论 IPC 响应 */
 export type CommentResponse = { ok: true; data: MusicCommentPage } | { ok: false; error: string };
+
+/** 评论写操作 IPC 响应 */
+export type CommentMutationResponse =
+  | { ok: true; data?: MusicCommentItem }
+  | { ok: false; error: string };
 
 export type MusicCommentQuery = CommentQuery;
 export type MusicCommentResponse = CommentResponse;
@@ -78,4 +111,8 @@ export type MusicCommentResponse = CommentResponse;
 export interface CommentsApi {
   sources: () => Promise<CommentSource[]>;
   get: (args: CommentQuery) => Promise<CommentResponse>;
+  add: (args: CommentAddArgs) => Promise<CommentMutationResponse>;
+  reply: (args: CommentReplyArgs) => Promise<CommentMutationResponse>;
+  like: (args: CommentLikeArgs) => Promise<CommentMutationResponse>;
+  delete: (args: CommentDeleteArgs) => Promise<CommentMutationResponse>;
 }

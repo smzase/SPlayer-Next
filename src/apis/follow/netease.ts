@@ -170,13 +170,16 @@ export const deleteFollowPost = async (postId: string): Promise<void> => {
  * 发布动态评论
  * @param threadId - 动态评论线程 ID
  * @param content - 评论正文
+ * @param replyToId - 被回复的评论 ID
  */
 export const addFollowComment = async (
   threadId: string,
   content: string,
+  replyToId?: string,
 ): Promise<FollowComment | undefined> => {
-  const body = await neteaseApi.event_comment_add<RawRecord>({
+  const body = await neteaseApi[replyToId ? "comment_reply" : "comment_add"]<RawRecord>({
     thread_id: threadId,
+    ...(replyToId ? { comment_id: replyToId } : {}),
     content,
     timestamp: Date.now(),
   });
@@ -192,9 +195,30 @@ export const addFollowComment = async (
  */
 export const deleteFollowComment = async (threadId: string, commentId: string): Promise<void> => {
   ensureOk(
-    await neteaseApi.event_comment_delete({
+    await neteaseApi.comment_delete({
       thread_id: threadId,
       comment_id: commentId,
+      timestamp: Date.now(),
+    }),
+  );
+};
+
+/**
+ * 点赞或取消点赞笔记评论
+ * @param threadId - 动态评论线程 ID
+ * @param commentId - 评论 ID
+ * @param liked - 目标点赞状态
+ */
+export const likeFollowComment = async (
+  threadId: string,
+  commentId: string,
+  liked: boolean,
+): Promise<void> => {
+  ensureOk(
+    await neteaseApi.comment_like({
+      thread_id: threadId,
+      comment_id: commentId,
+      like: liked,
       timestamp: Date.now(),
     }),
   );

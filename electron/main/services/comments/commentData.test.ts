@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildCommentSources, normalizeNeteaseCommentPage } from "./data";
+import {
+  buildCommentSources,
+  normalizeNeteaseCommentPage,
+  normalizeNeteaseMutationComment,
+} from "./data";
 
 test("normalizeNeteaseCommentPage maps hot and latest Netease comments to the shared shape", () => {
   const page = normalizeNeteaseCommentPage(
@@ -13,6 +17,7 @@ test("normalizeNeteaseCommentPage maps hot and latest Netease comments to the sh
           content: "hot text",
           time: 1710000000000,
           likedCount: 9,
+          liked: true,
           ipLocation: { location: "北京" },
           user: {
             userId: 1,
@@ -55,6 +60,7 @@ test("normalizeNeteaseCommentPage maps hot and latest Netease comments to the sh
     time: 1710000000000,
     location: "北京",
     likedCount: 9,
+    liked: true,
     reply: [
       {
         id: "99",
@@ -97,5 +103,40 @@ test("buildCommentSources includes builtin Netease and plugin sources with searc
       { id: "builtin:netease", name: "NCM", kind: "builtin" },
       { id: "plugin:plugin-a:tx", name: "QQ", kind: "plugin" },
     ],
+  );
+});
+
+test("normalizeNeteaseMutationComment reads direct and nested mutation responses", () => {
+  assert.deepEqual(
+    normalizeNeteaseMutationComment({
+      code: 200,
+      comment: {
+        commentId: 301,
+        content: "new comment",
+        time: 1710000002000,
+        user: { userId: 4, nickname: "Current User" },
+      },
+    }),
+    {
+      id: "301",
+      userId: "4",
+      userName: "Current User",
+      text: "new comment",
+      time: 1710000002000,
+    },
+  );
+
+  assert.equal(
+    normalizeNeteaseMutationComment({
+      code: 200,
+      data: {
+        comment: {
+          commentId: 302,
+          content: "reply comment",
+          user: { userId: 4, nickname: "Current User" },
+        },
+      },
+    })?.id,
+    "302",
   );
 });

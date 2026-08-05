@@ -4,14 +4,23 @@ import { pluginRegistry, type PluginRuntime } from "@main/plugins/registry";
 import { callMusicComment, callMusicSearch } from "@main/plugins/router";
 import { pluginLog } from "@main/utils/logger";
 import type {
+  CommentAddArgs,
+  CommentDeleteArgs,
+  CommentLikeArgs,
   CommentQuery,
+  CommentReplyArgs,
   CommentSource,
   CommentTarget,
+  MusicCommentItem,
   MusicCommentPage,
 } from "@shared/types/comment";
 import type { MusicSearchCandidate } from "@shared/types/plugin";
 import type { Track } from "@shared/types/player";
-import { buildCommentSources, normalizeNeteaseCommentPage } from "./data";
+import {
+  buildCommentSources,
+  normalizeNeteaseCommentPage,
+  normalizeNeteaseMutationComment,
+} from "./data";
 
 const NETEASE_SOURCE_ID = "builtin:netease";
 const NETEASE_RESOURCE_TYPES: Record<CommentTarget["kind"], string> = {
@@ -33,6 +42,11 @@ const MAX_LIMIT = 50;
 interface ParsedPluginSource {
   pluginId: string;
   source: string;
+}
+
+interface NeteaseCommentResource {
+  id: string;
+  threadId: string;
 }
 
 const parsePluginSource = (sourceId: string): ParsedPluginSource | null => {
@@ -107,18 +121,49 @@ const findNeteaseId = async (track: Track): Promise<string | null> => {
   return pickBestCandidate(candidates, track)?.extra.id ?? null;
 };
 
-const getNeteaseComments = async (args: CommentQuery): Promise<MusicCommentPage> => {
+const resolveNeteaseResource = async (
+  target: CommentTarget,
+): Promise<NeteaseCommentResource | null> => {
   const id =
-    args.target.kind === "song"
-      ? await findNeteaseId(args.target.track)
-      : args.target.source === "netease"
-        ? args.target.id
+    target.kind === "song"
+      ? await findNeteaseId(target.track)
+      : target.source === "netease"
+        ? target.id
         : null;
-  if (!id) return { list: [], total: 0, page: args.page, limit: args.limit };
+  if (!id) return null;
+  return {
+    id,
+    threadId: `${NETEASE_RESOURCE_TYPES[target.kind]}${id}`,
+  };
+};
+
+const requireNeteaseResource = async (target: CommentTarget): Promise<NeteaseCommentResource> => {
+  const resource = await resolveNeteaseResource(target);
+  if (!resource) throw new Error("无法匹配对应的网易云资源");
+  return resource;
+};
+
+const assertWritableSource = (sourceId: string): void => {
+  if (sourceId !== NETEASE_SOURCE_ID) throw new Error("当前评论来源不支持此操作");
+};
+
+const callCommentMutation = async (
+  name: string,
+  params: Record<string, unknown>,
+): Promise<unknown> => {
+  const { status, body } = await callNetease(name, params);
+  const code = Number(body?.code ?? status);
+  if (status === 200 && code === 200) return body;
+  throw new Error(body?.message ?? body?.msg ?? `netease ${code}`);
+};
+
+const getNeteaseComments = async (args: CommentQuery): Promise<MusicCommentPage> => {
+  const resource = await resolveNeteaseResource(args.target);
+  if (!resource) return { list: [], total: 0, page: args.page, limit: args.limit };
 
   const apiName = args.type === "hot" ? "comment_hot" : "comment_music";
   const { body } = await callNetease(apiName, {
-    id,
+    id: resource.id,
     type: NETEASE_RESOURCE_TYPES[args.target.kind],
     limit: args.limit,
     offset: (args.page - 1) * args.limit,
@@ -171,4 +216,54 @@ export const getComments = async (args: CommentQuery): Promise<MusicCommentPage>
   const parsed = parsePluginSource(query.sourceId);
   if (parsed) return getPluginComments(parsed, query);
   throw new Error(`unknown comment source: ${query.sourceId}`);
+};
+
+/** 发布网易云资源评论 */
+export const addComment = async (args: CommentAddArgs): Promise<MusicCommentItem | undefined> => {
+  assertWritableSource(args.sourceId);
+  const content = args.content.trim();
+  if (!content) throw new Error("评论内容不能为空");
+  const resource = await requireNeteaseResource(args.target);
+  const body = await callCommentMutation("comment_add", {
+    thread_id: resource.threadId,
+    content,
+  });
+  return normalizeNeteaseMutationComment(body);
+};
+
+/** 回复网易云资源评论 */
+export const replyComment = async (
+  args: CommentReplyArgs,
+): Promise<MusicCommentItem | undefined> => {
+  assertWritableSource(args.sourceId);
+  const content = args.content.trim();
+  if (!content) throw new Error("回复内容不能为空");
+  const resource = await requireNeteaseResource(args.target);
+  const body = await callCommentMutation("comment_reply", {
+    thread_id: resource.threadId,
+    comment_id: args.commentId,
+    content,
+  });
+  return normalizeNeteaseMutationComment(body);
+};
+
+/** 点赞或取消点赞网易云资源评论 */
+export const likeComment = async (args: CommentLikeArgs): Promise<void> => {
+  assertWritableSource(args.sourceId);
+  const resource = await requireNeteaseResource(args.target);
+  await callCommentMutation("comment_like", {
+    thread_id: resource.threadId,
+    comment_id: args.commentId,
+    like: args.liked,
+  });
+};
+
+/** 删除自己的网易云资源评论 */
+export const deleteComment = async (args: CommentDeleteArgs): Promise<void> => {
+  assertWritableSource(args.sourceId);
+  const resource = await requireNeteaseResource(args.target);
+  await callCommentMutation("comment_delete", {
+    thread_id: resource.threadId,
+    comment_id: args.commentId,
+  });
 };

@@ -23,6 +23,7 @@ const error = ref("");
 const commentsLoading = ref(false);
 const commentsMore = ref(false);
 const commentText = ref("");
+const replyTarget = shallowRef<FollowComment | null>(null);
 const sendingComment = ref(false);
 const forwardOpen = ref(false);
 const composerRef = ref<HTMLElement | null>(null);
@@ -76,8 +77,10 @@ const submitComment = async (): Promise<void> => {
   if (!post.value || !content || sendingComment.value) return;
   sendingComment.value = true;
   try {
-    const comment = await addFollowComment(post.value.threadId, content);
+    const target = replyTarget.value;
+    const comment = await addFollowComment(post.value.threadId, content, target?.id);
     commentText.value = "";
+    replyTarget.value = null;
     post.value = { ...post.value, commentCount: post.value.commentCount + 1 };
     if (comment) {
       comments.value = [comment, ...comments.value.filter((item) => item.id !== comment.id)];
@@ -113,6 +116,23 @@ const removeComment = (commentId: string): void => {
       commentCount: Math.max(0, post.value.commentCount - 1),
     };
   }
+};
+
+const updateCommentLiked = (commentId: string, liked: boolean): void => {
+  comments.value = comments.value.map((comment) =>
+    comment.id === commentId
+      ? {
+          ...comment,
+          liked,
+          likeCount: Math.max(0, comment.likeCount + (liked ? 1 : -1)),
+        }
+      : comment,
+  );
+};
+
+const startReply = async (comment: FollowComment): Promise<void> => {
+  replyTarget.value = comment;
+  focusComment();
 };
 
 const removePost = async (): Promise<void> => {
@@ -183,11 +203,26 @@ const removePost = async (): Promise<void> => {
               {{ t("follow.comment.title", { count: post.commentCount }) }}
             </h2>
             <div ref="composerRef">
+              <div
+                v-if="replyTarget"
+                class="mb-2 flex items-center justify-between rounded-lg bg-on-surface/5 px-3 py-1.5 text-xs text-on-surface-variant"
+              >
+                <span>{{ t("comments.editor.replyingTo", { name: replyTarget.user.name }) }}</span>
+                <SButton
+                  variant="ghost"
+                  circle
+                  size="tiny"
+                  :title="t('common.close')"
+                  @click="replyTarget = null"
+                >
+                  <template #icon><IconLucideX /></template>
+                </SButton>
+              </div>
               <FollowTextComposer
                 v-model="commentText"
                 :user-id="currentUserId"
                 :placeholder="t('follow.comment.placeholder')"
-                :maxlength="500"
+                :maxlength="1000"
                 :rows="3"
                 :disabled="sendingComment"
                 show-emoji
@@ -226,6 +261,8 @@ const removePost = async (): Promise<void> => {
                 :current-user-id="currentUserId"
                 :thread-id="post.threadId"
                 @deleted="removeComment"
+                @liked="updateCommentLiked"
+                @reply="startReply"
               />
               <div class="flex justify-center py-3">
                 <SButton

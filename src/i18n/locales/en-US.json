@@ -181,7 +181,28 @@
     "empty": "No comments yet",
     "noSource": "No comment source available",
     "location": "From {location}",
-    "page": "Page {page} / {total}"
+    "page": "Page {page} / {total}",
+    "writeUnavailable": "Sign in and switch to the NetEase comment source first",
+    "publishDone": "Comment posted",
+    "replyDone": "Reply posted",
+    "deleteTitle": "Delete comment",
+    "deleteConfirm": "Delete this comment? This cannot be undone.",
+    "deleteDone": "Comment deleted",
+    "actions": {
+      "copy": "Copy",
+      "like": "Like",
+      "unlike": "Unlike",
+      "reply": "Reply"
+    },
+    "editor": {
+      "title": "Post Comment",
+      "replyTitle": "Reply to {name}",
+      "placeholder": "Write a comment",
+      "replyPlaceholder": "Reply to {name}",
+      "replyingTo": "Replying to @{name}",
+      "submit": "Post",
+      "exitConfirm": "Exit this editor? Kept comment drafts are removed automatically after one day."
+    }
   },
   "messages": {
     "title": "Messages",
@@ -1022,8 +1043,8 @@
     "singleTrackQueueMode": {
       "label": "Single-track Queue Behavior",
       "description": "Choose how the current queue changes when you play a track from a song list",
-      "replace": "Replace with its song list",
-      "append": "Add only this track"
+      "replace": "Replace the entire play queue",
+      "append": "Add the track to the current play queue"
     },
     "showLyricInBar": {
       "label": "Show Lyric While Playing",
