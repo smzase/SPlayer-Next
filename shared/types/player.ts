@@ -22,6 +22,8 @@ export interface NeteasePlaybackSource {
   id: string;
   /** 来源资源类型 */
   type: NeteasePlaybackSourceType;
+  /** 播客声音分类 ID */
+  categoryId?: number;
 }
 
 /** 歌手 */

@@ -46,10 +46,18 @@ export const podcastProgramToTrack = (
   const cover = withPicSize(coverUrl) ?? base.cover;
   const coverOriginal = withPicSize(coverUrl, 1024) ?? base.coverOriginal;
   const creator = program.dj?.nickname ?? radio?.dj?.nickname;
+  const categoryId = Number(program.categoryId);
 
   return {
     ...base,
     extId: String(program.id),
+    playbackSource: radio
+      ? {
+          id: String(radio.id),
+          type: "radio",
+          categoryId: Number.isFinite(categoryId) ? categoryId : undefined,
+        }
+      : base.playbackSource,
     title: program.name,
     artists: creator ? [{ name: creator }] : base.artists,
     album: radio

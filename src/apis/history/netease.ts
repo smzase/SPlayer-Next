@@ -88,7 +88,14 @@ export const fetchRecentVoices = async (): Promise<NeteaseRecentEntry<Track>[]> 
         resourceId,
         radioId === undefined
           ? item
-          : { ...item, playbackSource: { id: String(radioId), type: "radio" } },
+          : {
+              ...item,
+              playbackSource: {
+                ...item.playbackSource,
+                id: String(radioId),
+                type: "radio",
+              },
+            },
       );
     }),
   );

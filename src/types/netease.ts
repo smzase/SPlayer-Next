@@ -158,6 +158,7 @@ export interface NeteaseDjRadio {
 export interface NeteaseDjProgram {
   id: number | string;
   name: string;
+  categoryId?: number | string;
   coverUrl?: string;
   duration?: number;
   createTime?: number;

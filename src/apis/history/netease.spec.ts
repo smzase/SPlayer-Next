@@ -28,6 +28,7 @@ describe("网易云多端最近播放转换", () => {
             data: {
               pubDJProgramData: {
                 id: 3081133072,
+                categoryId: 7,
                 name: "测试声音",
                 mainTrackId: 2725832901,
                 duration: 180000,
@@ -50,7 +51,7 @@ describe("网易云多端最近播放转换", () => {
       item: {
         id: "2725832901",
         extId: "3081133072",
-        playbackSource: { id: "9988", type: "radio" },
+        playbackSource: { id: "9988", type: "radio", categoryId: 7 },
       },
     });
   });

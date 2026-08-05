@@ -589,7 +589,14 @@ export const playFrom = async (
   status.heartMode = false;
   status.fmMode = false;
   const tracks = playbackSource
-    ? items.map((track) => (track.source === "netease" ? { ...track, playbackSource } : track))
+    ? items.map((track) =>
+        track.source === "netease"
+          ? {
+              ...track,
+              playbackSource: { ...track.playbackSource, ...playbackSource },
+            }
+          : track,
+      )
     : items;
   const idx = Math.max(0, Math.min(startIndex, tracks.length - 1));
   const isSameTrack = media.track?.id === tracks[idx]?.id;
@@ -1008,7 +1015,13 @@ export const playNow = async (
 ): Promise<void> => {
   const status = useStatusStore();
   const media = useMediaStore();
-  const target = playbackSource && item.source === "netease" ? { ...item, playbackSource } : item;
+  const target =
+    playbackSource && item.source === "netease"
+      ? {
+          ...item,
+          playbackSource: { ...item.playbackSource, ...playbackSource },
+        }
+      : item;
   // 同一首歌且已成功加载
   if (media.track?.id === target.id && status.currentSource) {
     if (!status.isPlaying) play();

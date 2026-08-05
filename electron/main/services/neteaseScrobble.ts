@@ -1,6 +1,10 @@
 import type { Track } from "@shared/types/player";
 import type { NeteaseScrobbleMode } from "@shared/types/settings";
-import { toNeteaseScrobbleTrack, type NeteaseScrobbleTrack } from "@shared/utils/neteaseScrobble";
+import {
+  neteaseScrobbleThresholdMs,
+  toNeteaseScrobbleTrack,
+  type NeteaseScrobbleTrack,
+} from "@shared/utils/neteaseScrobble";
 import { store } from "@main/store";
 import { callNetease, getNeteaseCookies } from "@main/apis/netease";
 import { neteaseLog } from "@main/utils/logger";
@@ -42,12 +46,15 @@ const submit = (track: NeteaseScrobbleTrack, playedMs: number): void => {
     sourceid: track.sourceId,
     source: track.sourceType,
     sourceType: track.sourceType,
+    resourceType: track.resourceType,
+    categoryId: track.categoryId,
     time: playedSec,
     total: track.durationSec,
     name: track.title,
     artist: track.artist,
     bitrate: track.bitrate,
     level: track.level,
+    fee: track.fee,
   })
     .then((res) => {
       ensureScrobbleOk(api, res);
@@ -61,6 +68,7 @@ const submit = (track: NeteaseScrobbleTrack, playedMs: number): void => {
 const progress = createPlayProgress<NeteaseScrobbleTrack>({
   onThreshold: submit,
   shouldFire: isScrobbleEnabled,
+  thresholdMs: neteaseScrobbleThresholdMs,
 });
 
 /**

@@ -32,6 +32,7 @@ describe("网易云播客格式转换", () => {
     const program: NeteaseDjProgram = {
       id: 20,
       name: "第一期",
+      categoryId: 7,
       duration: 123000,
       createTime: 1710000000000,
       listenerCount: 1234,
@@ -52,6 +53,7 @@ describe("网易云播客格式转换", () => {
     expect(track).toMatchObject({
       id: "30",
       extId: "20",
+      playbackSource: { id: "10", type: "radio", categoryId: 7 },
       source: "netease",
       title: "第一期",
       duration: 123000,

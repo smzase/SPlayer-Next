@@ -4,12 +4,23 @@ export interface NeteaseScrobbleTrack {
   id: string;
   sourceId: string;
   sourceType: NeteasePlaybackSourceType;
+  resourceType: "song" | "dj";
+  categoryId?: number;
   title: string;
   artist: string;
   bitrate: number;
   level: string;
+  fee: number;
   durationSec: number;
 }
+
+/**
+ * 计算网易云听歌打卡阈值，短音频同样在播放过半后上报
+ * @param durationSec - 音频总时长（秒）
+ * @returns 触发上报所需的累计播放毫秒数
+ */
+export const neteaseScrobbleThresholdMs = (durationSec: number): number =>
+  durationSec > 0 ? Math.min(durationSec / 2, 240) * 1000 : Infinity;
 
 const asNumericId = (value: string | undefined): string | null =>
   value && /^\d+$/.test(value) ? value : null;
@@ -36,17 +47,23 @@ export const toNeteaseScrobbleTrack = (
   durationMs: number,
 ): NeteaseScrobbleTrack | null => {
   if (!track || track.source !== "netease") return null;
-  const id = asNumericId(track.id);
-  if (!id) return null;
+  const trackId = asNumericId(track.id);
+  if (!trackId) return null;
+  const voiceId = asNumericId(track.extId);
+  const id = voiceId ?? trackId;
   const contextId = asNumericId(track.playbackSource?.id);
+  const radioId = asNumericId(track.album?.id);
   return {
     id,
-    sourceId: contextId ?? id,
-    sourceType: contextId ? (track.playbackSource?.type ?? "song") : "song",
+    sourceId: contextId ?? (voiceId ? radioId : null) ?? id,
+    sourceType: voiceId ? "radio" : contextId ? (track.playbackSource?.type ?? "song") : "song",
+    resourceType: voiceId ? "dj" : "song",
+    categoryId: voiceId ? track.playbackSource?.categoryId : undefined,
     title: track.title,
     artist: track.artists.map((artist) => artist.name).join(" / "),
     bitrate: toBitrate(track),
     level: toLevel(track),
+    fee: track.fee ?? 0,
     durationSec: Math.round(durationMs / 1000),
   };
 };
