@@ -18,6 +18,9 @@ const scrobble: NeteaseModule = async (query, request) => {
     cookie = "os=osx";
   }
   query.cookie = cookie;
+  const sourceType = typeof query.sourceType === "string" ? query.sourceType : "song";
+  const sourceName =
+    sourceType === "song" ? "track" : sourceType === "radio" ? "djradio" : sourceType;
 
   const startplayData = {
     logs: JSON.stringify([
@@ -46,7 +49,7 @@ const scrobble: NeteaseModule = async (query, request) => {
           time: query.time,
           type: "song",
           wifi: 0,
-          source: "list",
+          source: sourceName,
           mainsite: "1",
           mainsiteWeb: "1",
           content: `id=${query.sourceid}`,

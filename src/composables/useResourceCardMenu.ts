@@ -32,6 +32,8 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
   const user = useUserStore();
   const { copy } = useCopyText();
   const download = useDownload();
+  const downloading = ref(false);
+  const downloadDisabled = computed(() => !settings.system.download.enabled);
 
   const menuItems = computed<DropdownMenuItem[]>(() => {
     const hasTracks = resourceType.value !== "artist";
@@ -128,12 +130,19 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
   };
 
   const playResource = async (item: CoverItem): Promise<void> => {
+    if (resourceType.value === "artist") return;
     const loading = toast.loading(t("resourceMenu.loading", { title: item.title }), {
       duration: 0,
     });
     try {
       const tracks = await loadTracks(item, false);
-      await player.playFrom(tracks, 0);
+      const type =
+        resourceType.value === "playlist"
+          ? "list"
+          : resourceType.value === "radio"
+            ? "radio"
+            : "album";
+      await player.playFrom(tracks, 0, { id: item.id, type });
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -146,20 +155,68 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
   };
 
   const downloadResource = async (item: CoverItem): Promise<void> => {
+    if (downloading.value) return;
+    const confirmed = await dialog.confirm({
+      title: t("resourceMenu.downloadConfirmTitle"),
+      content: t("resourceMenu.downloadConfirm", { title: item.title }),
+      confirmText: t("resourceMenu.downloadAll"),
+      type: "warning",
+    });
+    if (!confirmed) return;
+
+    downloading.value = true;
     const loading = toast.loading(t("resourceMenu.loading", { title: item.title }), {
       duration: 0,
     });
     try {
       const tracks = await loadTracks(item, true);
-      loading.close();
-      void download.enqueueMany(tracks);
+      download.enqueueMany(tracks);
     } catch (error) {
-      loading.close();
       toast.error(
         error instanceof Error
           ? error.message
           : t("resourceMenu.loadFailed", { title: item.title }),
       );
+    } finally {
+      loading.close();
+      downloading.value = false;
+    }
+  };
+
+  /**
+   * 下载多个资源中的全部曲目，只展示一次确认并合并重复歌曲
+   * @param items - 已选择的资源卡片
+   */
+  const downloadResources = async (items: CoverItem[]): Promise<void> => {
+    if (downloading.value || items.length === 0 || downloadDisabled.value) return;
+    const confirmed = await dialog.confirm({
+      title: t("resourceMenu.downloadConfirmTitle"),
+      content: t("resourceMenu.downloadBatchConfirm", { count: items.length }),
+      confirmText: t("resourceMenu.downloadAll"),
+      type: "warning",
+    });
+    if (!confirmed) return;
+
+    downloading.value = true;
+    const loading = toast.loading(t("resourceMenu.loadingBatch"), { duration: 0 });
+    try {
+      const tracks: Track[] = [];
+      const seen = new Set<string>();
+      for (const item of items) {
+        const loaded = await loadTracks(item, true);
+        for (const track of loaded) {
+          const key = `${track.source}:${track.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          tracks.push(track);
+        }
+      }
+      download.enqueueMany(tracks);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("resourceMenu.loadBatchFailed"));
+    } finally {
+      loading.close();
+      downloading.value = false;
     }
   };
 
@@ -221,5 +278,5 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
     }
   };
 
-  return { menuItems, handleSelect };
+  return { menuItems, downloading, downloadDisabled, downloadResources, handleSelect };
 };

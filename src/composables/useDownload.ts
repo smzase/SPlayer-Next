@@ -7,6 +7,7 @@ import type {
 } from "@shared/types/download";
 import { QUALITY_LABELS, type QualityLevel } from "@/utils/quality";
 import { useSettingsStore } from "@/stores/settings";
+import { useDownloadStore } from "@/stores/download";
 import { resolveDownloadSource } from "@/services/downloadSource";
 import { resolveDownloadLyric } from "@/services/downloadLyric";
 import { buildDownloadLyric } from "@/utils/lyric/serialize";
@@ -22,6 +23,30 @@ interface EnqueueOptions {
 
 const isTerminal = (status: DownloadStatus): boolean =>
   status !== "queued" && status !== "downloading";
+
+interface PendingBatchWork {
+  canceled: boolean;
+  run: () => Promise<void>;
+}
+
+/** 跨页面共用同一条批量准备队列，避免重复解析临时下载链接 */
+const pendingBatchQueue: PendingBatchWork[] = [];
+let batchQueueRunning = false;
+
+const pumpBatchQueue = async (): Promise<void> => {
+  if (batchQueueRunning) return;
+  batchQueueRunning = true;
+  try {
+    for (;;) {
+      const work = pendingBatchQueue.shift();
+      if (!work) return;
+      if (!work.canceled) await work.run();
+    }
+  } finally {
+    batchQueueRunning = false;
+    if (pendingBatchQueue.length > 0) void pumpBatchQueue();
+  }
+};
 
 /** 可下载音质档位（展示顺序） */
 const DOWNLOAD_QUALITY_LEVELS: QualityLevel[] = ["hi-res", "lossless", "hq", "sq", "lq"];
@@ -44,6 +69,7 @@ export const buildDownloadQualityItems = (
 
 export const useDownload = () => {
   const { t } = useI18n();
+  const downloadStore = useDownloadStore();
 
   /** 解析 URL + 歌词并组装下载请求；解析失败时 toast 并返回 null */
   const prepareRequest = async (
@@ -122,34 +148,74 @@ export const useDownload = () => {
     return true;
   };
 
-  /** 解析→下载→等待该任务结束（先订阅终态再发起，避免极快任务漏掉事件） */
-  const downloadAndWait = (track: Track): Promise<void> =>
-    prepareRequest(track, {}).then((req) => {
-      if (!req) return;
-      return new Promise<void>((resolve) => {
-        const off = window.api.download.onState((task) => {
-          if (task.taskId === req.taskId && isTerminal(task.status)) {
-            off();
-            resolve();
-          }
-        });
-        void window.api.download.start(req).then((res) => {
-          if (!res.ok) {
-            off();
-            resolve();
-          }
-        });
-      });
-    });
-
-  /** 批量下载：严格逐首 */
-  const enqueueMany = async (tracks: Track[]): Promise<void> => {
+  /** 批量下载：先展示全部排队项，再严格逐首解析和下载 */
+  const enqueueMany = (tracks: Track[]): void => {
     const downloadable = tracks.filter((track) => track.source !== "local");
     if (downloadable.length === 0) return;
+    const qualityLevel = useSettingsStore().system.download.quality;
+    const createdAt = Date.now();
+
+    downloadable.forEach((track, index) => {
+      const taskId = crypto.randomUUID();
+      const work: PendingBatchWork = {
+        canceled: false,
+        run: async () => {
+          let req: DownloadRequest | null = null;
+          try {
+            req = await prepareRequest(track, { taskId, quality: qualityLevel });
+          } catch {
+            if (!work.canceled) toast.error(t("download.resolveFailed", { title: track.title }));
+          }
+          if (work.canceled || !req) {
+            downloadStore.discardPending(taskId);
+            return;
+          }
+
+          downloadStore.activatePending(taskId);
+          await new Promise<void>((resolve) => {
+            const off = window.api.download.onState((task) => {
+              if (task.taskId === taskId && isTerminal(task.status)) {
+                off();
+                resolve();
+              }
+            });
+            void window.api.download.start(req).then(
+              (result) => {
+                if (result.ok) return;
+                off();
+                downloadStore.discardPending(taskId);
+                resolve();
+              },
+              () => {
+                off();
+                downloadStore.discardPending(taskId);
+                toast.error(t("download.resolveFailed", { title: track.title }));
+                resolve();
+              },
+            );
+          });
+        },
+      };
+
+      downloadStore.addPending(
+        {
+          taskId,
+          status: "queued",
+          track,
+          qualityLevel,
+          received: 0,
+          total: 0,
+          createdAt: createdAt + index,
+        },
+        () => {
+          work.canceled = true;
+        },
+      );
+      pendingBatchQueue.push(work);
+    });
+
     toast.success(t("download.enqueued", { count: downloadable.length }));
-    for (const track of downloadable) {
-      await downloadAndWait(track);
-    }
+    void pumpBatchQueue();
   };
 
   /** 重试：用任务保存的完整 Track 重新解析并入队 */

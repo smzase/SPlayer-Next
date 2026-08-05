@@ -13,6 +13,17 @@ export type ShuffleMode = "off" | "on";
 /** 歌曲来源：本地 / 流媒体 / 在线平台 */
 export type TrackSource = "local" | "streaming" | Platform;
 
+/** 网易云播放来源类型，用于听歌打卡与多端最近播放归类 */
+export type NeteasePlaybackSourceType = "song" | "list" | "album" | "artist" | "radio";
+
+/** 网易云播放来源上下文 */
+export interface NeteasePlaybackSource {
+  /** 来源资源 ID */
+  id: string;
+  /** 来源资源类型 */
+  type: NeteasePlaybackSourceType;
+}
+
 /** 歌手 */
 export interface Artist {
   id?: string;
@@ -74,6 +85,8 @@ export interface Track {
   extId?: string;
   /** 歌曲来源 */
   source: TrackSource;
+  /** 网易云播放来源上下文 */
+  playbackSource?: NeteasePlaybackSource;
   /** 本地路径 */
   path?: string;
   /** CUE 文件路径 */

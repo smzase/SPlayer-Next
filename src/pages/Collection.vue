@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Track, TrackSource } from "@shared/types/player";
+import type { NeteasePlaybackSource, Track, TrackSource } from "@shared/types/player";
 import type { CollectionCommentTarget } from "@shared/types/comment";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
@@ -365,6 +365,15 @@ const commentTarget = computed<CollectionCommentTarget | null>(() => {
   };
 });
 
+const playbackSource = computed<NeteasePlaybackSource | undefined>(() => {
+  const current = collection.value;
+  if (!current || current.source !== "netease") return undefined;
+  const sourceType =
+    current.type === "playlist" ? "list" : current.type === "radio" ? "radio" : current.type;
+  if (sourceType !== "list" && sourceType !== "album" && sourceType !== "radio") return undefined;
+  return { id: current.id, type: sourceType };
+});
+
 const shareUrl = computed(() => getCollectionShareUrl(collection.value));
 
 const handleComments = (): void => {
@@ -373,7 +382,7 @@ const handleComments = (): void => {
 
 const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
-  player.playFrom(collection.value.tracks, 0);
+  player.playFrom(collection.value.tracks, 0, playbackSource.value);
 };
 
 /** 歌曲列表引用 */
@@ -627,6 +636,7 @@ onBeforeUnmount(() => {
           :source="source"
           :collection-type="type"
           :collection-id="id"
+          :playback-source="playbackSource"
           :can-remove="manage.canManage.value"
           :has-more="type === 'radio' && !searchQuery.trim() && podcastHasMore"
           :loading-more="

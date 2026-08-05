@@ -201,7 +201,7 @@ const toggleFollow = async (item: UserConnection): Promise<void> => {
           <div class="flex items-center gap-3">
             <button
               type="button"
-              class="size-12 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0"
+              class="size-12 shrink-0 cursor-pointer overflow-hidden rounded-full border-0 bg-on-surface/8 p-0"
               @click="openConnection(item)"
             >
               <img
@@ -215,7 +215,7 @@ const toggleFollow = async (item: UserConnection): Promise<void> => {
             </button>
             <button
               type="button"
-              class="min-w-0 flex-1 border-0 bg-transparent p-0 text-left"
+              class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left"
               @click="openConnection(item)"
             >
               <div class="truncate text-sm font-semibold text-on-surface">{{ item.name }}</div>

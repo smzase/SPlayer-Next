@@ -480,6 +480,8 @@ watch(
                   <button
                     type="button"
                     class="min-w-0 truncate border-0 bg-transparent p-0 text-left text-sm font-medium text-primary hover:underline"
+                    :class="thread.user.userId ? 'cursor-pointer' : 'cursor-default'"
+                    :disabled="!thread.user.userId"
                     @click.stop="openUser(thread.user)"
                   >
                     {{ thread.user.nickname || t("messages.unknownUser") }}

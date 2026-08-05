@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Artist, Track, TrackSource } from "@shared/types/player";
+import type { Artist, NeteasePlaybackSource, Track, TrackSource } from "@shared/types/player";
 import type { CollectionType } from "@/types/collection";
 import type { SortField } from "@/types/list";
 import { useMediaStore } from "@/stores/media";
@@ -61,8 +61,14 @@ const props = withDefaults(
     collectionType?: CollectionType;
     /** 集合 ID */
     collectionId?: string;
+    /** 网易云播放来源上下文 */
+    playbackSource?: NeteasePlaybackSource;
     /** 是否有权从集合移除曲目 */
     canRemove?: boolean;
+    /** 自定义批量移除处理 */
+    batchRemove?: (tracks: Track[]) => Promise<void>;
+    /** 自定义批量移除文案 */
+    batchRemoveLabel?: string;
     /** 是否还能继续触底加载 */
     hasMore?: boolean;
     /** 触底加载中 */
@@ -82,7 +88,10 @@ const props = withDefaults(
     source: "local",
     collectionType: undefined,
     collectionId: undefined,
+    playbackSource: undefined,
     canRemove: true,
+    batchRemove: undefined,
+    batchRemoveLabel: undefined,
     hasMore: false,
     loadingMore: false,
   },
@@ -222,10 +231,10 @@ const playingIndex = computed(() => {
 /** 按用户选择更新队列并播放歌曲 */
 const playTrack = (item: Track, index: number): void => {
   if (settings.player.singleTrackQueueMode === "replace") {
-    void player.playFrom(sortedItems.value, index);
+    void player.playFrom(sortedItems.value, index, props.playbackSource);
     return;
   }
-  void player.playNow(item);
+  void player.playNow(item, props.playbackSource);
 };
 
 /** 虚拟列表引用 */
@@ -261,6 +270,8 @@ const batch = useMultiSelect(sortedItems, {
   collectionType: computed(() => props.collectionType),
   collectionId: computed(() => props.collectionId),
   canRemove: computed(() => props.canRemove),
+  removeHandler: props.batchRemove,
+  removeLabel: computed(() => props.batchRemoveLabel),
   onChanged: (removedIds) => emit("change", removedIds),
 });
 const { deleteConfirmOpen, deleteDialogTitle, deleteDialogContent } = batch;
@@ -440,7 +451,7 @@ defineExpose({
               >
                 <template #icon><IconLucideListMinus class="size-3.5" /></template>
                 <span>
-                  {{ t("collection.removeFrom", { type: batch.collectionTypeLabel.value }) }}
+                  {{ batch.removeLabel.value }}
                 </span>
               </SButton>
               <SButton

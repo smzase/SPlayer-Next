@@ -20,51 +20,73 @@ const emit = defineEmits<{
 }>();
 
 const isLoaded = ref(false);
+const showFallback = ref(true);
+const FADE_DURATION = 200;
+let loadToken = 0;
+let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
-const onLoad = (e: Event) => {
+const clearFallbackTimer = (): void => {
+  if (!fallbackTimer) return;
+  clearTimeout(fallbackTimer);
+  fallbackTimer = undefined;
+};
+
+const onLoad = async (e: Event): Promise<void> => {
   const target = e.target as HTMLImageElement;
-  target.style.opacity = "1";
+  const token = loadToken;
+  const source = props.src;
+  try {
+    await target.decode();
+  } catch {
+    // load 事件已确认资源可用，解码失败时仍交给浏览器正常绘制
+  }
+  if (token !== loadToken || source !== props.src || target.getAttribute("src") !== source) return;
   isLoaded.value = true;
   emit("load", target);
+  clearFallbackTimer();
+  fallbackTimer = setTimeout(() => {
+    fallbackTimer = undefined;
+    if (token === loadToken) showFallback.value = false;
+  }, FADE_DURATION);
+};
+
+const onError = (): void => {
+  clearFallbackTimer();
+  isLoaded.value = false;
+  showFallback.value = true;
 };
 
 watch(
   () => props.src,
   () => {
+    loadToken += 1;
+    clearFallbackTimer();
     isLoaded.value = false;
+    showFallback.value = true;
   },
 );
+
+onBeforeUnmount(clearFallbackTimer);
 </script>
 
 <template>
   <div class="relative isolate overflow-hidden">
-    <!-- 占位图：封面加载完后淡出移除 -->
-    <Transition name="fade">
-      <img
-        v-if="!isLoaded"
-        :src="fallback"
-        :alt="alt"
-        class="absolute w-full h-full object-cover z-0"
-      />
-    </Transition>
-    <!-- 封面：Transition 控制外层 div 的交叉淡入淡出，img 的 opacity 由 @load 单独控制 -->
-    <Transition
-      enter-active-class="transition-opacity duration-200"
-      leave-active-class="transition-opacity duration-200"
-      enter-from-class="opacity-0"
-      leave-to-class="opacity-0"
-    >
-      <div v-if="src" :key="src" class="absolute inset-0 z-1">
-        <img
-          :src="src"
-          :alt="alt"
-          class="w-full h-full object-cover opacity-0 transition-opacity duration-200"
-          decoding="async"
-          loading="lazy"
-          @load="onLoad"
-          @error="isLoaded = false"
-        />
-      </div>
-    </Transition>
+    <img
+      v-if="showFallback"
+      :src="fallback"
+      :alt="alt"
+      class="absolute z-0 h-full w-full object-cover"
+    />
+    <img
+      v-if="src"
+      :src="src"
+      :alt="alt"
+      class="absolute inset-0 z-1 h-full w-full object-cover transition-opacity duration-200"
+      :class="isLoaded ? 'opacity-100' : 'opacity-0'"
+      decoding="async"
+      loading="lazy"
+      @load="onLoad"
+      @error="onError"
+    />
   </div>
 </template>

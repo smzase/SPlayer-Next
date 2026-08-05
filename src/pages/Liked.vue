@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Track } from "@shared/types/player";
+import type { NeteasePlaybackSource, Track } from "@shared/types/player";
 import type { ContentScope } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useLibraryStore } from "@/stores/library";
@@ -53,9 +53,15 @@ const currentTracks = computed<Track[]>(() =>
   tab.value === "local" ? localTracks.value : user.likedPlaylistTracks,
 );
 
+const playbackSource = computed<NeteasePlaybackSource | undefined>(() =>
+  tab.value === "online" && user.likedPlaylistId
+    ? { id: user.likedPlaylistId, type: "list" }
+    : undefined,
+);
+
 const handlePlayAll = (): void => {
   if (currentTracks.value.length === 0) return;
-  player.playFrom(currentTracks.value, 0);
+  player.playFrom(currentTracks.value, 0, playbackSource.value);
 };
 
 // 直进 /liked（没先访问 Library 页）时本地库未初始化，需要手动触发
@@ -196,6 +202,7 @@ const handleMoreMenu = (key: string): void => {
           :search-query="searchQuery"
           source="netease"
           :collection-id="user.likedPlaylistId ?? undefined"
+          :playback-source="playbackSource"
           collection-type="playlist"
           enable-sort
         />

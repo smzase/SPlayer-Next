@@ -230,6 +230,10 @@ export const buildPlv = (
   source: NcblSource,
 ): Record<string, unknown> => {
   const now = Date.now();
+  const sourceRef =
+    source.type === "song" || source.type === "track"
+      ? `${source.id}:song:x:x`
+      : `${source.id}:${source.type}::`;
   return {
     mode: "circulation",
     download: 0,
@@ -246,7 +250,7 @@ export const buildPlv = (
     musiceffect_id: "",
     app_mode: 2,
     bitrate_level: song.level,
-    _addrefer: `[F:63][${now}#933#${ctx.app.version}#${ctx.app.versionCode}#c9156c3][e][2][23][cell_pc_songlist_song:2|page_pc_songlist_songflow|page_mine_like_music][${song.id}:song:x:x|:::|${source.id}:list::]`,
+    _addrefer: `[F:63][${now}#933#${ctx.app.version}#${ctx.app.versionCode}#c9156c3][e][2][23][cell_pc_songlist_song:2|page_pc_songlist_songflow|page_mine_like_music][${song.id}:song:x:x|:::|${sourceRef}]`,
     _multirefers: [
       "[F:26][s][18][_ai]",
       "[F:26][s][12][_ai]",
@@ -273,6 +277,10 @@ export const buildPld = (
   played: number,
 ): Record<string, unknown> => {
   const now = Date.now();
+  const sourceRef =
+    source.type === "song" || source.type === "track"
+      ? `${source.id}:song:x:x`
+      : `${source.id}:${source.type}::`;
   return {
     mode: "circulation",
     download: 0,
@@ -293,7 +301,7 @@ export const buildPld = (
     displayMode: "classic",
     bitrate: song.bitrate,
     bitrate_level: song.level,
-    _addrefer: `[F:63][${now}#616#${ctx.app.version}#${ctx.app.versionCode}#c9156c3][e][2][92][btn_pc_cover_play|cell_pc_songlist_song:6|page_pc_songlist_songflow|page_mine_like_music][:::|${song.id}:song:x:x|:::|${source.id}:list::]`,
+    _addrefer: `[F:63][${now}#616#${ctx.app.version}#${ctx.app.versionCode}#c9156c3][e][2][92][btn_pc_cover_play|cell_pc_songlist_song:6|page_pc_songlist_songflow|page_mine_like_music][:::|${song.id}:song:x:x|:::|${sourceRef}]`,
     _multirefers: [
       "[F:26][s][87][_ai]",
       "[F:26][s][81][_ai]",

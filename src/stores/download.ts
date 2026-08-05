@@ -8,12 +8,26 @@
 import type { DownloadTask, DownloadProgress } from "@shared/types/download";
 
 export const useDownloadStore = defineStore("download", () => {
-  /** 内存中保留的任务上限（与主进程历史裁剪对齐） */
-  const MAX_TASKS = 200;
+  /** 内存中保留的已结束任务上限（进行中任务始终完整保留） */
+  const MAX_FINISHED_TASKS = 200;
 
   const tasks = shallowRef<DownloadTask[]>([]);
   const initialized = ref(false);
   const unsubscribers: Array<() => void> = [];
+  const pendingCancelHandlers = new Map<string, () => void>();
+
+  const isOngoing = (task: DownloadTask): boolean =>
+    task.status === "queued" || task.status === "downloading";
+
+  /** 裁剪历史记录，但不丢弃仍可操作的排队和下载中任务 */
+  const trimFinished = (items: DownloadTask[]): DownloadTask[] => {
+    let finishedCount = 0;
+    return items.filter((task) => {
+      if (isOngoing(task)) return true;
+      finishedCount += 1;
+      return finishedCount <= MAX_FINISHED_TASKS;
+    });
+  };
 
   /** 进行中任务数（侧边栏角标） */
   const activeCount = computed(
@@ -24,13 +38,12 @@ export const useDownloadStore = defineStore("download", () => {
 
   /** 替换或插入一条任务 */
   const applyTask = (task: DownloadTask): void => {
+    pendingCancelHandlers.delete(task.taskId);
     const idx = tasks.value.findIndex((item) => item.taskId === task.taskId);
     const next = tasks.value.slice();
     if (idx === -1) next.unshift(task);
     else next[idx] = task;
-    // 最新在前，超限时丢弃最旧的（已结束任务在尾部）
-    if (next.length > MAX_TASKS) next.length = MAX_TASKS;
-    tasks.value = next;
+    tasks.value = trimFinished(next);
   };
 
   /** 更新进度 */
@@ -46,16 +59,75 @@ export const useDownloadStore = defineStore("download", () => {
   const init = async (): Promise<void> => {
     if (initialized.value) return;
     initialized.value = true;
-    tasks.value = await window.api.download.list();
     unsubscribers.push(window.api.download.onState(applyTask));
     unsubscribers.push(window.api.download.onProgress(applyProgress));
+    const remoteTasks = await window.api.download.list();
+    const current = new Map(tasks.value.map((task) => [task.taskId, task]));
+    const remoteIds = new Set(remoteTasks.map((task) => task.taskId));
+    tasks.value = trimFinished([
+      ...tasks.value.filter((task) => !remoteIds.has(task.taskId)),
+      ...remoteTasks.map((task) => current.get(task.taskId) ?? task),
+    ]);
   };
 
-  const cancel = (taskId: string): void => void window.api.download.cancel(taskId);
+  /**
+   * 登记尚未交给主进程的批量下载任务
+   * @param task - 用于页面展示的排队任务
+   * @param cancelHandler - 解析开始前取消时调用
+   */
+  const addPending = (task: DownloadTask, cancelHandler: () => void): void => {
+    applyTask(task);
+    pendingCancelHandlers.set(task.taskId, cancelHandler);
+  };
+
+  /** 标记任务即将交给主进程，后续取消改走下载 IPC */
+  const activatePending = (taskId: string): void => {
+    pendingCancelHandlers.delete(taskId);
+  };
+
+  /** 丢弃解析失败或未能入队的本地排队任务 */
+  const discardPending = (taskId: string): void => {
+    pendingCancelHandlers.delete(taskId);
+    tasks.value = tasks.value.filter((task) => task.taskId !== taskId);
+  };
+
+  const cancel = (taskId: string): void => {
+    const cancelPending = pendingCancelHandlers.get(taskId);
+    if (cancelPending) {
+      pendingCancelHandlers.delete(taskId);
+      cancelPending();
+      tasks.value = tasks.value.filter((task) => task.taskId !== taskId);
+      return;
+    }
+    void window.api.download.cancel(taskId);
+  };
 
   const remove = (taskId: string): void => {
+    const cancelPending = pendingCancelHandlers.get(taskId);
+    if (cancelPending) {
+      pendingCancelHandlers.delete(taskId);
+      cancelPending();
+      tasks.value = tasks.value.filter((task) => task.taskId !== taskId);
+      return;
+    }
     tasks.value = tasks.value.filter((item) => item.taskId !== taskId);
     void window.api.download.remove(taskId);
+  };
+
+  /**
+   * 批量取消下载任务
+   * @param taskIds - 需要取消的任务 ID
+   */
+  const cancelMany = (taskIds: string[]): void => {
+    for (const taskId of new Set(taskIds)) cancel(taskId);
+  };
+
+  /**
+   * 批量移除任务；尚未交给主进程的任务会同时停止本地解析
+   * @param taskIds - 需要移除的任务 ID
+   */
+  const removeMany = (taskIds: string[]): void => {
+    for (const taskId of new Set(taskIds)) remove(taskId);
   };
 
   const clearFinished = (): void => {
@@ -68,7 +140,21 @@ export const useDownloadStore = defineStore("download", () => {
   onScopeDispose(() => {
     for (const off of unsubscribers) off();
     unsubscribers.length = 0;
+    for (const cancelPending of pendingCancelHandlers.values()) cancelPending();
+    pendingCancelHandlers.clear();
   });
 
-  return { tasks, activeCount, init, cancel, remove, clearFinished };
+  return {
+    tasks,
+    activeCount,
+    init,
+    addPending,
+    activatePending,
+    discardPending,
+    cancel,
+    cancelMany,
+    remove,
+    removeMany,
+    clearFinished,
+  };
 });

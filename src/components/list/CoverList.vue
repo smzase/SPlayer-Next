@@ -34,6 +34,10 @@ export interface CoverListProps {
   contextMenuItems?: DropdownMenuItem[];
   /** 悬停展开侧边栏时保持列数并缩放卡片 */
   shrinkOnSidebarHover?: boolean;
+  /** 是否进入多选模式 */
+  selectionMode?: boolean;
+  /** 已选择资源 ID */
+  selectedIds?: ReadonlySet<string>;
 }
 
 const props = withDefaults(defineProps<CoverListProps>(), {
@@ -49,6 +53,8 @@ const props = withDefaults(defineProps<CoverListProps>(), {
   loadingMore: false,
   contextMenuItems: () => [],
   shrinkOnSidebarHover: false,
+  selectionMode: false,
+  selectedIds: () => new Set<string>(),
 });
 
 const { t } = useI18n();
@@ -64,7 +70,16 @@ const emit = defineEmits<{
   click: [item: CoverItem];
   reachBottom: [];
   contextMenu: [key: string, item: CoverItem];
+  toggleSelection: [item: CoverItem];
 }>();
+
+const handleItemClick = (item: CoverItem): void => {
+  if (props.selectionMode) {
+    emit("toggleSelection", item);
+    return;
+  }
+  emit("click", item);
+};
 
 const virtualListRef = ref<SVirtualListExposed | null>(null);
 const scrollEl = computed(() => virtualListRef.value?.scrollRef ?? null);
@@ -222,26 +237,41 @@ const getRowKey = (row: Row): string => row.id;
       >
         <template v-for="item in row.items" :key="item.id">
           <SContextMenu
-            v-if="contextMenuItems.length > 0"
+            v-if="contextMenuItems.length > 0 && !selectionMode"
             :items="contextMenuItems"
             @select="emit('contextMenu', $event, item)"
           >
+            <div class="relative">
+              <CoverCard
+                :item="item"
+                :type="type"
+                :rounded="rounded"
+                :fallback="fallback"
+                @click="handleItemClick(item)"
+              />
+            </div>
+          </SContextMenu>
+          <div v-else class="relative">
             <CoverCard
               :item="item"
               :type="type"
               :rounded="rounded"
               :fallback="fallback"
-              @click="emit('click', item)"
+              @click="handleItemClick(item)"
             />
-          </SContextMenu>
-          <CoverCard
-            v-else
-            :item="item"
-            :type="type"
-            :rounded="rounded"
-            :fallback="fallback"
-            @click="emit('click', item)"
-          />
+            <button
+              v-if="selectionMode"
+              type="button"
+              class="absolute top-1 left-1 grid size-7 cursor-pointer place-items-center border-0 bg-transparent p-0"
+              @click.stop="emit('toggleSelection', item)"
+            >
+              <SCheckbox
+                :checked="selectedIds.has(item.id)"
+                size="small"
+                class="pointer-events-none"
+              />
+            </button>
+          </div>
         </template>
       </div>
     </template>
@@ -258,26 +288,37 @@ const getRowKey = (row: Row): string => row.id;
   >
     <template v-for="item in items" :key="item.id">
       <SContextMenu
-        v-if="contextMenuItems.length > 0"
+        v-if="contextMenuItems.length > 0 && !selectionMode"
         :items="contextMenuItems"
         @select="emit('contextMenu', $event, item)"
       >
+        <div class="relative">
+          <CoverCard
+            :item="item"
+            :type="type"
+            :rounded="rounded"
+            :fallback="fallback"
+            @click="handleItemClick(item)"
+          />
+        </div>
+      </SContextMenu>
+      <div v-else class="relative">
         <CoverCard
           :item="item"
           :type="type"
           :rounded="rounded"
           :fallback="fallback"
-          @click="emit('click', item)"
+          @click="handleItemClick(item)"
         />
-      </SContextMenu>
-      <CoverCard
-        v-else
-        :item="item"
-        :type="type"
-        :rounded="rounded"
-        :fallback="fallback"
-        @click="emit('click', item)"
-      />
+        <button
+          v-if="selectionMode"
+          type="button"
+          class="absolute top-1 left-1 grid size-7 cursor-pointer place-items-center border-0 bg-transparent p-0"
+          @click.stop="emit('toggleSelection', item)"
+        >
+          <SCheckbox :checked="selectedIds.has(item.id)" size="small" class="pointer-events-none" />
+        </button>
+      </div>
     </template>
   </div>
 </template>

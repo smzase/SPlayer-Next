@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { CoverItem } from "@/types/artist";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useUserStore } from "@/stores/user";
 import { useResourceCardMenu, type ResourceCardType } from "@/composables/useResourceCardMenu";
+import { dialog } from "@/composables/useDialog";
 import { toast } from "@/composables/useToast";
 import {
   albumsToCoverItems,
@@ -9,7 +11,9 @@ import {
   playlistToCoverItem,
 } from "@/utils/format/coverItem";
 import CoverList from "@/components/list/CoverList.vue";
+import CoverBatchToolbar from "@/components/list/CoverBatchToolbar.vue";
 import IconLucideListMusic from "~icons/lucide/list-music";
+import IconLucideListChecks from "~icons/lucide/list-checks";
 import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideUser from "~icons/lucide/user";
 import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
@@ -23,6 +27,14 @@ const user = useUserStore();
 type FavTab = "playlist" | "album" | "artist";
 
 const TAB_KEYS: readonly FavTab[] = ["playlist", "album", "artist"];
+const batchActive = ref(false);
+const selectedIds = ref<Set<string>>(new Set());
+const batchRemoving = ref(false);
+
+const exitBatch = (): void => {
+  batchActive.value = false;
+  selectedIds.value = new Set();
+};
 
 /** 当前 tab */
 const activeTab = computed<FavTab>(() => {
@@ -33,6 +45,7 @@ const activeTab = computed<FavTab>(() => {
 });
 
 const onTabSwitch = (key: string): void => {
+  exitBatch();
   router.replace({ query: { ...route.query, tab: key } });
 };
 
@@ -61,6 +74,82 @@ const currentItems = computed<CoverItem[]>(() => {
 const resourceType = computed<ResourceCardType>(() => activeTab.value);
 const resourceMenu = useResourceCardMenu(resourceType);
 const refreshing = ref(false);
+
+const batchMenuItems = computed<DropdownMenuItem[]>(() => [
+  {
+    key: "batchManage",
+    label: t("songList.batch.manage"),
+    icon: markRaw(IconLucideListChecks),
+  },
+]);
+
+const enterBatch = (): void => {
+  if (currentItems.value.length === 0) return;
+  batchActive.value = true;
+  selectedIds.value = new Set();
+};
+
+const toggleSelection = (item: CoverItem): void => {
+  const next = new Set(selectedIds.value);
+  if (next.has(item.id)) next.delete(item.id);
+  else next.add(item.id);
+  selectedIds.value = next;
+};
+
+const toggleAll = (): void => {
+  const allSelected = currentItems.value.every((item) => selectedIds.value.has(item.id));
+  selectedIds.value = allSelected ? new Set() : new Set(currentItems.value.map((item) => item.id));
+};
+
+const invertSelection = (): void => {
+  selectedIds.value = new Set(
+    currentItems.value.filter((item) => !selectedIds.value.has(item.id)).map((item) => item.id),
+  );
+};
+
+const requestBatchUnsubscribe = async (): Promise<void> => {
+  if (batchRemoving.value) return;
+  const type = activeTab.value;
+  const items = currentItems.value.filter((item) => selectedIds.value.has(item.id));
+  if (items.length === 0) return;
+  const confirmed = await dialog.confirm({
+    title: t("resourceBatch.unsubscribeTitle"),
+    content: t("resourceBatch.unsubscribeConfirm", { count: items.length }),
+    confirmText: t("resourceBatch.unsubscribe"),
+    type: "error",
+  });
+  if (!confirmed) return;
+
+  batchRemoving.value = true;
+  const failedIds: string[] = [];
+  let successCount = 0;
+  for (const item of items) {
+    try {
+      if (type === "playlist") await user.togglePlaylistSubscribe(item.id, false);
+      else if (type === "album") await user.toggleAlbumSubscribe(item.id, false);
+      else await user.toggleArtistSubscribe(item.id, false);
+      successCount += 1;
+    } catch {
+      failedIds.push(item.id);
+    }
+  }
+  batchRemoving.value = false;
+
+  if (activeTab.value === type) {
+    selectedIds.value = new Set(failedIds);
+    if (failedIds.length === 0) exitBatch();
+  }
+  if (failedIds.length === 0) {
+    toast.success(t("resourceBatch.unsubscribeDone", { count: successCount }));
+  } else {
+    toast.error(
+      t("resourceBatch.unsubscribePartial", {
+        success: successCount,
+        failed: failedIds.length,
+      }),
+    );
+  }
+};
 
 /** 从服务器刷新全部收藏分类 */
 const refreshFavorites = async (): Promise<void> => {
@@ -126,19 +215,39 @@ const handleClick = (item: CoverItem): void => {
       </div>
       <div class="flex items-center justify-between gap-3">
         <STabs :model-value="activeTab" :tabs="tabs" @update:model-value="onTabSwitch" />
-        <SButton
-          v-if="user.isLoggedIn"
-          variant="text"
-          circle
-          :size="32"
-          :icon-size="16"
-          :loading="refreshing"
-          :title="t('common.refresh')"
-          :aria-label="t('common.refresh')"
-          @click="refreshFavorites"
-        >
-          <template #icon><IconLucideRefreshCw /></template>
-        </SButton>
+        <div v-if="user.isLoggedIn" class="flex items-center gap-2">
+          <SButton
+            variant="text"
+            circle
+            :size="32"
+            :icon-size="16"
+            :loading="refreshing"
+            :title="t('common.refresh')"
+            :aria-label="t('common.refresh')"
+            @click="refreshFavorites"
+          >
+            <template #icon><IconLucideRefreshCw /></template>
+          </SButton>
+          <SDropdownMenu
+            v-if="currentItems.length > 0"
+            :items="batchMenuItems"
+            align="end"
+            @select="enterBatch"
+          >
+            <template #trigger>
+              <SButton
+                variant="text"
+                circle
+                :size="32"
+                :icon-size="16"
+                :title="t('common.more')"
+                :aria-label="t('common.more')"
+              >
+                <template #icon><IconLucideEllipsis /></template>
+              </SButton>
+            </template>
+          </SDropdownMenu>
+        </div>
       </div>
     </div>
     <!-- 未登录 -->
@@ -150,19 +259,46 @@ const handleClick = (item: CoverItem): void => {
     </div>
     <!-- 内容 -->
     <Transition v-else name="fade" mode="out-in" :duration="150">
-      <div v-if="currentItems.length > 0" :key="activeTab" class="flex-1 min-h-0">
-        <CoverList
-          :items="currentItems"
-          :type="activeTab === 'artist' ? 'artist' : 'default'"
-          :min-size="activeTab === 'artist' ? 120 : 140"
-          :padding-x="20"
-          :padding-top="8"
-          :padding-bottom="20"
-          :context-menu-items="resourceMenu.menuItems.value"
-          shrink-on-sidebar-hover
-          @click="handleClick"
-          @context-menu="resourceMenu.handleSelect"
+      <div v-if="currentItems.length > 0" :key="activeTab" class="flex min-h-0 flex-1 flex-col">
+        <CoverBatchToolbar
+          v-if="batchActive"
+          :selected-count="selectedIds.size"
+          :all-selected="
+            currentItems.length > 0 && currentItems.every((item) => selectedIds.has(item.id))
+          "
+          :indeterminate="
+            selectedIds.size > 0 && !currentItems.every((item) => selectedIds.has(item.id))
+          "
+          :remove-label="t('resourceBatch.unsubscribe')"
+          :download-label="activeTab !== 'artist' ? t('resourceMenu.downloadAll') : undefined"
+          :removing="batchRemoving"
+          :downloading="resourceMenu.downloading.value"
+          :download-disabled="resourceMenu.downloadDisabled.value"
+          @toggle-all="toggleAll"
+          @invert="invertSelection"
+          @download="
+            resourceMenu.downloadResources(currentItems.filter((item) => selectedIds.has(item.id)))
+          "
+          @remove="requestBatchUnsubscribe"
+          @exit="exitBatch"
         />
+        <div class="min-h-0 flex-1">
+          <CoverList
+            :items="currentItems"
+            :type="activeTab === 'artist' ? 'artist' : 'default'"
+            :min-size="activeTab === 'artist' ? 120 : 140"
+            :padding-x="20"
+            :padding-top="8"
+            :padding-bottom="20"
+            :context-menu-items="resourceMenu.menuItems.value"
+            :selection-mode="batchActive"
+            :selected-ids="selectedIds"
+            shrink-on-sidebar-hover
+            @click="handleClick"
+            @context-menu="resourceMenu.handleSelect"
+            @toggle-selection="toggleSelection"
+          />
+        </div>
       </div>
       <div v-else key="empty" class="flex-1 flex items-center justify-center">
         <div class="text-center text-on-surface-variant/50">

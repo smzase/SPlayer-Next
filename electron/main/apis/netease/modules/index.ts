@@ -100,6 +100,8 @@ import personal_fm from "./personal_fm";
 import fm_trash from "./fm_trash";
 import scrobble from "./scrobble";
 import scrobble_v1 from "./scrobble_v1";
+import recent_play from "./recent_play";
+import recent_play_remove from "./recent_play_remove";
 
 // 每日推荐 / 发现
 import recommend_songs from "./recommend_songs";
@@ -224,6 +226,8 @@ export const modules: Record<string, NeteaseModule> = {
   fm_trash,
   scrobble,
   scrobble_v1,
+  recent_play,
+  recent_play_remove,
 
   recommend_songs,
   personalized,

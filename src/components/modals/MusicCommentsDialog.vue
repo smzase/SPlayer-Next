@@ -211,6 +211,7 @@ watch(sourceId, (next, prev) => {
               <button
                 type="button"
                 class="h-9 w-9 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0 ring-1 ring-black/10 dark:ring-white/10"
+                :class="item.userId ? 'cursor-pointer' : 'cursor-default'"
                 :disabled="!item.userId"
                 @click="openUser(item.userId)"
               >
@@ -223,6 +224,7 @@ watch(sourceId, (next, prev) => {
                     <button
                       type="button"
                       class="max-w-full truncate border-0 bg-transparent p-0 text-left text-sm font-medium transition-colors hover:text-primary"
+                      :class="item.userId ? 'cursor-pointer' : 'cursor-default'"
                       :disabled="!item.userId"
                       @click="openUser(item.userId)"
                     >

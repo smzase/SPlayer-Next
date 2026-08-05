@@ -6,41 +6,99 @@ import { dialog } from "@/composables/useDialog";
 import DownloadList from "@/components/list/DownloadList.vue";
 import IconLucidePlay from "~icons/lucide/play";
 import IconLucideTrash2 from "~icons/lucide/trash-2";
+import IconLucideX from "~icons/lucide/x";
 import IconLucideMusic from "~icons/lucide/music";
 import IconLucideDownload from "~icons/lucide/download";
 
 const { t } = useI18n();
 const downloadStore = useDownloadStore();
 
-type DownloadTab = "all" | "active" | "error" | "done";
+type DownloadTab = "all" | "active" | "queued" | "error" | "done";
 const tab = ref<DownloadTab>("all");
 
 const tabs = computed<TabItem[]>(() => [
   { key: "all", label: t("download.tabAll") },
   { key: "active", label: t("download.tabActive") },
+  { key: "queued", label: t("download.tabQueued") },
   { key: "error", label: t("download.tabError") },
   { key: "done", label: t("download.tabDone") },
 ]);
 
-const isActive = (status: DownloadStatus): boolean =>
+const isOngoing = (status: DownloadStatus): boolean =>
   status === "queued" || status === "downloading";
 const isError = (status: DownloadStatus): boolean =>
   status === "failed" || status === "canceled" || status === "interrupted";
 
 /** 当前 tab 的任务 */
 const currentTasks = computed<DownloadTask[]>(() => {
-  const all = downloadStore.tasks;
-  if (tab.value === "active") return all.filter((task) => isActive(task.status));
+  const all = [...downloadStore.tasks].sort((a, b) => {
+    const priority = (status: DownloadStatus): number =>
+      status === "downloading" ? 0 : status === "queued" ? 1 : 2;
+    const priorityDelta = priority(a.status) - priority(b.status);
+    if (priorityDelta !== 0) return priorityDelta;
+    if (a.status === "queued" && b.status === "queued") return a.createdAt - b.createdAt;
+    return b.createdAt - a.createdAt;
+  });
+  if (tab.value === "active") return all.filter((task) => task.status === "downloading");
+  if (tab.value === "queued") return all.filter((task) => task.status === "queued");
   if (tab.value === "error") return all.filter((task) => isError(task.status));
   if (tab.value === "done") return all.filter((task) => task.status === "done");
   return all;
 });
 
 /** 是否有可清空的已结束任务 */
-const hasFinished = computed(() => downloadStore.tasks.some((task) => !isActive(task.status)));
+const hasFinished = computed(() => downloadStore.tasks.some((task) => !isOngoing(task.status)));
 
-/** 二次确认后清空已结束任务记录（不删本地文件） */
-const requestClearFinished = async (): Promise<void> => {
+const headerAction = computed(() => {
+  if (tab.value === "active") {
+    return {
+      label: t("download.cancelActive"),
+      icon: IconLucideX,
+      disabled: currentTasks.value.length === 0,
+    };
+  }
+  if (tab.value === "queued" || tab.value === "error") {
+    return {
+      label: t("download.clearQueue"),
+      icon: IconLucideTrash2,
+      disabled: currentTasks.value.length === 0,
+    };
+  }
+  return {
+    label: t("download.clearFinished"),
+    icon: IconLucideTrash2,
+    disabled: !hasFinished.value,
+  };
+});
+
+/** 二次确认后执行当前分页对应的批量任务操作 */
+const requestHeaderAction = async (): Promise<void> => {
+  if (tab.value === "active") {
+    const confirmed = await dialog.confirm({
+      title: t("download.cancelActiveTitle"),
+      content: t("download.cancelActiveConfirm", { count: currentTasks.value.length }),
+      confirmText: t("download.cancelActive"),
+      type: "warning",
+    });
+    if (confirmed) {
+      downloadStore.cancelMany(currentTasks.value.map((task) => task.taskId));
+    }
+    return;
+  }
+
+  if (tab.value === "queued" || tab.value === "error") {
+    const confirmed = await dialog.confirm({
+      title: t("download.clearQueueTitle"),
+      content: t("download.clearQueueConfirm", { count: currentTasks.value.length }),
+      confirmText: t("download.clearQueue"),
+      type: "warning",
+    });
+    if (confirmed) {
+      downloadStore.removeMany(currentTasks.value.map((task) => task.taskId));
+    }
+    return;
+  }
+
   const confirmed = await dialog.confirm({
     title: t("download.clearConfirmTitle"),
     content: t("download.clearConfirmContent"),
@@ -51,9 +109,11 @@ const requestClearFinished = async (): Promise<void> => {
 
 const listRef = ref<InstanceType<typeof DownloadList> | null>(null);
 
-const emptyText = computed(() =>
-  tab.value === "done" ? t("download.emptyDone") : t("download.empty"),
-);
+const emptyText = computed(() => {
+  if (tab.value === "done") return t("download.emptyDone");
+  if (tab.value === "queued") return t("download.emptyQueued");
+  return t("download.empty");
+});
 
 onMounted(() => void downloadStore.init());
 </script>
@@ -91,9 +151,14 @@ onMounted(() => void downloadStore.init());
             <template #icon><IconLucidePlay /></template>
             {{ t("common.playAll") }}
           </SButton>
-          <SButton variant="secondary" round :disabled="!hasFinished" @click="requestClearFinished">
-            <template #icon><IconLucideTrash2 /></template>
-            {{ t("download.clearFinished") }}
+          <SButton
+            variant="secondary"
+            round
+            :disabled="headerAction.disabled"
+            @click="requestHeaderAction"
+          >
+            <template #icon><component :is="headerAction.icon" /></template>
+            {{ headerAction.label }}
           </SButton>
         </div>
       </div>

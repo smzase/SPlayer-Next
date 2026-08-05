@@ -1,4 +1,4 @@
-import type { Track } from "@shared/types/player";
+import type { NeteasePlaybackSource, Track } from "@shared/types/player";
 import type { TaskbarPlayMode, TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
 import {
   nextTaskbarPlayMode,
@@ -575,17 +575,25 @@ export const switchDevice = async (deviceName: string | null): Promise<void> => 
  * 设置队列并从指定位置开始播放
  * @param items - 歌曲列表
  * @param startIndex - 起始播放位置，默认 0
+ * @param playbackSource - 网易云播放来源上下文
  */
-export const playFrom = async (items: readonly Track[], startIndex = 0): Promise<void> => {
+export const playFrom = async (
+  items: readonly Track[],
+  startIndex = 0,
+  playbackSource?: NeteasePlaybackSource,
+): Promise<void> => {
   if (items.length === 0) return;
   const status = useStatusStore();
   const media = useMediaStore();
   // 退出特殊模式
   status.heartMode = false;
   status.fmMode = false;
-  const idx = Math.max(0, Math.min(startIndex, items.length - 1));
-  const isSameTrack = media.track?.id === items[idx]?.id;
-  queue.setQueue(items);
+  const tracks = playbackSource
+    ? items.map((track) => (track.source === "netease" ? { ...track, playbackSource } : track))
+    : items;
+  const idx = Math.max(0, Math.min(startIndex, tracks.length - 1));
+  const isSameTrack = media.track?.id === tracks[idx]?.id;
+  queue.setQueue(tracks);
   status.playIndex = idx;
   if (status.shuffleMode === "on") {
     queue.shuffleQueue(status.playIndex);
@@ -994,18 +1002,22 @@ export const insertManyToQueue = (
  * 插入歌曲到当前位置之后并立即播放
  * 如果是当前正在播放的歌曲则继续播放，不重新加载
  */
-export const playNow = async (item: Track): Promise<void> => {
+export const playNow = async (
+  item: Track,
+  playbackSource?: NeteasePlaybackSource,
+): Promise<void> => {
   const status = useStatusStore();
   const media = useMediaStore();
+  const target = playbackSource && item.source === "netease" ? { ...item, playbackSource } : item;
   // 同一首歌且已成功加载
-  if (media.track?.id === item.id && status.currentSource) {
+  if (media.track?.id === target.id && status.currentSource) {
     if (!status.isPlaying) play();
     return;
   }
   // 退出 FM
   status.fmMode = false;
-  status.playIndex = insertToQueue(item);
-  await loadTrack(item);
+  status.playIndex = insertToQueue(target);
+  await loadTrack(target);
 };
 
 /**

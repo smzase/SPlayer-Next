@@ -104,7 +104,7 @@ const openUser = (): void => {
       <header class="flex items-start gap-3">
         <button
           type="button"
-          class="size-10 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0 ring-1 ring-on-surface/10 transition-transform duration-200 hover:scale-105"
+          class="size-10 shrink-0 cursor-pointer overflow-hidden rounded-full border-0 bg-on-surface/8 p-0 ring-1 ring-on-surface/10 transition-transform duration-200 hover:scale-105"
           @click="openUser"
         >
           <SImg
@@ -118,7 +118,7 @@ const openUser = (): void => {
         <div class="min-w-0 flex-1">
           <button
             type="button"
-            class="max-w-full truncate border-0 bg-transparent p-0 text-left text-sm font-semibold text-on-surface transition-colors hover:text-primary"
+            class="max-w-full cursor-pointer truncate border-0 bg-transparent p-0 text-left text-sm font-semibold text-on-surface transition-colors hover:text-primary"
             @click="openUser"
           >
             {{ post.user.name }}

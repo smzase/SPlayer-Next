@@ -96,7 +96,7 @@ const openUser = (): void => {
         <div class="flex gap-3">
           <button
             type="button"
-            class="size-9 shrink-0 overflow-hidden rounded-full border-0 bg-on-surface/8 p-0"
+            class="size-9 shrink-0 cursor-pointer overflow-hidden rounded-full border-0 bg-on-surface/8 p-0"
             @click="openUser"
           >
             <SImg v-if="comment.user.avatar" :src="comment.user.avatar" class="size-full" />
@@ -107,7 +107,7 @@ const openUser = (): void => {
               <div>
                 <button
                   type="button"
-                  class="border-0 bg-transparent p-0 text-sm font-medium text-on-surface transition-colors hover:text-primary"
+                  class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-on-surface transition-colors hover:text-primary"
                   @click="openUser"
                 >
                   {{ comment.user.name }}

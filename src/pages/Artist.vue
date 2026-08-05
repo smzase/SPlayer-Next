@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackSource } from "@shared/types/player";
+import type { NeteasePlaybackSource, TrackSource } from "@shared/types/player";
 import type { ArtistProfile, CoverItem } from "@/types/artist";
 import { useSettingsStore } from "@/stores/settings";
 import { useUserStore } from "@/stores/user";
@@ -120,9 +120,13 @@ const totalDuration = computed(() => {
   return total > 0 ? formatTime(total) : "";
 });
 
+const playbackSource = computed<NeteasePlaybackSource | undefined>(() =>
+  source === "netease" ? { id: decodeURIComponent(id), type: "artist" } : undefined,
+);
+
 const handlePlayAll = () => {
   if (!artist.value?.tracks.length) return;
-  player.playFrom(artist.value.tracks, 0);
+  player.playFrom(artist.value.tracks, 0, playbackSource.value);
 };
 
 /** 收藏歌手仅支持网易云 */
@@ -343,6 +347,7 @@ const albumItems = computed<CoverItem[]>(() => {
               :items="artist.tracks"
               :search-query="searchQuery"
               :source="source"
+              :playback-source="playbackSource"
               :show-size="source === 'local'"
               :has-more="hasMoreSongs"
               :loading-more="loadingMore"

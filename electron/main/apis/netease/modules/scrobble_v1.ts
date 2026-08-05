@@ -28,7 +28,10 @@ const scrobbleV1: NeteaseModule = async (query) => {
 
   const totalTime = Number(query.total) || playTime;
   const sourceId = String(query.sourceid || query.sourceId || "");
-  const sourceName = typeof query.source === "string" ? query.source : "list";
+  const sourceType = typeof query.sourceType === "string" ? query.sourceType : "song";
+  const ncblSourceType =
+    sourceType === "song" ? "track" : sourceType === "radio" ? "djradio" : sourceType;
+  const sourceName = typeof query.source === "string" ? query.source : ncblSourceType;
   const rawCookie = query.cookie || "";
   const cookieObj = parseCookie(rawCookie);
   cookieObj.os = "pc";
@@ -48,7 +51,7 @@ const scrobbleV1: NeteaseModule = async (query) => {
   };
   const source = {
     id: sourceId || String(songId),
-    type: "track",
+    type: ncblSourceType,
     name: sourceName,
   };
   const metaJson = buildMetaJson(ctx);

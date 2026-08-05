@@ -64,6 +64,7 @@ const openUser = (userId?: number): void => {
             <button
               type="button"
               class="border-0 bg-transparent p-0 font-medium text-primary hover:underline"
+              :class="item.user?.userId ? 'cursor-pointer' : 'cursor-default'"
               :disabled="!item.user?.userId"
               @click="openUser(item.user?.userId)"
             >

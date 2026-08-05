@@ -17,6 +17,10 @@ export interface MultiSelectOptions {
   collectionId: Ref<string | undefined>;
   /** 是否有权从集合移除曲目 */
   canRemove?: Ref<boolean>;
+  /** 自定义移除处理，用于播放历史等非集合列表 */
+  removeHandler?: (tracks: Track[]) => Promise<void>;
+  /** 自定义移除按钮文案 */
+  removeLabel?: Ref<string | undefined>;
   /**
    * 删除/移除完成后的回调
    * @param removedIds 成功删除的曲目 id 列表
@@ -87,7 +91,9 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
   };
 
   const canRemove = computed(
-    () => options.collectionType.value === "playlist" && options.canRemove?.value !== false,
+    () =>
+      Boolean(options.removeHandler) ||
+      (options.collectionType.value === "playlist" && options.canRemove?.value !== false),
   );
   const canRemoveFromCloud = computed(() => options.collectionType.value === "cloud");
 
@@ -99,6 +105,10 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
     };
     return options.collectionType.value ? (map[options.collectionType.value] ?? "") : "";
   });
+  const removeLabel = computed(
+    () =>
+      options.removeLabel?.value ?? t("collection.removeFrom", { type: collectionTypeLabel.value }),
+  );
 
   type DeleteAction = "remove" | "file" | "cloud";
   const deleteConfirmOpen = ref(false);
@@ -124,6 +134,8 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
         }
       } else if (pendingDeleteAction.value === "cloud") {
         await userStore.removeCloudTracks(ids);
+      } else if (options.removeHandler) {
+        await options.removeHandler(tracks);
       } else if (options.collectionId.value) {
         if (options.source.value === "local") {
           await playlistStore.removeTracks(options.collectionId.value, ids);
@@ -148,6 +160,7 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
   const deleteDialogTitle = computed(() => {
     if (pendingDeleteAction.value === "file") return t("songList.delete.fileTitle");
     if (pendingDeleteAction.value === "cloud") return t("cloud.removeTitle");
+    if (options.removeHandler) return t("history.removeTitle");
     return t("collection.removeFrom", { type: collectionTypeLabel.value });
   });
 
@@ -163,10 +176,12 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
       if (pendingDeleteAction.value === "cloud") {
         return t("cloud.removeConfirmOne", { title });
       }
+      if (options.removeHandler) return t("history.removeConfirmOne", { title });
       return t("songList.delete.removeConfirmOne", { title, type });
     }
     if (pendingDeleteAction.value === "file") return t("songList.delete.fileConfirm", { count });
     if (pendingDeleteAction.value === "cloud") return t("cloud.removeConfirm", { count });
+    if (options.removeHandler) return t("history.removeConfirm", { count });
     return t("songList.delete.removeConfirm", { count, type });
   });
 
@@ -216,6 +231,7 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
     canRemove,
     canRemoveFromCloud,
     collectionTypeLabel,
+    removeLabel,
     // 删除弹窗
     deleteConfirmOpen,
     deleteDialogTitle,
