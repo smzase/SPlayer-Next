@@ -52,7 +52,7 @@ const props = withDefaults(defineProps<CoverListProps>(), {
   hasMore: false,
   loadingMore: false,
   contextMenuItems: () => [],
-  shrinkOnSidebarHover: false,
+  shrinkOnSidebarHover: true,
   selectionMode: false,
   selectedIds: () => new Set<string>(),
 });
@@ -83,10 +83,12 @@ const handleItemClick = (item: CoverItem): void => {
 
 const virtualListRef = ref<SVirtualListExposed | null>(null);
 const scrollEl = computed(() => virtualListRef.value?.scrollRef ?? null);
-const { width: scrollWidth } = useElementSize(scrollEl);
+const nonVirtualGridRef = ref<HTMLElement | null>(null);
+const listElement = computed(() => (props.virtual ? scrollEl.value : nonVirtualGridRef.value));
+const { width: listWidth } = useElementSize(listElement);
 
 /** 实际可用网格宽度 = scrollEl 内容宽度 − 左右 padding */
-const innerWidth = computed(() => Math.max(0, scrollWidth.value - props.paddingX * 2));
+const innerWidth = computed(() => Math.max(0, listWidth.value - props.paddingX * 2));
 
 /** 信息区固定高度估算：标题 line-clamp-2 + 可选 subtitle + 上下 padding */
 const INFO_HEIGHT = 76;
@@ -99,15 +101,42 @@ const calculateColumnCount = (width: number): number => {
 
 const targetColumnCount = computed(() => calculateColumnCount(innerWidth.value));
 const sidebarHoverLayout = useSidebarHoverLayout();
-const keepColumnsDuringSidebarHover = computed(
+const lockedColumnCount = ref(1);
+const sidebarHoverEnabled = computed(
   () => props.shrinkOnSidebarHover && sidebarHoverLayout?.hoverExpandActive.value === true,
 );
-const lockedColumnCount = ref(1);
+const keepColumnsDuringSidebarHover = computed(
+  () => sidebarHoverEnabled.value && targetColumnCount.value !== lockedColumnCount.value,
+);
 const columnCount = computed(() =>
   keepColumnsDuringSidebarHover.value ? lockedColumnCount.value : targetColumnCount.value,
 );
 const SIDEBAR_WIDTH_DELTA = 176;
 const SIDEBAR_TRANSITION_MS = 300;
+/**
+ * 根据祖先最大宽度推算侧边栏收起后的实际网格宽度
+ * @param width - 当前可用网格宽度
+ * @returns 收起侧边栏后的可用网格宽度
+ */
+const calculateCollapsedInnerWidth = (width: number): number => {
+  const element = listElement.value;
+  if (!element) return width;
+  const elementWidth = listWidth.value;
+  let projectedWidth = elementWidth + SIDEBAR_WIDTH_DELTA;
+  let ancestor = element.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    const maxWidthText = window.getComputedStyle(ancestor).maxWidth;
+    if (maxWidthText.endsWith("px")) {
+      const maxWidth = Number.parseFloat(maxWidthText);
+      if (Number.isFinite(maxWidth)) {
+        const widthOffset = Math.max(0, ancestor.getBoundingClientRect().width - elementWidth);
+        projectedWidth = Math.min(projectedWidth, maxWidth - widthOffset);
+      }
+    }
+    ancestor = ancestor.parentElement;
+  }
+  return Math.max(width, projectedWidth - props.paddingX * 2);
+};
 let columnLockReady = false;
 let previousHoverExpandActive = false;
 let previousCollapsed = true;
@@ -125,13 +154,14 @@ watch(
       innerWidth.value,
       props.minSize,
       props.gap,
-      keepColumnsDuringSidebarHover.value,
+      sidebarHoverEnabled.value,
       sidebarHoverLayout?.collapsed.value ?? true,
     ] as const,
   ([width, , , hoverExpandActive, collapsed]) => {
     if (width <= 0) return;
     if (!columnLockReady) {
-      const initialWidth = hoverExpandActive && !collapsed ? width + SIDEBAR_WIDTH_DELTA : width;
+      const initialWidth =
+        hoverExpandActive && !collapsed ? calculateCollapsedInnerWidth(width) : width;
       lockedColumnCount.value = calculateColumnCount(initialWidth);
       previousHoverExpandActive = hoverExpandActive;
       previousCollapsed = collapsed;
@@ -143,7 +173,7 @@ watch(
       clearSidebarResizeTimer();
       lockedColumnCount.value = targetColumnCount.value;
     } else if (!previousHoverExpandActive) {
-      const initialWidth = collapsed ? width : width + SIDEBAR_WIDTH_DELTA;
+      const initialWidth = collapsed ? width : calculateCollapsedInnerWidth(width);
       lockedColumnCount.value = calculateColumnCount(initialWidth);
     } else if (collapsed !== previousCollapsed) {
       clearSidebarResizeTimer();
@@ -279,10 +309,11 @@ const getRowKey = (row: Row): string => row.id;
   <!-- 普通网格 -->
   <div
     v-else
+    ref="nonVirtualGridRef"
     class="grid"
     :style="{
       padding: `${paddingTop}px ${paddingX}px ${paddingBottom}px`,
-      gridTemplateColumns: `repeat(auto-fill, minmax(${minSize}px, 1fr))`,
+      gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
       gap: `${gap}px`,
     }"
   >
