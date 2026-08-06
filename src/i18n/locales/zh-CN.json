@@ -987,7 +987,8 @@
       "downloadTags": "写入内容",
       "backupReset": "备份与重置",
       "debug": "调试",
-      "preset": "强迫症配置"
+      "preset": "强迫症配置",
+      "envInfo": "环境信息"
     },
     "about": {
       "checkUpdate": "检查更新",
@@ -996,7 +997,9 @@
       "openLogs": "打开日志",
       "officialSite": "官方网站",
       "showMore": "更多贡献者",
-      "collapse": "收起"
+      "collapse": "收起",
+      "commit": "提交",
+      "date": "日期"
     },
     "storeVersion": "Store",
     "language": {

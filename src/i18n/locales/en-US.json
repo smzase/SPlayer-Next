@@ -999,7 +999,8 @@
       "database": "Database Management",
       "backupReset": "Backup & Reset",
       "debug": "Debug",
-      "preset": "OCD Settings"
+      "preset": "OCD Settings",
+      "envInfo": "Environment Info"
     },
     "about": {
       "checkUpdate": "Check for Updates",
@@ -1008,7 +1009,9 @@
       "openLogs": "Open Logs",
       "officialSite": "Official Site",
       "showMore": "More Contributors",
-      "collapse": "Collapse"
+      "collapse": "Collapse",
+      "commit": "Commit",
+      "date": "Date"
     },
     "storeVersion": "Store",
     "language": {

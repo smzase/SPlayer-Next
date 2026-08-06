@@ -1,3 +1,4 @@
+import os from "os";
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
@@ -136,6 +137,11 @@ const api = {
   system: {
     installType: getInstallType(),
     platform: process.platform,
+    osInfo: {
+      type: os.type(),
+      arch: os.arch(),
+      release: os.release(),
+    },
     // 打开开发者工具
     toggleDevTools: () => ipcRenderer.invoke("system:toggleDevTools"),
     // 在文件管理器中显示文件
