@@ -295,6 +295,7 @@ onMounted(() => {
             clearable
             round
             class="w-36 focus-within:w-48"
+            data-search-input
           >
             <template #prefix>
               <IconLucideSearch class="size-4 shrink-0 text-on-surface-variant/40" />

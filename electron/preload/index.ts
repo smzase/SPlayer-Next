@@ -37,6 +37,18 @@ const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void
   return () => ipcRenderer.removeListener(channel, handler);
 };
 
+/**
+ * 推断安装类型
+ * @returns nsis | portable | appx | dmg | appimage
+ */
+const getInstallType = (): "nsis" | "portable" | "appx" | "dmg" | "appimage" => {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return "portable";
+  if (process.execPath.includes("WindowsApps")) return "appx";
+  if (process.platform === "darwin") return "dmg";
+  if (process.platform === "linux") return "appimage";
+  return "nsis";
+};
+
 // 暴露给渲染进程的自定义 API
 const api = {
   config: {
@@ -122,6 +134,8 @@ const api = {
     onEvent: (callback: (event: unknown) => void) => subscribe("player:event", callback),
   },
   system: {
+    installType: getInstallType(),
+    platform: process.platform,
     // 打开开发者工具
     toggleDevTools: () => ipcRenderer.invoke("system:toggleDevTools"),
     // 在文件管理器中显示文件

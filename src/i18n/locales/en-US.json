@@ -6,6 +6,7 @@
     "downloading": "Downloading",
     "installNow": "Restart & Install",
     "goDownload": "Go to Download",
+    "goStore": "Update in Store",
     "upToDate": "You're on the latest version",
     "readyToast": "Update ready — restart to install",
     "failed": "Update failed, please try again later"
@@ -89,9 +90,10 @@
     }
   },
   "agreementUpdate": {
-    "title": "User Agreement Updated",
+    "title": "User Agreement & Disclaimer Updated",
     "subtitle": "The agreement has changed. Please re-read and accept to continue",
-    "accept": "I've read and agree, continue"
+    "accept": "I've read and agree, continue",
+    "reject": "Decline & Exit"
   },
   "common": {
     "confirm": "Confirm",
@@ -1008,6 +1010,7 @@
       "showMore": "More Contributors",
       "collapse": "Collapse"
     },
+    "storeVersion": "Store",
     "language": {
       "label": "Language",
       "description": "Switch the display language"
@@ -1122,6 +1125,10 @@
       "label": "Bar Width",
       "description": "Smaller values give thinner, denser bars"
     },
+    "reverseSpectrum": {
+      "label": "Reverse Spectrum",
+      "description": "When enabled, the frequency of the bars decreases from the center toward the sides; otherwise it increases."
+    },
     "lyricSourcePreference": {
       "label": "Lyric Source Preference",
       "description": "Platform priority when matching online lyrics",
@@ -1226,7 +1233,8 @@
         "openPlayer": "Open player view",
         "closePlayer": "Close player view",
         "togglePlaylist": "Show / hide playlist",
-        "openSearch": "Open search"
+        "openSearch": "Open search",
+        "searchInPage": "Search in page"
       }
     },
     "engine": {

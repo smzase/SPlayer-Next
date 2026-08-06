@@ -4,6 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
 use rodio::Sink;
 use tracing::{debug, info};
@@ -12,7 +13,6 @@ use crate::audio_output::AudioOutput;
 use crate::decoder;
 use crate::equalizer::{Equalizer, EQ_BAND_COUNT};
 use crate::fft::FftAnalyzer;
-use crate::http_source::HttpInterrupt;
 use crate::shared::{AudioMetadata, Shared};
 use crate::source::DecoderSource;
 use crate::tempo::StretchProcessor;
@@ -125,7 +125,7 @@ pub struct InnerPlayer {
     /// 用于防止快速切歌时旧 IO 完成后覆盖新音频的竞态
     load_token: Arc<AtomicU64>,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
-    pending_load_interrupt: Option<HttpInterrupt>,
+    pending_load_handle: Option<HttpCancelHandle>,
 }
 
 /// 切换/seek 时要 join 的旧线程集合，全部挪到 spawn_blocking 工作线程 join，
@@ -175,6 +175,7 @@ pub struct LoadedPlayback {
     pub decode_handle: JoinHandle<decoder::DecoderData>,
     pub shared: Arc<Shared>,
     pub output: AudioOutput,
+    pub cancel: Option<HttpCancelHandle>,
 }
 
 /// 编译期保证 `InnerPlayer: Send`：cpal::Stream（!Send）已通过 AudioOutput 隔离到专用线程，
@@ -272,7 +273,7 @@ impl InnerPlayer {
                 initial_rate,
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
-            pending_load_interrupt: None,
+            pending_load_handle: None,
         })
     }
 
@@ -516,11 +517,11 @@ impl InnerPlayer {
     /// 返回旧输出流供工作线程在打开新流前释放；token 用于校验本次 load 是否已被取代
     pub fn take_for_async_load(
         &mut self,
-        interrupt: HttpInterrupt,
+        handle: HttpCancelHandle,
     ) -> (OldThreads, Option<AudioOutput>, u64) {
         // 自增 token：本次 load 的标识；任何并发的更早 commit_loaded 比较时会发现不匹配
         let token = self.load_token.fetch_add(1, Ordering::AcqRel) + 1;
-        if let Some(previous) = self.pending_load_interrupt.replace(interrupt) {
+        if let Some(previous) = self.pending_load_handle.replace(handle) {
             previous.cancel();
         }
 
@@ -573,7 +574,7 @@ impl InnerPlayer {
     /// 清理仍属于指定 load 的网络中断句柄
     pub fn clear_pending_load(&mut self, token: u64) {
         if self.is_load_token_current(token) {
-            self.pending_load_interrupt = None;
+            self.pending_load_handle = None;
         }
     }
 
@@ -717,9 +718,13 @@ impl InnerPlayer {
             decode_handle,
             shared,
             output,
+            cancel,
         } = loaded;
         // 抢占检查：比对最新 token，不等说明已有更新的 load 在路上 / 已 commit
         if token != self.load_token.load(Ordering::Acquire) {
+            if let Some(h) = cancel {
+                h.cancel();
+            }
             // 停止新解码线程（它会写入 shared 但没人消费），让 join 能尽快返回
             shared.stop();
             // shared / sink / decode_handle 在此函数返回时 drop；解码线程读到 stop 信号后退出
@@ -728,7 +733,7 @@ impl InnerPlayer {
             return Ok(None);
         }
 
-        self.pending_load_interrupt = None;
+        self.pending_load_handle = cancel;
         self.output = Some(output);
 
         let sink = {
@@ -858,8 +863,8 @@ impl InnerPlayer {
     pub fn stop(&mut self) {
         // 使在途的 async load/seek 在 commit 时被拒绝，防止 stop 后被复活
         self.load_token.fetch_add(1, Ordering::AcqRel);
-        if let Some(interrupt) = self.pending_load_interrupt.take() {
-            interrupt.cancel();
+        if let Some(handle) = self.pending_load_handle.take() {
+            handle.cancel();
         }
         self.stop_internal();
         self.current_source = None;

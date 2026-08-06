@@ -6,6 +6,7 @@
     "downloading": "下载中",
     "installNow": "立即重启安装",
     "goDownload": "前往下载页",
+    "goStore": "前往商店更新",
     "upToDate": "已是最新版本",
     "readyToast": "更新已就绪，可重启安装",
     "failed": "更新失败，请稍后重试"
@@ -75,9 +76,10 @@
     }
   },
   "agreementUpdate": {
-    "title": "用户协议已更新",
+    "title": "用户协议与免责声明已更新",
     "subtitle": "协议内容有变更，请重新阅读并同意后继续使用",
-    "accept": "我已阅读并同意，继续使用"
+    "accept": "我已阅读并同意，继续使用",
+    "reject": "不同意并退出"
   },
   "common": {
     "confirm": "确认",
@@ -996,6 +998,7 @@
       "showMore": "更多贡献者",
       "collapse": "收起"
     },
+    "storeVersion": "Store",
     "language": {
       "label": "界面语言",
       "description": "切换应用的显示语言"
@@ -1110,6 +1113,10 @@
       "label": "频谱条宽度",
       "description": "数值越小柱条越细越密"
     },
+    "reverseSpectrum": {
+      "label": "频谱反向",
+      "description": "启用后频率从中间向两侧递减，否则递增"
+    },
     "lyricSourcePreference": {
       "label": "歌词来源偏好",
       "description": "匹配在线歌词时的平台优先级",
@@ -1214,7 +1221,8 @@
         "openPlayer": "打开播放界面",
         "closePlayer": "关闭播放界面",
         "togglePlaylist": "展开 / 收起播放列表",
-        "openSearch": "打开搜索"
+        "openSearch": "打开搜索",
+        "searchInPage": "页面内搜索"
       }
     },
     "engine": {

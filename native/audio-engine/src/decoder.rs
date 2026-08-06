@@ -4,10 +4,12 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use ffmpeg_audio::{sys, AudioError, AudioReader, ResampleOptions, Resampler, SeekMode};
+use ffmpeg_audio::{
+    sys, AudioError, AudioReader, HttpAudioSource, HttpCancelHandle, ResampleOptions, Resampler,
+    SeekMode,
+};
 use tracing::debug;
 
-use crate::http_source::{HttpInterrupt, HttpRangeSource};
 use crate::loudness::LoudnessAnalyzer;
 use crate::metadata;
 use crate::priority;
@@ -35,7 +37,7 @@ pub struct DecoderData {
     player_resampler: Resampler,
     fft_resampler: Resampler,
     /// 网络中断句柄仅由远端源持有，stop() 取消后可在 seek 前重置
-    interrupt: Option<HttpInterrupt>,
+    cancel_handle: Option<HttpCancelHandle>,
 }
 
 /// 已打开且完成元数据读取的音源，等待按实际输出流采样率创建重采样器
@@ -43,7 +45,7 @@ pub struct PreparedDecoder {
     reader: AudioReader,
     metadata: AudioMetadata,
     replay_gain_db: Option<f32>,
-    interrupt: Option<HttpInterrupt>,
+    cancel_handle: Option<HttpCancelHandle>,
 }
 
 impl PreparedDecoder {
@@ -58,8 +60,8 @@ impl DecoderData {
     ///
     /// seek 后两个重采样器要 flush 掉残留样本，否则播放/FFT会带上上一段尾巴
     pub fn seek(&mut self, position_secs: f64) -> bool {
-        if let Some(interrupt) = &self.interrupt {
-            interrupt.reset();
+        if let Some(handle) = &self.cancel_handle {
+            handle.reset();
         }
         let target = Duration::from_secs_f64(position_secs);
         if self.reader.seek(target, SeekMode::Accurate).is_err()
@@ -73,8 +75,8 @@ impl DecoderData {
     }
 
     /// 获取网络中断句柄，恢复解码时绑定到新的共享状态
-    pub fn interrupt_handle(&self) -> Option<HttpInterrupt> {
-        self.interrupt.clone()
+    pub fn cancel_handle(&self) -> Option<HttpCancelHandle> {
+        self.cancel_handle.clone()
     }
 }
 
@@ -85,9 +87,9 @@ impl DecoderData {
 pub fn prepare_decode(
     source: &str,
     cover_cache_dir: Option<&str>,
-    interrupt: HttpInterrupt,
+    cancel_handle: HttpCancelHandle,
 ) -> Result<PreparedDecoder> {
-    let (reader, interrupt) = open_source(source, interrupt)?;
+    let (reader, cancel_handle) = open_source(source, cancel_handle)?;
 
     let info = reader.source_info();
     let duration_secs = reader.duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
@@ -125,7 +127,7 @@ pub fn prepare_decode(
         reader,
         metadata,
         replay_gain_db,
-        interrupt,
+        cancel_handle,
     })
 }
 
@@ -133,12 +135,16 @@ pub fn prepare_decode(
 pub fn start_prepared_decode(
     prepared: PreparedDecoder,
     shared: Arc<Shared>,
-) -> Result<(AudioMetadata, JoinHandle<DecoderData>)> {
+) -> Result<(
+    AudioMetadata,
+    JoinHandle<DecoderData>,
+    Option<HttpCancelHandle>,
+)> {
     let PreparedDecoder {
         reader,
         mut metadata,
         replay_gain_db,
-        interrupt,
+        cancel_handle,
     } = prepared;
     let target_rate = shared.sample_rate();
     let (player_resampler, fft_resampler) = build_resamplers(&reader, target_rate)?;
@@ -147,15 +153,15 @@ pub fn start_prepared_decode(
     if let Some(db) = replay_gain_db {
         shared.set_normalization_gain(metadata::db_to_linear(db));
     }
-    if let Some(handle) = &interrupt {
-        shared.bind_interrupt(handle.clone());
+    if let Some(handle) = &cancel_handle {
+        shared.bind_cancel_handle(handle.clone());
     }
 
     let data = DecoderData {
         reader,
         player_resampler,
         fft_resampler,
-        interrupt,
+        cancel_handle: cancel_handle.clone(),
     };
 
     let handle = thread::Builder::new()
@@ -172,13 +178,13 @@ pub fn start_prepared_decode(
         })
         .context("启动解码线程失败")?;
 
-    Ok((metadata, handle))
+    Ok((metadata, handle, cancel_handle))
 }
 
 /// 用已有的 DecoderData 继续解码（seek 后复用）
 pub fn resume_decode(data: DecoderData, shared: Arc<Shared>) -> Result<JoinHandle<DecoderData>> {
-    if let Some(interrupt) = data.interrupt_handle() {
-        shared.bind_interrupt(interrupt);
+    if let Some(handle) = data.cancel_handle() {
+        shared.bind_cancel_handle(handle);
     }
     thread::Builder::new()
         .name("audio-decoder".to_string())
@@ -198,13 +204,13 @@ pub fn resume_decode(data: DecoderData, shared: Arc<Shared>) -> Result<JoinHandl
 ///
 fn open_source(
     source: &str,
-    interrupt: HttpInterrupt,
-) -> Result<(AudioReader, Option<HttpInterrupt>)> {
+    cancel_handle: HttpCancelHandle,
+) -> Result<(AudioReader, Option<HttpCancelHandle>)> {
     let (reader, cancel) = if source.starts_with("http://") || source.starts_with("https://") {
-        let http = HttpRangeSource::new_with_interrupt(source, interrupt.clone())?;
+        let http = HttpAudioSource::new_with_cancel_handle(source, &cancel_handle)?;
         let reader =
             AudioReader::new(http).with_context(|| format!("打开网络音频失败: {source}"))?;
-        (reader, Some(interrupt))
+        (reader, Some(cancel_handle))
     } else {
         let file = File::open(source).with_context(|| format!("打开本地文件失败: {source}"))?;
         let reader =

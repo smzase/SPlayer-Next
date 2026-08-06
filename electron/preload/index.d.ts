@@ -38,6 +38,8 @@ declare global {
       config: ConfigApi;
       player: PlayerApi;
       system: {
+        installType: "nsis" | "portable" | "appx" | "dmg" | "appimage";
+        platform: NodeJS.Platform;
         toggleDevTools: () => Promise<void>;
         showInExplorer: (filePath: string) => Promise<void>;
         openLogsDir: () => Promise<string>;
