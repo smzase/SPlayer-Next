@@ -142,15 +142,44 @@ const toggleLike = async (): Promise<void> => {
           </button>
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-3">
-              <div>
+              <div class="min-w-0">
                 <button
                   type="button"
-                  class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-on-surface transition-colors hover:text-primary"
+                  class="max-w-full cursor-pointer truncate border-0 bg-transparent p-0 text-sm font-medium text-on-surface transition-colors hover:text-primary"
                   @click="openUser"
                 >
                   {{ comment.user.name }}
                 </button>
                 <div class="mt-0.5 text-xs text-on-surface-variant/40">{{ createdAt }}</div>
+              </div>
+              <div class="flex shrink-0 select-none items-center gap-0.5">
+                <span
+                  v-if="likeCount"
+                  class="mr-0.5 text-xs tabular-nums text-on-surface-variant/55"
+                >
+                  {{ likeCount }}
+                </span>
+                <SButton
+                  variant="ghost"
+                  circle
+                  size="small"
+                  :class="liked ? 'text-primary' : 'text-on-surface-variant/55'"
+                  :loading="liking"
+                  :disabled="comment.id.startsWith('local-')"
+                  :title="t(liked ? 'comments.actions.unlike' : 'comments.actions.like')"
+                  @click="toggleLike"
+                >
+                  <template #icon><IconLucideThumbsUp /></template>
+                </SButton>
+                <SButton
+                  variant="ghost"
+                  circle
+                  size="small"
+                  :title="t('comments.actions.reply')"
+                  @click="emit('reply', comment)"
+                >
+                  <template #icon><IconLucideReply /></template>
+                </SButton>
               </div>
             </div>
             <ExpandableCommentContent class="mt-2" :content-key="comment.text">
@@ -181,29 +210,6 @@ const toggleLike = async (): Promise<void> => {
                 :text="comment.replyTo.text"
               />
             </ExpandableCommentContent>
-            <div class="mt-2 flex select-none items-center justify-end gap-1">
-              <SButton
-                variant="ghost"
-                size="small"
-                :class="liked ? 'text-primary' : 'text-on-surface-variant/55'"
-                :loading="liking"
-                :disabled="comment.id.startsWith('local-')"
-                :title="t(liked ? 'comments.actions.unlike' : 'comments.actions.like')"
-                @click="toggleLike"
-              >
-                <template #icon><IconLucideThumbsUp /></template>
-                <span v-if="likeCount">{{ likeCount }}</span>
-              </SButton>
-              <SButton
-                variant="ghost"
-                circle
-                size="small"
-                :title="t('comments.actions.reply')"
-                @click="emit('reply', comment)"
-              >
-                <template #icon><IconLucideReply /></template>
-              </SButton>
-            </div>
           </div>
         </div>
       </SCard>

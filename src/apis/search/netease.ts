@@ -1,8 +1,15 @@
 import type { Track } from "@shared/types/player";
 import type { CoverItem } from "@/types/artist";
 import type { NeteaseDjProgram, NeteaseDjRadio, NeteaseSong } from "@/types/netease";
+import type {
+  LyricSearchItem,
+  NoteSearchItem,
+  SearchPageContext,
+  UserSearchItem,
+} from "@/types/search";
 import { netease as neteaseApi } from "@/apis/netease";
-import { songsToTracks, withPicSize } from "@/utils/format/netease";
+import { songToTrack, songsToTracks, withPicSize } from "@/utils/format/netease";
+import { normalizeFollowPost } from "@/utils/format/netease-event";
 import { podcastProgramToTrack, podcastToCoverItem, toPodcast } from "@/utils/format/podcast";
 import type { SearchResult } from "./index";
 
@@ -35,16 +42,40 @@ interface CloudSearchBody {
     artists?: NeteaseArtist[];
     playlists?: NeteasePlaylist[];
     djRadios?: NeteaseDjRadio[];
+    userprofiles?: NeteaseUserSearchItem[];
     songCount?: number;
     albumCount?: number;
     artistCount?: number;
     playlistCount?: number;
     djRadiosCount?: number;
+    userprofileCount?: number;
   };
 }
 
+interface NeteaseLyricSearchSong extends NeteaseSong {
+  lyrics?: string[];
+}
+
+interface NeteaseUserSearchItem {
+  userId: number;
+  nickname: string;
+  avatarUrl?: string;
+  signature?: string;
+  followed?: boolean;
+  followMe?: boolean;
+  mutual?: boolean;
+}
+
 /** cloudsearch type 编码 */
-const TYPE = { songs: 1, albums: 10, artists: 100, playlists: 1000, podcasts: 1009 } as const;
+const TYPE = {
+  songs: 1,
+  albums: 10,
+  artists: 100,
+  playlists: 1000,
+  podcasts: 1009,
+  lyrics: 1006,
+  users: 1002,
+} as const;
 
 const call = (
   type: keyof typeof TYPE,
@@ -203,5 +234,103 @@ export const voices = async (
     items,
     total,
     hasMore: body?.data?.hasMore ?? offset + items.length < total,
+  };
+};
+
+/** 搜索歌词匹配 */
+export const lyrics = async (
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<LyricSearchItem>> => {
+  const body = await call("lyrics", keyword, offset, limit);
+  const raw = (body?.result?.songs ?? []) as NeteaseLyricSearchSong[];
+  const items = raw.map((song) => ({
+    track: songToTrack(song),
+    lyrics: (song.lyrics ?? [])
+      .map((line) => line.replace(/<\/?(?:b|em)>/gi, "").trim())
+      .filter(Boolean),
+  }));
+  const total = body?.result?.songCount ?? items.length;
+  return { items, total, hasMore: offset + items.length < total };
+};
+
+/** 搜索网易云用户 */
+export const users = async (
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<UserSearchItem>> => {
+  const body = await call("users", keyword, offset, limit);
+  const items = (body?.result?.userprofiles ?? []).flatMap((profile) => {
+    if (!profile.userId || !profile.nickname) return [];
+    const followed = profile.followed ?? false;
+    return [
+      {
+        id: profile.userId,
+        name: profile.nickname,
+        avatar: withPicSize(profile.avatarUrl, 160),
+        signature: profile.signature?.trim() || undefined,
+        followed,
+        mutual: profile.mutual ?? (followed && (profile.followMe ?? false)),
+      },
+    ];
+  });
+  const total = body?.result?.userprofileCount ?? items.length;
+  return { items, total, hasMore: offset + items.length < total };
+};
+
+type RawRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): RawRecord | undefined =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as RawRecord)
+    : undefined;
+
+/** 搜索音乐笔记 */
+export const notes = async (
+  keyword: string,
+  offset: number,
+  limit: number,
+  context?: SearchPageContext,
+): Promise<SearchResult<NoteSearchItem>> => {
+  const searchUuid = context?.searchUuid ?? crypto.randomUUID();
+  const body = await neteaseApi.event_search<RawRecord>({
+    keyword,
+    limit,
+    cursor: context?.cursor ?? "",
+    sessionId: context?.sessionId ?? "",
+    searchUuid,
+    filters: "[]",
+    passParams: offset === 0 ? "" : undefined,
+  });
+  const data = asRecord(body.data) ?? {};
+  const rawItems = Array.isArray(data.event) ? data.event : [];
+  const items = rawItems.flatMap((value) => {
+    const item = asRecord(value);
+    if (!item) return [];
+    const eventData = asRecord(item.eventDataDTO) ?? item;
+    const post = normalizeFollowPost(
+      {
+        resourceUniqueId: item.uniqueResourceId,
+        mappingEventId: item.mappingEventId,
+        searchDataType: item.searchDataType,
+        searchExplicitTitle: item.searchExplicitTitle,
+        ...eventData,
+        id: eventData.id ?? eventData.eventId ?? item.mappingEventId,
+      },
+      context?.currentUserId ?? 0,
+    );
+    return post ? [post] : [];
+  });
+  const hasMore = data.more === true || data.more === 1;
+  const total = Number(data.total ?? data.count);
+  return {
+    items,
+    total: Number.isFinite(total) ? total : offset + items.length + (hasMore ? 1 : 0),
+    hasMore,
+    cursor: data.cursor == null ? undefined : String(data.cursor),
+    sessionId: data.sessionId == null ? context?.sessionId : String(data.sessionId),
+    searchUuid,
   };
 };

@@ -5,6 +5,7 @@ import { useThemeStore } from "@/stores/theme";
 import { useUpdateStore } from "@/stores/update";
 import { useMessageStore } from "@/stores/message";
 import { useUserStore } from "@/stores/user";
+import { useAudioRecognitionStore } from "@/stores/audioRecognition";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import IconSun from "~icons/lucide/sun";
 import IconMoon from "~icons/lucide/moon";
@@ -15,12 +16,14 @@ import IconSettings from "~icons/lucide/settings";
 import IconScaling from "~icons/lucide/scaling";
 
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 const { show: showSettings } = useSettingsDialog();
 const theme = useThemeStore();
 const update = useUpdateStore();
 const message = useMessageStore();
 const user = useUserStore();
+const audioRecognition = useAudioRecognitionStore();
 const messageOpen = ref(false);
 const messagePanelResizing = ref(false);
 const messagePanelSize = reactive({
@@ -29,6 +32,12 @@ const messagePanelSize = reactive({
 });
 const { width: viewportWidth, height: viewportHeight } = useWindowSize();
 const { isBorderless } = useWindowControls();
+
+/** 打开听歌识曲页并在用户手势内开始捕获 */
+const openAudioRecognition = (): void => {
+  if (!audioRecognition.isActive) void audioRecognition.start();
+  if (route.name !== "audio-recognition") void router.push({ name: "audio-recognition" });
+};
 
 type MessagePanelResizeAxis = "width" | "height" | "both";
 
@@ -256,6 +265,19 @@ onBeforeUnmount(() => {
         <template #icon><IconLucideChevronRight /></template>
       </SButton>
       <NavSearch />
+      <SButton
+        class="app-no-drag"
+        :type="route.name === 'audio-recognition' ? 'primary' : 'default'"
+        variant="tertiary"
+        circle
+        :size="40"
+        :icon-size="20"
+        :title="t('nav.audioRecognition')"
+        :aria-label="t('nav.audioRecognition')"
+        @click="openAudioRecognition"
+      >
+        <template #icon><IconLucideMicVocal /></template>
+      </SButton>
       <SButton
         v-if="update.hasUpdate"
         class="app-no-drag"

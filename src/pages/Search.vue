@@ -2,6 +2,12 @@
 import type { Track } from "@shared/types/player";
 import { ALL_PLATFORMS, PLATFORM_SHORT_NAME, type Platform } from "@shared/types/platform";
 import type { CoverItem } from "@/types/artist";
+import type {
+  LyricSearchItem,
+  NoteSearchItem,
+  SearchPageContext,
+  UserSearchItem,
+} from "@/types/search";
 import {
   searchSongs,
   searchAlbums,
@@ -9,10 +15,18 @@ import {
   searchPlaylists,
   searchPodcasts,
   searchVoices,
+  searchLyrics,
+  searchUsers,
+  searchNotes,
+  type SearchResult,
 } from "@/apis/search";
 import SongList from "@/components/list/SongList.vue";
 import CoverList from "@/components/list/CoverList.vue";
+import LyricSearchList from "@/components/search/LyricSearchList.vue";
+import NoteSearchList from "@/components/search/NoteSearchList.vue";
+import UserSearchList from "@/components/search/UserSearchList.vue";
 import { useStatusStore } from "@/stores/status";
+import { useUserStore } from "@/stores/user";
 import {
   navigateToAlbum,
   navigateToArtist,
@@ -24,8 +38,18 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const status = useStatusStore();
+const user = useUserStore();
 
-type TabKey = "songs" | "albums" | "artists" | "playlists" | "podcasts" | "voices";
+type TabKey =
+  | "songs"
+  | "albums"
+  | "artists"
+  | "playlists"
+  | "podcasts"
+  | "voices"
+  | "lyrics"
+  | "users"
+  | "notes";
 
 const TAB_KEYS: readonly TabKey[] = [
   "songs",
@@ -34,8 +58,11 @@ const TAB_KEYS: readonly TabKey[] = [
   "playlists",
   "podcasts",
   "voices",
+  "lyrics",
+  "users",
+  "notes",
 ];
-const NETEASE_ONLY_TABS: readonly TabKey[] = ["podcasts", "voices"];
+const NETEASE_ONLY_TABS: readonly TabKey[] = ["podcasts", "voices", "lyrics", "users", "notes"];
 
 /** 当前 tab */
 const activeTab = computed<TabKey>(() => {
@@ -69,6 +96,9 @@ const tabs = computed(() => {
     list.push(
       { key: "podcasts", label: t("search.tabs.podcasts") },
       { key: "voices", label: t("search.tabs.voices") },
+      { key: "lyrics", label: t("search.tabs.lyrics") },
+      { key: "users", label: t("search.tabs.users") },
+      { key: "notes", label: t("search.tabs.notes") },
     );
   }
   return list;
@@ -83,6 +113,9 @@ interface TabState<T> {
   loaded: boolean;
   loading: boolean;
   loadingMore: boolean;
+  cursor?: string;
+  sessionId?: string;
+  searchUuid?: string;
 }
 
 const createState = <T,>(): TabState<T> => ({
@@ -92,6 +125,9 @@ const createState = <T,>(): TabState<T> => ({
   loaded: false,
   loading: false,
   loadingMore: false,
+  cursor: undefined,
+  sessionId: undefined,
+  searchUuid: undefined,
 });
 
 const states = reactive({
@@ -101,6 +137,9 @@ const states = reactive({
   playlists: createState<CoverItem>(),
   podcasts: createState<CoverItem>(),
   voices: createState<Track>(),
+  lyrics: createState<LyricSearchItem>(),
+  users: createState<UserSearchItem>(),
+  notes: createState<NoteSearchItem>(),
 });
 
 const error = ref("");
@@ -113,7 +152,20 @@ const fetchers = {
   playlists: searchPlaylists,
   podcasts: searchPodcasts,
   voices: searchVoices,
+  lyrics: searchLyrics,
+  users: searchUsers,
+  notes: searchNotes,
 } as const;
+
+type SearchItem = Track | CoverItem | LyricSearchItem | UserSearchItem | NoteSearchItem;
+
+type SearchFetcher = (
+  platform: Platform,
+  keyword: string,
+  offset: number,
+  limit: number,
+  context?: SearchPageContext,
+) => Promise<SearchResult<unknown>>;
 
 /**
  * 拉取指定 tab
@@ -122,7 +174,7 @@ const fetchers = {
  */
 const fetchTab = async (tab: TabKey, append: boolean): Promise<void> => {
   if (!keyword.value) return;
-  const state = states[tab];
+  const state = states[tab] as TabState<SearchItem>;
   if (append) {
     if (!state.loaded || state.loadingMore || !state.hasMore) return;
     state.loadingMore = true;
@@ -133,20 +185,29 @@ const fetchTab = async (tab: TabKey, append: boolean): Promise<void> => {
   error.value = "";
   try {
     const offset = append ? state.items.length : 0;
-    const result = await (fetchers[tab] as typeof searchSongs)(
+    const result = await (fetchers[tab] as SearchFetcher)(
       status.searchPlatform,
       keyword.value,
       offset,
       PAGE_SIZE,
+      {
+        cursor: state.cursor,
+        sessionId: state.sessionId,
+        searchUuid: state.searchUuid,
+        currentUserId: user.profile?.userId,
+      },
     );
-    const items = result.items.map((item) => markRaw(item));
+    const items = result.items.map((item) => markRaw(item as SearchItem));
     if (append) {
-      (state.items as Track[]).push(...(items as Track[]));
+      state.items = [...state.items, ...items];
     } else {
-      state.items = items as Track[];
+      state.items = items;
     }
     state.total = result.total;
     state.hasMore = result.hasMore;
+    state.cursor = result.cursor;
+    state.sessionId = result.sessionId;
+    state.searchUuid = result.searchUuid;
     state.loaded = true;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -164,6 +225,9 @@ const resetStates = (): void => {
     states[tab].loaded = false;
     states[tab].loading = false;
     states[tab].loadingMore = false;
+    states[tab].cursor = undefined;
+    states[tab].sessionId = undefined;
+    states[tab].searchUuid = undefined;
   });
   error.value = "";
 };
@@ -209,6 +273,15 @@ const onPlatformSwitch = (key: string): void => {
 /** 滚动触底加载下一页 */
 const onReachBottom = (tab: TabKey): void => {
   fetchTab(tab, true);
+};
+
+const removeNote = (postId: string): void => {
+  states.notes.items = states.notes.items.filter((post) => post.id !== postId);
+  states.notes.total = Math.max(0, states.notes.total - 1);
+};
+
+const updateNote = (post: NoteSearchItem): void => {
+  states.notes.items = states.notes.items.map((item) => (item.id === post.id ? post : item));
 };
 
 /** 当前 tab 首屏加载中 */
@@ -338,7 +411,7 @@ const isEmptyResult = computed(() => {
         @reach-bottom="onReachBottom('playlists')"
       />
       <CoverList
-        v-else
+        v-else-if="activeTab === 'podcasts'"
         :items="states.podcasts.items"
         :padding-x="20"
         :padding-top="8"
@@ -347,6 +420,29 @@ const isEmptyResult = computed(() => {
         :loading-more="states.podcasts.loadingMore"
         @click="(item) => navigateToPodcast(item.id, item.title)"
         @reach-bottom="onReachBottom('podcasts')"
+      />
+      <LyricSearchList
+        v-else-if="activeTab === 'lyrics'"
+        :items="states.lyrics.items"
+        :has-more="states.lyrics.hasMore"
+        :loading-more="states.lyrics.loadingMore"
+        @reach-bottom="onReachBottom('lyrics')"
+      />
+      <UserSearchList
+        v-else-if="activeTab === 'users'"
+        :items="states.users.items"
+        :has-more="states.users.hasMore"
+        :loading-more="states.users.loadingMore"
+        @reach-bottom="onReachBottom('users')"
+      />
+      <NoteSearchList
+        v-else
+        :items="states.notes.items"
+        :has-more="states.notes.hasMore"
+        :loading-more="states.notes.loadingMore"
+        @reach-bottom="onReachBottom('notes')"
+        @remove="removeNote"
+        @update="updateNote"
       />
     </div>
   </div>

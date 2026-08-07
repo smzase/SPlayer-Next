@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  fetchUserConnections,
   fetchUserFollowers,
   fetchUserListeningRank,
   fetchUserPageResources,
@@ -221,5 +222,52 @@ describe("fetchUserFollowers", () => {
     });
 
     await expect(fetchUserFollowers(12)).rejects.toThrow("关注列表不可见");
+  });
+});
+
+describe("fetchUserConnections", () => {
+  it("正确区分混合关注接口中的用户和歌手", async () => {
+    const call = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: {
+        code: 200,
+        data: {
+          records: [
+            {
+              type: 1,
+              followId: 12,
+              userProfile: {
+                userId: 12,
+                nickname: "关注用户",
+                avatarUrl: "https://example.com/user.jpg",
+              },
+            },
+            {
+              type: 2,
+              followId: 34,
+              artistInfo: {
+                id: 34,
+                name: "关注歌手",
+                img1v1Url: "https://example.com/artist.jpg",
+              },
+            },
+          ],
+          page: { cursor: "1", more: false },
+        },
+      },
+    });
+    Object.defineProperty(window, "api", {
+      configurable: true,
+      value: { apis: { call } },
+    });
+
+    const page = await fetchUserConnections(1, "all", true);
+
+    expect(page.items).toMatchObject([
+      { id: 12, name: "关注用户", kind: "user" },
+      { id: 34, name: "关注歌手", kind: "artist" },
+    ]);
+    expect(page.nextCursor).toBe(1);
   });
 });

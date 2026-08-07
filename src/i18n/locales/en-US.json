@@ -422,6 +422,7 @@
     "devtools": "Developer Tools",
     "globalSettings": "Global Settings",
     "searchPlaceholder": "Search songs, artists, podcasts or episodes",
+    "audioRecognition": "Identify Music",
     "searchEmpty": "Start typing to search",
     "searchGoto": "Search for \"{keyword}\"",
     "searchSection": {
@@ -574,13 +575,50 @@
     "noResults": "No matching results",
     "noResultsHint": "Try another keyword or switch the source",
     "errorTitle": "Search failed",
+    "lyricActions": {
+      "expand": "Expand lyrics",
+      "collapse": "Collapse lyrics",
+      "copy": "Copy lyrics",
+      "addToLiked": "Add to Liked Songs",
+      "removeFromLiked": "Remove from Liked Songs"
+    },
     "tabs": {
       "songs": "Songs",
       "albums": "Albums",
       "artists": "Artists",
       "playlists": "Playlists",
       "podcasts": "Podcasts",
-      "voices": "Episodes"
+      "voices": "Episodes",
+      "lyrics": "Lyrics",
+      "users": "Users",
+      "notes": "Posts"
+    }
+  },
+  "audioRecognition": {
+    "title": "Identify Music",
+    "subtitle": "Identify songs and background music currently playing on your computer",
+    "hint": "Identify music playing on this computer",
+    "scope": "Listens for up to 16 seconds and stops as soon as a match is found",
+    "requesting": "Preparing system audio…",
+    "listening": "Listening to system audio ({seconds}s remaining)",
+    "matching": "Matching the recording…",
+    "empty": "No music was identified. Make sure audio is playing and try again",
+    "start": "Start Identifying",
+    "stop": "Stop",
+    "retry": "Try Again",
+    "again": "Identify Again",
+    "resultCount": "Found {count} possible matches",
+    "lyricSyncHint": "Lyrics continue from the matched position and may drift if the source pauses or seeks",
+    "matchedAt": "Matched at {time}",
+    "lyricLoading": "Loading synced lyrics…",
+    "play": "Play this song",
+    "error": {
+      "unsupported": "System-audio identification is currently available on Windows only",
+      "permission": "System-audio capture permission was not granted",
+      "noAudio": "No capturable system audio was detected",
+      "capture": "System-audio capture failed. Please try again",
+      "fingerprint": "Audio fingerprint generation failed. Please try again",
+      "network": "The identification service could not be reached. Check your connection"
     }
   },
   "streaming": {

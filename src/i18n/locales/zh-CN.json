@@ -410,6 +410,7 @@
     "devtools": "开发者工具",
     "globalSettings": "全局设置",
     "searchPlaceholder": "搜索歌曲、歌手、播客或声音",
+    "audioRecognition": "听歌识曲",
     "searchEmpty": "输入关键词开始搜索",
     "searchGoto": "搜索「{keyword}」",
     "searchSection": {
@@ -562,13 +563,50 @@
     "noResults": "没有找到匹配内容",
     "noResultsHint": "换个关键词或切换音源试试",
     "errorTitle": "搜索失败",
+    "lyricActions": {
+      "expand": "展开歌词",
+      "collapse": "收起歌词",
+      "copy": "复制歌词",
+      "addToLiked": "添加到我喜欢的音乐",
+      "removeFromLiked": "从我喜欢的音乐中移除"
+    },
     "tabs": {
       "songs": "单曲",
       "albums": "专辑",
       "artists": "歌手",
       "playlists": "歌单",
       "podcasts": "播客",
-      "voices": "声音"
+      "voices": "声音",
+      "lyrics": "歌词",
+      "users": "用户",
+      "notes": "笔记"
+    }
+  },
+  "audioRecognition": {
+    "title": "听歌识曲",
+    "subtitle": "识别电脑中正在播放的歌曲、视频背景音乐等声音",
+    "hint": "识别电脑中正在播放的音乐",
+    "scope": "最多识别 16 秒，识别成功后会自动停止",
+    "requesting": "正在准备系统音频…",
+    "listening": "正在识别电脑中播放的音乐（剩余 {seconds} 秒）",
+    "matching": "正在匹配识别结果…",
+    "empty": "未识别出音乐，请确认电脑正在播放声音后重试",
+    "start": "开始识别",
+    "stop": "停止识别",
+    "retry": "重新识别",
+    "again": "继续识别",
+    "resultCount": "识别到 {count} 首可能匹配的歌曲",
+    "lyricSyncHint": "歌词会从识别位置继续滚动，音源暂停或跳转后可能产生偏差",
+    "matchedAt": "识别位置 {time}",
+    "lyricLoading": "正在加载对应歌词…",
+    "play": "播放此歌曲",
+    "error": {
+      "unsupported": "听歌识曲的系统回放捕获目前仅支持 Windows",
+      "permission": "无法获得系统音频捕获权限，请重新识别",
+      "noAudio": "没有检测到可捕获的系统回放音频",
+      "capture": "系统音频捕获失败，请稍后重试",
+      "fingerprint": "音频指纹生成失败，请稍后重试",
+      "network": "识曲服务请求失败，请检查网络后重试"
     }
   },
   "streaming": {

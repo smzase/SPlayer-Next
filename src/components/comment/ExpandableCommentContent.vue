@@ -14,6 +14,10 @@ const props = withDefaults(
   },
 );
 
+const emit = defineEmits<{
+  collapse: [];
+}>();
+
 const { t } = useI18n();
 const contentRef = shallowRef<HTMLElement | null>(null);
 const expanded = ref(false);
@@ -38,6 +42,13 @@ const measure = (): void => {
 };
 
 useResizeObserver(contentRef, measure);
+
+/** 切换展开状态，并在收起时通知外层恢复阅读位置 */
+const toggleExpanded = (): void => {
+  const collapsing = expanded.value;
+  expanded.value = !expanded.value;
+  if (collapsing) emit("collapse");
+};
 
 watch(
   () => [props.contentKey, props.maxLines, props.lineHeight] as const,
@@ -66,7 +77,7 @@ watch(
       type="button"
       class="mt-1 ml-auto block cursor-pointer border-0 bg-transparent p-0 font-medium text-primary transition-opacity duration-150 hover:opacity-70"
       :class="compact ? 'text-xs' : 'text-sm'"
-      @click.stop="expanded = !expanded"
+      @click.stop="toggleExpanded"
     >
       {{ expanded ? t("common.collapse") : t("common.expand") }}
     </button>

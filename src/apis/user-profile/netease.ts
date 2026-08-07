@@ -243,15 +243,15 @@ export const fetchUserListeningRank = async (
 const normalizeConnection = (value: unknown): UserConnection | undefined => {
   const raw = asRecord(value);
   if (!raw) return undefined;
-  const profile = firstRecord(raw.userProfile, raw.profile, raw.user, raw.artist, raw);
-  const artist = asRecord(raw.artist);
-  const id = firstNumber(profile.userId, profile.id, raw.userId, raw.id);
+  const artist = asRecord(raw.artistInfo) ?? asRecord(raw.artist);
+  const profile = firstRecord(raw.userProfile, raw.profile, raw.user, artist, raw);
+  const id = firstNumber(profile.userId, profile.id, raw.followId, raw.userId, raw.id);
   const name = firstString(profile.nickname, profile.name, raw.nickname, raw.name);
   if (!id || !name) return undefined;
   const followed = firstBoolean(profile.followed, raw.followed) ?? false;
   const followedBy = firstBoolean(profile.followMe, raw.followMe) ?? false;
   const kind =
-    artist || raw.resourceType === "artist" || raw.type === "artist" || raw.type === 1
+    artist || raw.resourceType === "artist" || raw.type === "artist" || raw.type === 2
       ? "artist"
       : "user";
   return {

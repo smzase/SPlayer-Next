@@ -32,6 +32,10 @@ import {
   extractOrpheusUrl,
   captureOrpheusUrl,
 } from "@main/services/orpheus";
+import {
+  initSystemAudioCapture,
+  disposeSystemAudioCapture,
+} from "@main/services/systemAudioCapture";
 
 /**
  * 配置 Chromium 启动参数以优化内存占用
@@ -107,6 +111,8 @@ export const initApp = (): void => {
     });
     // 注册 IPC
     registerIpcHandlers();
+    // 仅在用户主动听歌识曲时提供系统回放环回流
+    initSystemAudioCapture();
     // 初始化数据库
     initDatabase();
     // 创建主窗口
@@ -165,5 +171,6 @@ export const initApp = (): void => {
     void pluginRegistry.shutdown();
     disposePlaybackBridge();
     disposeUpdater();
+    disposeSystemAudioCapture();
   });
 };

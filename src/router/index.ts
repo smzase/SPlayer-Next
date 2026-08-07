@@ -118,6 +118,11 @@ const router = createRouter({
           component: () => import("@/pages/Search.vue"),
         },
         {
+          path: "audio-recognition",
+          name: "audio-recognition",
+          component: () => import("@/pages/AudioRecognition.vue"),
+        },
+        {
           path: "streaming",
           component: () => import("@/pages/Streaming/Index.vue"),
           redirect: "/streaming/songs",
