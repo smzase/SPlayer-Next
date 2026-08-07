@@ -17,8 +17,9 @@ const props = withDefaults(
   },
 );
 
+const hasWordTiming = computed(() => hasRealWordTiming(props.line));
 const useKaraoke = computed(
-  () => props.wordByWord && props.currentTime !== null && hasRealWordTiming(props.line),
+  () => props.wordByWord && props.currentTime !== null && hasWordTiming.value,
 );
 const plainText = computed(() =>
   props.line.words
@@ -97,7 +98,7 @@ watch(
   },
 );
 watch(useKaraoke, (enabled) => {
-  if (enabled) nextTick(syncAnchor);
+  if (enabled) syncAnchor();
   else stopRenderLoop();
 });
 
@@ -119,12 +120,13 @@ onBeforeUnmount(() => {
 
 <template>
   <span class="recognition-lyric-text block truncate">
-    <template v-if="useKaraoke">
+    <template v-if="hasWordTiming">
       <span
         v-for="(word, index) in line.words"
         :key="`${word.startTime}:${index}`"
         :ref="(element) => setWordRef(element, index)"
         class="recognition-word"
+        :class="{ 'recognition-word-static': !useKaraoke }"
       >
         <span class="recognition-word-unplayed">{{ word.word }}</span>
         <span class="recognition-word-played" aria-hidden="true">{{ word.word }}</span>
@@ -158,5 +160,13 @@ onBeforeUnmount(() => {
 .recognition-word-played {
   color: currentColor;
   clip-path: inset(0 calc(100% - var(--recognition-word-progress)) 0 0);
+}
+
+.recognition-word-static .recognition-word-unplayed {
+  color: currentColor;
+}
+
+.recognition-word-static .recognition-word-played {
+  visibility: hidden;
 }
 </style>

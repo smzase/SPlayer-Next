@@ -4,7 +4,6 @@ import AudioRecognitionResultCard from "@/components/audio-recognition/AudioReco
 import { useAudioRecognitionStore, type AudioRecognitionResult } from "@/stores/audioRecognition";
 import { useMediaStore } from "@/stores/media";
 import { useSettingsStore } from "@/stores/settings";
-import { useStatusStore } from "@/stores/status";
 import { useDownload } from "@/composables/useDownload";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useTrackMenu } from "@/composables/useTrackMenu";
@@ -14,12 +13,9 @@ const { t } = useI18n();
 const recognition = useAudioRecognitionStore();
 const media = useMediaStore();
 const settings = useSettingsStore();
-const status = useStatusStore();
 const { phase, failure, error, elapsedMs, results, isActive } = storeToRefs(recognition);
-const clockMs = ref(Date.now());
 const locallyControlledResultId = ref<string | null>(null);
 const contextTrack = shallowRef<Track>();
-let clockTimer: ReturnType<typeof setInterval> | undefined;
 
 const remainingSeconds = computed(() => Math.max(0, Math.ceil((16_000 - elapsedMs.value) / 1000)));
 const statusText = computed(() => {
@@ -35,59 +31,6 @@ const statusText = computed(() => {
   }
   return t("audioRecognition.hint");
 });
-
-/** 停止识曲歌词的本地时间推进 */
-const stopClock = (): void => {
-  if (clockTimer) clearInterval(clockTimer);
-  clockTimer = undefined;
-};
-
-/** 仅在结果页可见时推进歌词时间 */
-const syncClock = (): void => {
-  stopClock();
-  if (document.visibilityState !== "visible" || results.value.length === 0) return;
-  clockMs.value = Date.now();
-  clockTimer = setInterval(() => {
-    clockMs.value = Date.now();
-  }, 100);
-};
-
-/** 获取候选歌曲此刻推算到的播放位置 */
-const currentTimeFor = (result: AudioRecognitionResult): number | null => {
-  if (
-    locallyControlledResultId.value === result.track.id &&
-    media.track?.source === result.track.source &&
-    media.track.id === result.track.id
-  ) {
-    return status.position;
-  }
-  if (result.positionAtResult === null) return null;
-  return Math.max(0, result.positionAtResult + Math.max(0, clockMs.value - result.resultTimestamp));
-};
-
-/** 判断候选歌词的本地时间锚点是否仍在推进 */
-const isTimeProgressingFor = (result: AudioRecognitionResult): boolean => {
-  if (
-    locallyControlledResultId.value === result.track.id &&
-    media.track?.source === result.track.source &&
-    media.track.id === result.track.id
-  ) {
-    return status.isPlaying;
-  }
-  return result.positionAtResult !== null;
-};
-
-/** 获取候选歌词时间轴的推进倍速 */
-const playbackRateFor = (result: AudioRecognitionResult): number => {
-  if (
-    locallyControlledResultId.value === result.track.id &&
-    media.track?.source === result.track.source &&
-    media.track.id === result.track.id
-  ) {
-    return status.speed;
-  }
-  return 1;
-};
 
 /** 按当前单曲播放列表设置播放识曲候选 */
 const playResult = (result: AudioRecognitionResult, index: number): void => {
@@ -135,18 +78,13 @@ const onResultsContextMenu = (event: MouseEvent): void => {
 
 watch(results, () => {
   locallyControlledResultId.value = null;
-  syncClock();
 });
 
 onMounted(() => {
-  document.addEventListener("visibilitychange", syncClock);
-  syncClock();
   if (phase.value === "idle" && results.value.length === 0) void recognition.start();
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener("visibilitychange", syncClock);
-  stopClock();
   if (isActive.value) recognition.stop();
 });
 </script>
@@ -204,9 +142,11 @@ onBeforeUnmount(() => {
               <AudioRecognitionResultCard
                 :result="result"
                 :index="index"
-                :current-time="currentTimeFor(result)"
-                :progressing="isTimeProgressingFor(result)"
-                :rate="playbackRateFor(result)"
+                :controlled="
+                  locallyControlledResultId === result.track.id &&
+                  media.track?.source === result.track.source &&
+                  media.track.id === result.track.id
+                "
                 :playing="
                   media.track?.source === result.track.source && media.track.id === result.track.id
                 "
