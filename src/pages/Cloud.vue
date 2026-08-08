@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { Track } from "@shared/types/player";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useUserStore } from "@/stores/user";
 import SongList from "@/components/list/SongList.vue";
+import CloudSongMatchDialog from "@/components/modals/CloudSongMatchDialog.vue";
 import { formatFileSize } from "@/utils/format";
 import * as player from "@/core/player";
 import IconLucideRefreshCw from "~icons/lucide/refresh-cw";
@@ -15,6 +17,8 @@ const user = useUserStore();
 
 /** 上传弹窗 */
 const uploadDialogOpen = ref(false);
+const matchDialogOpen = ref(false);
+const matchTrack = shallowRef<Track | null>(null);
 
 const searchQuery = ref("");
 
@@ -35,6 +39,12 @@ const trackCount = computed(() => user.cloudCount || user.cloudTracks.length);
 const handlePlayAll = (): void => {
   if (user.cloudTracks.length === 0) return;
   player.playFrom(user.cloudTracks, 0);
+};
+
+/** 打开云盘歌曲匹配弹窗 */
+const openMatchDialog = (track: Track): void => {
+  matchTrack.value = track;
+  matchDialogOpen.value = true;
 };
 
 const songListRef = shallowRef<InstanceType<typeof SongList> | null>(null);
@@ -156,7 +166,9 @@ watch(
           :search-query="searchQuery"
           source="netease"
           collection-type="cloud"
+          show-cloud-match
           enable-sort
+          @cloud-match="openMatchDialog"
         />
       </div>
       <!-- 加载中 -->
@@ -179,5 +191,10 @@ watch(
       </div>
     </Transition>
     <CloudUploadDialog v-model:open="uploadDialogOpen" />
+    <CloudSongMatchDialog
+      v-model:open="matchDialogOpen"
+      :track="matchTrack"
+      @closed="matchTrack = null"
+    />
   </div>
 </template>

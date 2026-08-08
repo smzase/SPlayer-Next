@@ -467,7 +467,9 @@ export const useUserStore = defineStore(
       if (trackIds.length === 0) return;
       await deleteCloudSongs(trackIds);
       const removeSet = new Set(trackIds);
-      cloudTracks.value = cloudTracks.value.filter((track) => !removeSet.has(track.id));
+      cloudTracks.value = cloudTracks.value.filter(
+        (track) => !removeSet.has(track.cloudId ?? track.id),
+      );
       cloudCount.value = Math.max(0, cloudCount.value - trackIds.length);
       persistCloudCache();
     };

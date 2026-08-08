@@ -31,6 +31,8 @@ import IconLucideCloudOff from "~icons/lucide/cloud-off";
 import IconFavorite from "~icons/material-symbols/favorite-rounded";
 import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 
+import IconLink2 from "~icons/lucide/link-2";
+
 const props = withDefaults(
   defineProps<{
     /** 歌曲列表数据 */
@@ -53,6 +55,8 @@ const props = withDefaults(
     showPlayCount?: boolean;
     /** 显示喜欢按钮 */
     showFavorite?: boolean;
+    /** 显示云盘歌曲信息匹配按钮 */
+    showCloudMatch?: boolean;
     /** 是否启用排序交互 */
     enableSort?: boolean;
     /** 列表来源 */
@@ -84,6 +88,7 @@ const props = withDefaults(
     showPodcastMetadata: false,
     showPlayCount: false,
     showFavorite: true,
+    showCloudMatch: false,
     enableSort: false,
     source: "local",
     collectionType: undefined,
@@ -296,6 +301,7 @@ const contextTrack = shallowRef<Track | undefined>();
 const { items: contextMenuItems, handleSelect: onContextMenu } = useTrackMenu(contextTrack, {
   collectionType: props.collectionType,
   canRemove: props.canRemove,
+  onCloudMatch: (track) => emit("cloudMatch", track),
   onPlay: (track) => {
     const index = sortedItems.value.findIndex((item) => item.id === track.id);
     if (index >= 0) playTrack(track, index);
@@ -324,6 +330,7 @@ const emit = defineEmits<{
   scroll: [event: Event];
   reachBottom: [];
   change: [removedIds: string[]];
+  cloudMatch: [track: Track];
 }>();
 
 onActivated(batch.exit);
@@ -553,7 +560,11 @@ defineExpose({
               <div v-else-if="showPlayCount" class="w-20 shrink-0 text-center">
                 {{ t("songList.playTimes") }}
               </div>
-              <div v-if="showFavorite" class="w-7 shrink-0 text-center">
+              <div
+                v-if="showCloudMatch || showFavorite"
+                class="shrink-0 text-center"
+                :class="showCloudMatch && showFavorite ? 'w-[60px]' : 'w-7'"
+              >
                 {{ t("songList.actions") }}
               </div>
               <div v-if="showDuration" class="w-16 shrink-0 text-center">
@@ -755,13 +766,30 @@ defineExpose({
               >
                 {{ item.playCount?.toLocaleString() ?? "-" }}
               </div>
-              <!-- 红心：批量模式下隐藏，其余始终显示 -->
+              <!-- 云盘匹配与红心：批量模式下隐藏 -->
               <div
-                v-if="showFavorite && !batch.active.value"
-                class="w-7 shrink-0 flex items-center justify-center"
+                v-if="(showCloudMatch || showFavorite) && !batch.active.value"
+                class="shrink-0 flex items-center justify-center"
+                :class="showCloudMatch && showFavorite ? 'w-[60px]' : 'w-7'"
                 @click.stop
               >
                 <SButton
+                  v-if="showCloudMatch"
+                  variant="text"
+                  circle
+                  :size="28"
+                  :icon-size="18"
+                  :title="t('cloud.match.action')"
+                  :aria-label="t('cloud.match.action')"
+                  class="mr-1"
+                  @click="emit('cloudMatch', item)"
+                >
+                  <template #icon>
+                    <IconLink2 />
+                  </template>
+                </SButton>
+                <SButton
+                  v-if="showFavorite"
                   type="primary"
                   variant="text"
                   circle
@@ -777,7 +805,11 @@ defineExpose({
                   </template>
                 </SButton>
               </div>
-              <div v-else-if="showFavorite" class="w-7 shrink-0" />
+              <div
+                v-else-if="showCloudMatch || showFavorite"
+                class="shrink-0"
+                :class="showCloudMatch && showFavorite ? 'w-[60px]' : 'w-7'"
+              />
               <!-- 时长 -->
               <div
                 v-if="showDuration"

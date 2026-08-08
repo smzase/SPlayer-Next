@@ -821,6 +821,20 @@
     }
   },
   "cloud": {
+    "match": {
+      "action": "歌曲信息匹配",
+      "title": "网盘歌曲信息匹配纠正",
+      "description": "搜索歌曲名或歌手名，将云盘歌曲关联到正确的歌曲信息与歌词。",
+      "searchPlaceholder": "搜索歌曲名或歌手名",
+      "searchHint": "输入歌曲名或歌手名查找匹配项",
+      "currentSong": "当前云盘歌曲",
+      "confirm": "确认匹配",
+      "unbind": "解绑歌词关联",
+      "unbindConfirm": "确定解除这首云盘歌曲与在线歌曲信息及歌词的关联吗？",
+      "matched": "歌曲信息匹配成功",
+      "unbound": "歌词关联已解除",
+      "failed": "操作失败，请稍后重试"
+    },
     "title": "我的云盘",
     "empty": "云盘里还没有歌曲",
     "needLogin": "登录后才能查看云盘歌曲",

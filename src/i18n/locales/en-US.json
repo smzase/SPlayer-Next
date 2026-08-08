@@ -833,6 +833,20 @@
     }
   },
   "cloud": {
+    "match": {
+      "action": "Match Song Info",
+      "title": "Correct Cloud Song Info",
+      "description": "Search by song title or artist and link this cloud track to the correct song info and lyrics.",
+      "searchPlaceholder": "Search song title or artist",
+      "searchHint": "Enter a song title or artist to find a match",
+      "currentSong": "Current cloud song",
+      "confirm": "Confirm Match",
+      "unbind": "Unlink Lyrics",
+      "unbindConfirm": "Unlink this cloud song from its online song info and lyrics?",
+      "matched": "Song info matched",
+      "unbound": "Lyrics link removed",
+      "failed": "Action failed. Please try again"
+    },
     "title": "My Cloud",
     "empty": "No songs in your cloud yet",
     "needLogin": "Sign in to view your cloud library",

@@ -28,6 +28,7 @@ import register_anonimous from "./register_anonimous";
 import sso_login_token from "./sso_login_token";
 
 // 用户
+import cloud_match from "./cloud_match";
 import user_account from "./user_account";
 import user_cloud from "./user_cloud";
 import user_cloud_del from "./user_cloud_del";
@@ -164,6 +165,7 @@ export const modules: Record<string, NeteaseModule> = {
   user_account,
   user_cloud,
   user_cloud_del,
+  cloud_match,
   cloud_upload_check,
   cloud_nos_token,
   cloud_upload_info,

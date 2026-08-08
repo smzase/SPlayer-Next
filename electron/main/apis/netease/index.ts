@@ -35,6 +35,7 @@ const SESSION_MUTATING: ReadonlySet<string> = new Set([
 
 /** 不采用缓存的实时接口 */
 const NON_CACHEABLE: ReadonlySet<string> = new Set([
+  "cloud_match",
   "user_detail",
   "user_detail_new",
   "user_follows",

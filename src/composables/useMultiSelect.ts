@@ -124,7 +124,9 @@ export const useMultiSelect = (items: Ref<Track[]>, options: MultiSelectOptions)
 
   const confirmDelete = async (): Promise<void> => {
     const tracks = pendingDeleteTracks.value;
-    const ids = tracks.map((track) => track.id);
+    const ids = tracks.map((track) =>
+      pendingDeleteAction.value === "cloud" ? (track.cloudId ?? track.id) : track.id,
+    );
     try {
       if (pendingDeleteAction.value === "file") {
         const paths = tracks.map((t) => t.path).filter((p): p is string => !!p);

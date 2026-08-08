@@ -27,6 +27,8 @@ import IconMessageCircle from "~icons/lucide/message-circle";
 import IconMoreHorizontal from "~icons/lucide/more-horizontal";
 import IconPuzzle from "~icons/lucide/puzzle";
 
+import IconLink2 from "~icons/lucide/link-2";
+
 export interface TrackMenuOptions {
   /** 集合类型 */
   collectionType?: CollectionType;
@@ -48,6 +50,8 @@ export interface TrackMenuOptions {
   onDownload?: (track: Track, quality?: QualityLevel) => void;
   /** 从云盘删除回调 */
   onRemoveFromCloud?: (track: Track) => void;
+  /** 修正云盘歌曲信息回调 */
+  onCloudMatch?: (track: Track) => void;
 }
 
 /**
@@ -75,9 +79,16 @@ export const useTrackMenu = (
     const isLocal = source === "local";
     const isCue = !!track.value?.cuePath;
     const showCloudRemove = isCloudView && track.value?.cloud === true;
+    const showCloudMatch = showCloudRemove && !!options.onCloudMatch;
     const canAddToPlaylist = source === "local" || source === "netease";
     const isOnline = source !== "local" && source !== "streaming";
     const base: DropdownMenuItem[] = [
+      {
+        key: "cloudMatch",
+        label: t("cloud.match.action"),
+        icon: markRaw(IconLink2),
+        show: showCloudMatch,
+      },
       { key: "play", label: t("songList.context.play"), icon: markRaw(IconPlay), show: showPlay },
       {
         key: "playNext",
@@ -224,6 +235,9 @@ export const useTrackMenu = (
       return;
     }
     switch (key) {
+      case "cloudMatch":
+        options.onCloudMatch?.(current);
+        break;
       case "play":
         if (options.onPlay) options.onPlay(current);
         else player.playNow(current);

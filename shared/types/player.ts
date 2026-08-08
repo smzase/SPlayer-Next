@@ -137,6 +137,8 @@ export interface Track {
   fee?: TrackFee;
   /** 云盘歌曲 */
   cloud?: boolean;
+  /** 网易云云盘原始歌曲 ID */
+  cloudId?: string;
 }
 
 /** 歌曲详细信息 */
