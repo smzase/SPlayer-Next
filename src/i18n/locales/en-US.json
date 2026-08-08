@@ -1906,7 +1906,7 @@
     },
     "taskbarThumbnailCover": {
       "label": "Taskbar Cover Preview",
-      "description": "Use the album cover as the window preview when hovering the taskbar; disable to show the system's live window"
+      "description": "Use the album cover in taskbar, Alt+Tab, and Win+Tab previews; disable to show the system's live window"
     },
     "networkProxyProtocol": {
       "label": "Network Proxy",

@@ -1894,7 +1894,7 @@
     },
     "taskbarThumbnailCover": {
       "label": "任务栏封面预览",
-      "description": "悬停任务栏时以专辑封面作为窗口预览，关闭则显示系统默认的实时窗口"
+      "description": "启用后任务栏、Alt+Tab 和 Win+Tab 以专辑封面作为窗口预览，关闭则显示系统默认的实时窗口"
     },
     "networkProxyProtocol": {
       "label": "网络代理",

@@ -162,7 +162,7 @@ export const defaultSystemConfig: SystemConfig = {
     rememberWindowState: true,
     borderlessWindow: true,
     taskbarProgress: true,
-    taskbarThumbnailCover: true,
+    taskbarThumbnailCover: false,
     uiZoom: 100,
     onboardingCompleted: false,
     agreedAgreementVersion: 1,

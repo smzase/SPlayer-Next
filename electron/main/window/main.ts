@@ -20,6 +20,20 @@ const isInternalNavigation = (url: string): boolean => {
 
 let mainWindow: BrowserWindow | null = null;
 
+/** 读取主窗口应使用的缩放比例 */
+const getMainWindowZoomFactor = (): number => {
+  const percent = store.get("system.uiZoom") ?? 100;
+  return Math.max(0.5, Math.min(2, percent / 100));
+};
+
+/**
+ * 将已保存的缩放比例应用到指定主窗口
+ * @param win - 主窗口
+ */
+const applyWindowZoom = (win: BrowserWindow): void => {
+  win.webContents.setZoomFactor(getMainWindowZoomFactor());
+};
+
 /**
  * 创建主窗口
  */
@@ -39,6 +53,7 @@ export const createMainWindow = (): BrowserWindow => {
     webPreferences: {
       partition: MAIN_PARTITION,
       webgl: true,
+      zoomFactor: getMainWindowZoomFactor(),
     },
   });
 
@@ -49,7 +64,10 @@ export const createMainWindow = (): BrowserWindow => {
 
   // 窗口内容就绪
   mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
+    const win = getMainWindow();
+    if (!win) return;
+    applyWindowZoom(win);
+    win.show();
   });
 
   // 初始化托盘
@@ -185,6 +203,7 @@ export const getMainWindow = (): BrowserWindow | null => {
 export const focusMainWindow = (): void => {
   const win = getMainWindow();
   if (!win) return;
+  applyWindowZoom(win);
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
@@ -225,9 +244,7 @@ export const hideMainWindow = (): void => {
 export const applyMainWindowZoom = (): void => {
   const win = getMainWindow();
   if (!win) return;
-  const percent = store.get("system.uiZoom") ?? 100;
-  const factor = Math.max(0.5, Math.min(2, percent / 100));
-  win.webContents.setZoomFactor(factor);
+  applyWindowZoom(win);
 };
 
 /**

@@ -55,7 +55,7 @@ const generalCategory: SettingCategory = {
           key: "taskbarThumbnailCover",
           type: "switch",
           binding: { store: "settings", path: "system.system.taskbarThumbnailCover" },
-          defaultValue: true,
+          defaultValue: false,
           visible: () => navigator.platform.startsWith("Win"),
         },
         {
