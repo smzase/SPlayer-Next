@@ -27,14 +27,6 @@ const getMainWindowZoomFactor = (): number => {
 };
 
 /**
- * 将已保存的缩放比例应用到指定主窗口
- * @param win - 主窗口
- */
-const applyWindowZoom = (win: BrowserWindow): void => {
-  win.webContents.setZoomFactor(getMainWindowZoomFactor());
-};
-
-/**
  * 创建主窗口
  */
 export const createMainWindow = (): BrowserWindow => {
@@ -64,10 +56,7 @@ export const createMainWindow = (): BrowserWindow => {
 
   // 窗口内容就绪
   mainWindow.once("ready-to-show", () => {
-    const win = getMainWindow();
-    if (!win) return;
-    applyWindowZoom(win);
-    win.show();
+    mainWindow?.show();
   });
 
   // 初始化托盘
@@ -79,11 +68,6 @@ export const createMainWindow = (): BrowserWindow => {
   // 缩略图工具栏
   mainWindow.once("show", () => {
     initThumbar(mainWindow!);
-  });
-
-  // 每次加载完成应用界面缩放
-  mainWindow.webContents.on("did-finish-load", () => {
-    applyMainWindowZoom();
   });
 
   // 保存窗口状态
@@ -203,7 +187,6 @@ export const getMainWindow = (): BrowserWindow | null => {
 export const focusMainWindow = (): void => {
   const win = getMainWindow();
   if (!win) return;
-  applyWindowZoom(win);
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
@@ -244,7 +227,7 @@ export const hideMainWindow = (): void => {
 export const applyMainWindowZoom = (): void => {
   const win = getMainWindow();
   if (!win) return;
-  applyWindowZoom(win);
+  win.webContents.setZoomFactor(getMainWindowZoomFactor());
 };
 
 /**
