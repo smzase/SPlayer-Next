@@ -103,6 +103,17 @@ interface ActiveWindowRegion {
 
 let activeWindowRegion: ActiveWindowRegion | null = null;
 let contentWidth: number | null = null;
+let mainWindowVisible = true;
+let visibleMainWindowAnchor: AnchorSide | null = null;
+let visibleMainWindowMaxWidth: number | null = null;
+
+/**
+ * 同步主窗口是否显示在任务栏
+ * @param visible - 主窗口是否可见
+ */
+export const setTaskbarLyricMainWindowVisible = (visible: boolean): void => {
+  mainWindowVisible = visible;
+};
 
 /** 从设置读取当前歌词宽度（Win10 据此从 tasklist 划空间，Win11 忽略） */
 const resolveLyricWidth = (): number => {
@@ -404,7 +415,14 @@ const applyLayout = (layout: JsTaskbarLayout): void => {
   const win = getTaskbarLyricWindow();
   if (!win) return;
 
-  const picked = pickSpace(layout);
+  let picked = pickSpace(layout);
+  const position: TaskbarLyricPosition = store.get("taskbarLyric.position") ?? "auto";
+  if (!mainWindowVisible && position === "auto" && visibleMainWindowAnchor) {
+    const rect = layout.space[visibleMainWindowAnchor];
+    if (rect.width > 0) {
+      picked = { rect, anchor: visibleMainWindowAnchor };
+    }
+  }
   if (!picked) {
     hideIfVisible(win);
     return;
@@ -433,8 +451,19 @@ const applyLayout = (layout: JsTaskbarLayout): void => {
 
   const config = store.get("taskbarLyric");
   const useAvailableWidth = config.autoMaxWidth || isTaskbarLyricSeparationActive();
-  const windowWidth = useAvailableWidth ? availWidth : Math.min(config.maxWidth, availWidth);
+  const availableWindowWidth = useAvailableWidth
+    ? availWidth
+    : Math.min(config.maxWidth, availWidth);
+  const windowWidth =
+    !mainWindowVisible && visibleMainWindowAnchor === anchor && visibleMainWindowMaxWidth !== null
+      ? Math.min(availableWindowWidth, visibleMainWindowMaxWidth)
+      : availableWindowWidth;
   const windowX = anchor === "right" ? availX + availWidth - windowWidth : availX;
+
+  if (mainWindowVisible) {
+    visibleMainWindowAnchor = anchor;
+    visibleMainWindowMaxWidth = windowWidth;
+  }
 
   activeWindowRegion = {
     x: windowX,
@@ -848,6 +877,8 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
     coverHovered = false;
     activeWindowRegion = null;
     contentWidth = null;
+    visibleMainWindowAnchor = null;
+    visibleMainWindowMaxWidth = null;
     cleanupWatchers();
     setTrayTaskbarLyric(false);
     broadcast("taskbarLyric:visibilityChange", false);

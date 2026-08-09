@@ -10,6 +10,7 @@ import { handleCacheProtocolOnPartition, MAIN_PARTITION } from "@main/utils/prot
 import { isAppQuitting } from "@main/utils/lifecycle";
 import { broadcast } from "@main/utils/broadcast";
 import { CURRENT_AGREEMENT_VERSION } from "@shared/constants/agreement";
+import { setTaskbarLyricMainWindowVisible } from "./taskbarLyric";
 
 /** 判断是否应用内部导航 */
 const isInternalNavigation = (url: string): boolean => {
@@ -58,6 +59,8 @@ export const createMainWindow = (): BrowserWindow => {
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
   });
+  mainWindow.on("show", () => setTaskbarLyricMainWindowVisible(true));
+  mainWindow.on("hide", () => setTaskbarLyricMainWindowVisible(false));
 
   // 初始化托盘
   initTray();
