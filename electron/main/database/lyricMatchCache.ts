@@ -54,8 +54,7 @@ export const getMatchedId = (fingerprint: string, platform: Platform): MatchedRe
       "SELECT platform_id, extra, matched_at FROM lyric_match_cache WHERE fingerprint = ? AND platform = ?",
     )
     .get(fingerprint, platform) as
-    | { platform_id: string; extra: string | null; matched_at: number }
-    | undefined;
+    { platform_id: string; extra: string | null; matched_at: number } | undefined;
   if (!row) return null;
   if (isConfiguredCacheExpired(row.matched_at, "database")) {
     getDb()

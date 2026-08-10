@@ -35,13 +35,7 @@ export type RouteTransition = "none" | "fade" | "slide" | "zoom";
 
 /** 弹簧动画预设 */
 export type SpringPreset =
-  | "default"
-  | "smooth"
-  | "responsive"
-  | "jello"
-  | "heavy"
-  | "noBounce"
-  | "custom";
+  "default" | "smooth" | "responsive" | "jello" | "heavy" | "noBounce" | "custom";
 
 /** 歌词混合模式 */
 export type LyricBlendMode = "normal" | "screen" | "plus-lighter";
@@ -219,6 +213,8 @@ export interface AppearanceSettings {
   sidebarHoverExpand: boolean;
   /** 侧边栏歌单项显示封面 */
   sidebarPlaylistCover: boolean;
+  /** 侧边栏显示播放统计入口 */
+  showStatsInSidebar: boolean;
   /** 播放栏显示快捷音质切换 */
   showQualitySwitch: boolean;
   /** 点击关闭按钮的行为 */

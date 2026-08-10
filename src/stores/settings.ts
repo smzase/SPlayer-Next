@@ -42,6 +42,7 @@ export const useSettingsStore = defineStore(
       sidebarCollapsed: false,
       sidebarHoverExpand: false,
       sidebarPlaylistCover: false,
+      showStatsInSidebar: true,
       showQualitySwitch: false,
       closeAction: "hide",
       rememberCloseChoice: false,

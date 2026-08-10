@@ -6,14 +6,14 @@ mod imp {
         Win32::{
             Foundation::RPC_E_CHANGED_MODE,
             Media::Audio::{
-                AudioSessionStateActive, AudioSessionStateExpired, IAudioSessionControl2,
+                eRender, AudioSessionStateActive, AudioSessionStateExpired, IAudioSessionControl2,
                 IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume, MMDeviceEnumerator,
-                DEVICE_STATE_ACTIVE, eRender,
+                DEVICE_STATE_ACTIVE,
             },
             System::{
                 Com::{
-                    CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx,
-                    CoUninitialize,
+                    CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL,
+                    COINIT_MULTITHREADED,
                 },
                 Threading::GetCurrentProcessId,
             },

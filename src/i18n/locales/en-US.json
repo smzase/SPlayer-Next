@@ -418,6 +418,7 @@
     "cloud": "My Cloud",
     "podcasts": "My Podcasts",
     "streaming": "Media Sources",
+    "stats": "Stats",
     "reload": "Reload",
     "devtools": "Developer Tools",
     "globalSettings": "Global Settings",
@@ -1793,6 +1794,10 @@
       "label": "Show Playlist Covers",
       "description": "Show playlist covers instead of default icons in the sidebar"
     },
+    "showStatsInSidebar": {
+      "label": "Show Play Stats Entry",
+      "description": "Show the play statistics page entry in the sidebar"
+    },
     "showQualitySwitch": {
       "label": "Show Quick Quality Switch",
       "description": "Show the online audio quality tag in the player bar for quick switching"
@@ -2438,6 +2443,34 @@
   "folder": {
     "label": "Folders",
     "totalFolders": "{count} folders"
+  },
+  "stats": {
+    "label": "Stats",
+    "songs": "Songs",
+    "albums": "Albums",
+    "artists": "Artists",
+    "totalDuration": "Total Duration",
+    "totalSize": "Total Size",
+    "topSongs": "Most Played Songs",
+    "topAlbums": "Most Played Albums",
+    "topArtists": "Most Played Artists",
+    "plays": "{count} plays",
+    "playsUnit": "plays",
+    "noData": "No play data yet",
+    "noDataHint": "No data yet, go listen to some songs",
+    "unknown": "Unknown",
+    "less": "Less",
+    "more": "More",
+    "audioQuality": "Audio Formats",
+    "formatCount": "{count} formats",
+    "losslessRatio": "Lossless",
+    "trackUnit": "tracks",
+    "listeningHours": "Listening Hours",
+    "peakListening": "Most played",
+    "favoriteHour": "You listen most often at {hour}:00, with {count} tracks in total",
+    "noPlayHistory": "No listening-hour data yet",
+    "listeningActivity": "Listening Activity",
+    "last90Days": "Last 90 days"
   },
   "errors": {
     "dialogTitle": "Something went wrong",
