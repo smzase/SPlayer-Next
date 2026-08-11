@@ -20,6 +20,13 @@ const onAccept = async (): Promise<void> => {
     accepting.value = false;
   }
 };
+
+onMounted(async () => {
+  await settings.syncSystem();
+  if (settings.system.system.agreedAgreementVersion >= CURRENT_AGREEMENT_VERSION) {
+    await router.replace("/");
+  }
+});
 </script>
 
 <template>
