@@ -46,6 +46,7 @@ const { track, lyric, playing, primaryIndex } = useNowPlayingSync({
 const cssDragEnabled = computed(() => config.useCSSDrag && isLinux);
 const { onRootPointerDown } = useDragWindow(() => config.locked || cssDragEnabled.value);
 const { isHovered } = useHoverState();
+const lockButton = ref<HTMLButtonElement | null>(null);
 
 /**
  * 占位行
@@ -105,7 +106,7 @@ const displayItems = computed<DisplayItem[]>(() => {
       index: primary,
       line: lines[primary],
       align: resolveAlign(primary, config.align),
-      active: true,
+      scrollEnabled: true,
     },
   ];
   // 显示翻译行
@@ -120,7 +121,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         endTime: current.endTime,
       },
       align: resolveAlign(primary, config.align),
-      active: true,
+      scrollEnabled: true,
       isPlaceholder: true,
       isNext: true,
     });
@@ -135,6 +136,7 @@ const displayItems = computed<DisplayItem[]>(() => {
         index: nextIdx,
         line: lines[nextIdx],
         align: resolveAlign(nextIdx, config.align),
+        scrollEnabled: true,
         isNext: true,
       });
     }
@@ -198,14 +200,17 @@ const onHeaderAction = (
   }
 };
 
-// 锁定按钮鼠标进入事件：临时放开穿透以允许点击
-const onLockBtnEnter = (): void => {
-  if (config.locked) window.api.desktopLyric.setMouseIgnore(false);
-};
-
-// 锁定按钮鼠标离开事件：恢复穿透
-const onLockBtnLeave = (): void => {
-  if (config.locked) window.api.desktopLyric.setMouseIgnore(true);
+/** 向主进程上报解锁按钮命中区域，避免穿透窗口依赖 DOM 悬停事件自救 */
+const reportUnlockButtonBounds = (): void => {
+  const button = lockButton.value;
+  if (!button) return;
+  const bounds = button.getBoundingClientRect();
+  window.api.desktopLyric.setUnlockButtonBounds({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+  });
 };
 
 /** 配置变更订阅取消器 */
@@ -220,11 +225,15 @@ onMounted(async () => {
   }
   pushWindowHeight();
   unsubConfig = window.api.desktopLyric.onConfigChange((next) => Object.assign(config, next));
+  await nextTick();
+  reportUnlockButtonBounds();
+  window.addEventListener("resize", reportUnlockButtonBounds);
 });
 
 onBeforeUnmount(() => {
   unsubConfig?.();
   unsubConfig = null;
+  window.removeEventListener("resize", reportUnlockButtonBounds);
 });
 </script>
 
@@ -294,11 +303,10 @@ onBeforeUnmount(() => {
           <IconLucideSettings />
         </button>
         <button
+          ref="lockButton"
           class="header-btn lock-btn"
           :title="config.locked ? '解锁窗口' : '锁定窗口'"
           @click="onHeaderAction('toggle-locked')"
-          @mouseenter="onLockBtnEnter"
-          @mouseleave="onLockBtnLeave"
         >
           <IconLucideUnlock v-if="config.locked" />
           <IconLucideLock v-else />
@@ -322,7 +330,7 @@ onBeforeUnmount(() => {
         :font-weight="config.fontWeight"
         :align="item.align"
         :word-by-word="resolveWordByWord(config, item)"
-        :active="!!item.active"
+        :scroll-enabled="!!item.scrollEnabled"
         :is-next="!!item.isNext"
         :background-mask="config.backgroundMask"
         :style="{
@@ -489,6 +497,11 @@ onBeforeUnmount(() => {
 }
 .header-btn:active {
   background-color: rgba(255, 255, 255, 0.3);
+}
+.lock-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
 }
 .song-info {
   flex: 1 1 auto;

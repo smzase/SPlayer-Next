@@ -25,6 +25,7 @@ import type {
   CommentReplyArgs,
 } from "@shared/types/comment";
 import type { AiModelSaveInput } from "@shared/types/ai";
+import type { DesktopLyricUnlockButtonBounds } from "@shared/types/window";
 import type {
   LegacyPlaylistRecord,
   PlaylistCreateInput,
@@ -298,8 +299,9 @@ const api = {
       subscribe("desktopLyric:configChange", callback),
     // 将窗口高度锁定到指定像素
     setHeight: (height: number) => ipcRenderer.invoke("desktopLyric:setHeight", height),
-    // 锁定态下切换鼠标穿透
-    setMouseIgnore: (ignore: boolean) => ipcRenderer.send("desktopLyric:setMouseIgnore", ignore),
+    // 上报解锁按钮在窗口内容区内的命中区域
+    setUnlockButtonBounds: (bounds: DesktopLyricUnlockButtonBounds) =>
+      ipcRenderer.send("desktopLyric:setUnlockButtonBounds", bounds),
     // 拖拽移动；只传位置，尺寸由主进程权威 cachedSize 写回
     move: (x: number, y: number) => ipcRenderer.send("desktopLyric:move", x, y),
     // 拖拽结束后保存最终位置

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NeteasePlaybackSource, Track, TrackSource } from "@shared/types/player";
+import type { PlaybackContext, Track, TrackSource } from "@shared/types/player";
 import type { CollectionCommentTarget } from "@shared/types/comment";
 import type { Collection, CollectionType } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
@@ -21,8 +21,15 @@ import IconLucideListMusic from "~icons/lucide/list-music";
 import IconLucideHourglass from "~icons/lucide/hourglass";
 import IconLucideCalendar from "~icons/lucide/calendar";
 import IconLucideUser from "~icons/lucide/user";
+import IconLucideHardDrive from "~icons/lucide/hard-drive";
+import IconLucideGlobe2 from "~icons/lucide/globe-2";
+import IconLucideDisc3 from "~icons/lucide/disc-3";
+import IconLucideRadio from "~icons/lucide/radio";
+import IconLucideCloud from "~icons/lucide/cloud";
 import IconLucideMessageCircle from "~icons/lucide/message-circle";
 import IconLucideShare2 from "~icons/lucide/share-2";
+import IconMoreHorizontal from "~icons/lucide/more-horizontal";
+import IconCopy from "~icons/lucide/copy";
 import IconMaterialSymbolsFavoriteRounded from "~icons/material-symbols/favorite-rounded";
 import IconMaterialSymbolsFavoriteOutlineRounded from "~icons/material-symbols/favorite-outline-rounded";
 
@@ -307,6 +314,10 @@ const typeLabel = computed(() => {
   return map[type] ?? "";
 });
 
+const scopeLabel = computed(() =>
+  t(source === "local" ? "collection.scope.local" : "collection.scope.online"),
+);
+
 /** 总时长 */
 const totalDuration = computed(() => {
   if (!collection.value) return "";
@@ -365,13 +376,15 @@ const commentTarget = computed<CollectionCommentTarget | null>(() => {
   };
 });
 
-const playbackSource = computed<NeteasePlaybackSource | undefined>(() => {
+const playbackContext = computed<PlaybackContext | undefined>(() => {
   const current = collection.value;
-  if (!current || current.source !== "netease") return undefined;
-  const sourceType =
-    current.type === "playlist" ? "list" : current.type === "radio" ? "radio" : current.type;
-  if (sourceType !== "list" && sourceType !== "album" && sourceType !== "radio") return undefined;
-  return { id: current.id, type: sourceType };
+  if (!current || current.type === "cloud") return undefined;
+  return {
+    provider: current.source,
+    originId: current.id,
+    originType: current.type,
+    originName: current.title,
+  };
 });
 
 const shareUrl = computed(() => getCollectionShareUrl(collection.value));
@@ -382,7 +395,7 @@ const handleComments = (): void => {
 
 const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
-  player.playFrom(collection.value.tracks, 0, playbackSource.value);
+  player.playFrom(collection.value.tracks, 0, playbackContext.value);
 };
 
 /** 歌曲列表引用 */
@@ -418,6 +431,30 @@ const moreMenuItems = computed<DropdownMenuItem[]>(() => {
       separator: true,
     });
   }
+  list.push({
+    key: "more",
+    label: t("collection.context.more"),
+    icon: markRaw(IconMoreHorizontal),
+    children: [
+      {
+        key: "copyTitle",
+        label: t(`collection.context.${type}.copyTitle`),
+        icon: markRaw(IconCopy),
+      },
+      {
+        key: "copyId",
+        label: t(`collection.context.${type}.copyId`),
+        icon: markRaw(IconCopy),
+        show: source !== "local",
+      },
+      {
+        key: "copyUrl",
+        label: t(`collection.context.${type}.copyUrl`),
+        icon: markRaw(IconCopy),
+        show: !!shareUrl.value,
+      },
+    ],
+  });
   return list;
 });
 
@@ -434,6 +471,15 @@ const handleMoreMenu = async (key: string): Promise<void> => {
       break;
     case "delete":
       manage.openDelete();
+      break;
+    case "copyTitle":
+      await copy(collection.value?.title);
+      break;
+    case "copyId":
+      await copy(collection.value?.id);
+      break;
+    case "copyUrl":
+      await copy(shareUrl.value);
       break;
   }
 };
@@ -470,12 +516,36 @@ onBeforeUnmount(() => {
             class="flex flex-col transition-[gap] duration-300"
             :class="collapsed ? 'gap-0.5' : 'gap-2'"
           >
-            <h1
-              class="font-bold text-on-surface truncate lh-normal transition-[font-size,line-height] duration-300"
-              :class="collapsed ? 'text-xl' : 'text-3xl'"
-            >
-              {{ collection.title }}
-            </h1>
+            <div class="flex min-w-0 items-center gap-3">
+              <h1
+                class="min-w-0 flex-1 font-bold text-on-surface truncate lh-normal transition-[font-size,line-height] duration-300"
+                :class="collapsed ? 'text-xl' : 'text-3xl'"
+              >
+                {{ collection.title }}
+              </h1>
+              <div
+                class="flex shrink-0 items-center gap-1 text-primary"
+                :aria-label="`${scopeLabel} · ${typeLabel}`"
+              >
+                <STooltip :content="scopeLabel">
+                  <span class="inline-flex size-6 cursor-default items-center justify-center">
+                    <IconLucideHardDrive v-if="source === 'local'" class="size-4" />
+                    <IconLucideGlobe2 v-else class="size-4" />
+                  </span>
+                </STooltip>
+                <SDivider vertical />
+                <STooltip :content="typeLabel">
+                  <span
+                    class="inline-flex size-6 cursor-default items-center justify-center text-primary/65"
+                  >
+                    <IconLucideDisc3 v-if="type === 'album'" class="size-4" />
+                    <IconLucideListMusic v-else-if="type === 'playlist'" class="size-4" />
+                    <IconLucideRadio v-else-if="type === 'radio'" class="size-4" />
+                    <IconLucideCloud v-else class="size-4" />
+                  </span>
+                </STooltip>
+              </div>
+            </div>
             <div
               class="grid transition-[grid-template-rows,opacity] duration-300"
               :class="collapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
@@ -636,7 +706,7 @@ onBeforeUnmount(() => {
           :source="source"
           :collection-type="type"
           :collection-id="id"
-          :playback-source="playbackSource"
+          :playback-context="playbackContext"
           :can-remove="manage.canManage.value"
           :has-more="type === 'radio' && !searchQuery.trim() && podcastHasMore"
           :loading-more="

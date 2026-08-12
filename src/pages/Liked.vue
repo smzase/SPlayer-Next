@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { NeteasePlaybackSource, Track } from "@shared/types/player";
+import type { PlaybackContext, Track } from "@shared/types/player";
 import type { ContentScope } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useLibraryStore } from "@/stores/library";
@@ -53,15 +53,22 @@ const currentTracks = computed<Track[]>(() =>
   tab.value === "local" ? localTracks.value : user.likedPlaylistTracks,
 );
 
-const playbackSource = computed<NeteasePlaybackSource | undefined>(() =>
-  tab.value === "online" && user.likedPlaylistId
-    ? { id: user.likedPlaylistId, type: "list" }
-    : undefined,
-);
+const playbackContext = computed<PlaybackContext | undefined>(() => {
+  if (tab.value === "local") {
+    return { originId: "liked", originType: "page", originName: t("liked.title") };
+  }
+  if (!user.likedPlaylistId) return undefined;
+  return {
+    provider: "netease",
+    originId: user.likedPlaylistId,
+    originType: "playlist",
+    originName: t("liked.title"),
+  };
+});
 
 const handlePlayAll = (): void => {
   if (currentTracks.value.length === 0) return;
-  player.playFrom(currentTracks.value, 0, playbackSource.value);
+  player.playFrom(currentTracks.value, 0, playbackContext.value);
 };
 
 // 直进 /liked（没先访问 Library 页）时本地库未初始化，需要手动触发
@@ -168,6 +175,7 @@ const handleMoreMenu = (key: string): void => {
           :search-query="searchQuery"
           :show-size="false"
           source="local"
+          :playback-context="playbackContext"
           enable-sort
         />
       </div>
@@ -203,7 +211,7 @@ const handleMoreMenu = (key: string): void => {
           :search-query="searchQuery"
           source="netease"
           :collection-id="user.likedPlaylistId ?? undefined"
-          :playback-source="playbackSource"
+          :playback-context="playbackContext"
           collection-type="playlist"
           enable-sort
         />

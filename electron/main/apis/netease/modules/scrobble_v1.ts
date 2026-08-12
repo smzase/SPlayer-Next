@@ -35,6 +35,8 @@ const scrobbleV1: NeteaseModule = async (query) => {
   const resourceType = query.resourceType === "dj" ? "dj" : "song";
   const sourceType = typeof query.sourceType === "string" ? query.sourceType : "song";
   const ncblSourceType = toNcblSourceType(resourceType, sourceType);
+  const rawFee = Number(query.fee);
+  const fee = rawFee === 1 || rawFee === 4 || rawFee === 8 ? rawFee : 0;
   const rawCookie = query.cookie || "";
   const cookieObj = parseCookie(rawCookie);
   cookieObj.os = "pc";
@@ -51,7 +53,7 @@ const scrobbleV1: NeteaseModule = async (query) => {
     artist: typeof query.artist === "string" ? query.artist : "",
     bitrate: Number(query.bitrate) || 320,
     level: typeof query.level === "string" ? query.level : "exhigh",
-    fee: Number(query.fee) || 0,
+    fee,
     time: totalTime,
   };
   const source = {

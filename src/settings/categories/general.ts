@@ -86,6 +86,23 @@ const generalCategory: SettingCategory = {
       id: "update",
       items: [
         {
+          key: "updateChannel",
+          type: "select",
+          binding: { store: "settings", path: "system.update.channel" },
+          options: [
+            { value: "stable", labelKey: "settings.updateChannel.stable" },
+            { value: "beta", labelKey: "settings.updateChannel.beta" },
+            { value: "alpha", labelKey: "settings.updateChannel.alpha" },
+          ],
+          defaultValue: "stable",
+          confirm: {
+            when: (next) => next === "beta" || next === "alpha",
+            titleKey: "settings.confirm.testChannelTitle",
+            contentKey: "settings.confirm.testChannelContent",
+            type: "warning",
+          },
+        },
+        {
           key: "autoCheckUpdate",
           type: "switch",
           binding: { store: "settings", path: "system.update.autoCheck" },

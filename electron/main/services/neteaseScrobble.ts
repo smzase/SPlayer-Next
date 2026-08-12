@@ -1,4 +1,4 @@
-import type { Track } from "@shared/types/player";
+import type { PlaybackContext, Track } from "@shared/types/player";
 import type { NeteaseScrobbleMode } from "@shared/types/settings";
 import {
   neteaseScrobbleThresholdMs,
@@ -74,12 +74,18 @@ const progress = createPlayProgress<NeteaseScrobbleTrack>({
 /**
  * 新曲目加载
  * @param track - 渲染层下发的权威 Track
+ * @param context - 本次播放的来源上下文
  * @param durationMs - 引擎确认后的时长
  * @param autoPlay - 是否自动播放
  */
-export const onTrackLoaded = (track: Track | null, durationMs: number, autoPlay: boolean): void => {
+export const onTrackLoaded = (
+  track: Track | null,
+  context: PlaybackContext | undefined,
+  durationMs: number,
+  autoPlay: boolean,
+): void => {
   cycleId++;
-  current = toNeteaseScrobbleTrack(track, durationMs);
+  current = toNeteaseScrobbleTrack(track, context, durationMs);
   progress.load(current?.durationSec ?? 0, current, autoPlay);
   lastPositionMs = 0;
 };

@@ -9,7 +9,7 @@ const song = {
   artist: "测试歌手",
   bitrate: 320,
   level: "exhigh",
-  fee: 1,
+  fee: 1 as const,
   time: 180,
 };
 

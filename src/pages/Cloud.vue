@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Track } from "@shared/types/player";
+import type { PlaybackContext, Track } from "@shared/types/player";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useUserStore } from "@/stores/user";
 import SongList from "@/components/list/SongList.vue";
@@ -36,9 +36,15 @@ const usageText = computed(() => {
 /** 当前曲目数 */
 const trackCount = computed(() => user.cloudCount || user.cloudTracks.length);
 
+const playbackContext = computed<PlaybackContext>(() => ({
+  originId: "cloud",
+  originType: "page",
+  originName: t("cloud.title"),
+}));
+
 const handlePlayAll = (): void => {
   if (user.cloudTracks.length === 0) return;
-  player.playFrom(user.cloudTracks, 0);
+  player.playFrom(user.cloudTracks, 0, playbackContext.value);
 };
 
 /** 打开云盘歌曲匹配弹窗 */
@@ -166,6 +172,7 @@ watch(
           :search-query="searchQuery"
           source="netease"
           collection-type="cloud"
+          :playback-context="playbackContext"
           show-cloud-match
           enable-sort
           @cloud-match="openMatchDialog"

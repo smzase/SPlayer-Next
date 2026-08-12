@@ -61,6 +61,7 @@ export const useSettingsStore = defineStore(
       playerBgBeat: false,
       coverLayout: "default",
       autoCenterCover: true,
+      showPlaybackSource: false,
       followCoverColor: true,
       autoImmersive: true,
       outputDevice: null,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Album, Playlist, Track } from "@shared/types/player";
+import type { Album, PlaybackContext, Playlist, Track } from "@shared/types/player";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import type { CoverItem } from "@/types/artist";
 import type { Podcast } from "@/types/podcast";
@@ -110,6 +110,11 @@ const isTrackTab = computed(
   () => activeTab.value === "song" || activeTab.value === "voice" || activeTab.value === "local",
 );
 const canPlayAll = computed(() => isTrackTab.value && currentTracks.value.length > 0);
+const playbackContext = computed<PlaybackContext>(() => ({
+  originId: "history",
+  originType: "page",
+  originName: t("history.title"),
+}));
 const loading = computed(
   () =>
     remoteKind.value !== null &&
@@ -156,7 +161,9 @@ watch(
 );
 
 const handlePlayAll = (): void => {
-  if (currentTracks.value.length > 0) void player.playFrom(currentTracks.value, 0);
+  if (currentTracks.value.length > 0) {
+    void player.playFrom(currentTracks.value, 0, playbackContext.value);
+  }
 };
 
 const resolveRemoteTrackIds = (tracks: Track[]): string[] => {
@@ -335,6 +342,7 @@ onMounted(() => {
         :show-favorite="activeTab !== 'voice'"
         :related-collection-type="activeTab === 'voice' ? 'radio' : 'album'"
         :source="activeTab === 'local' ? 'local' : 'netease'"
+        :playback-context="playbackContext"
         :batch-remove="handleTrackRemove"
         :batch-remove-label="t('history.remove')"
         enable-sort

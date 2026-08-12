@@ -5,7 +5,7 @@ import type { Collection } from "@/types/collection";
  * 取在线平台的歌曲分享链接
  * @param track - 当前歌曲，本地/流媒体/不支持平台返回 null
  */
-export const getShareUrl = (track: Track | null | undefined): string | null => {
+export const getTrackShareUrl = (track: Track | null | undefined): string | null => {
   if (!track?.id) return null;
   switch (track.source) {
     case "netease":
@@ -19,6 +19,9 @@ export const getShareUrl = (track: Track | null | undefined): string | null => {
       return null;
   }
 };
+
+/** 兼容既有歌曲分享调用 */
+export const getShareUrl = getTrackShareUrl;
 
 /**
  * 取得在线平台的歌单、专辑或电台分享链接
@@ -45,6 +48,15 @@ export const getCollectionShareUrl = (
       cloud: "",
     }[collection.type];
     return path ? `https://y.qq.com/n/ryqq_v2/${path}/${collection.id}` : null;
+  }
+  if (collection.source === "kugou") {
+    const path = {
+      playlist: `songlist/${collection.id}/`,
+      album: `album/info/${collection.id}/`,
+      radio: `song/#fm_id=${collection.id}`,
+      cloud: "",
+    }[collection.type];
+    return path ? `https://www.kugou.com/${path}` : null;
   }
   return null;
 };

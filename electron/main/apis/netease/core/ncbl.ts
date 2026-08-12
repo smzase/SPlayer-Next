@@ -1,8 +1,8 @@
 import { randomBytes, randomUUID as cryptoRandomUUID } from "node:crypto";
 import * as zlib from "node:zlib";
 import { CLIENT_LOG3_DOMAIN } from "./config";
-import { fetchWithProxy } from "@main/utils/proxy";
 import { createPlaybackLogContext } from "./playLog";
+import { fetchWithProxy } from "@main/utils/proxy";
 
 interface NeteaseLogRecord {
   time: number;

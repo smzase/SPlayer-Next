@@ -157,6 +157,7 @@ export const defaultSystemConfig: SystemConfig = {
   },
   update: {
     autoCheck: true,
+    channel: "stable",
   },
   system: {
     rememberWindowState: true,

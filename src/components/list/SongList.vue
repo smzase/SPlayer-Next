@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Artist, NeteasePlaybackSource, Track, TrackSource } from "@shared/types/player";
+import type { Artist, PlaybackContext, Track, TrackSource } from "@shared/types/player";
 import type { CollectionType } from "@/types/collection";
 import type { SortField } from "@/types/list";
 import { useMediaStore } from "@/stores/media";
@@ -65,8 +65,8 @@ const props = withDefaults(
     collectionType?: CollectionType;
     /** 集合 ID */
     collectionId?: string;
-    /** 网易云播放来源上下文 */
-    playbackSource?: NeteasePlaybackSource;
+    /** 播放来源上下文 */
+    playbackContext?: PlaybackContext;
     /** 是否有权从集合移除曲目 */
     canRemove?: boolean;
     /** 自定义批量移除处理 */
@@ -93,7 +93,7 @@ const props = withDefaults(
     source: "local",
     collectionType: undefined,
     collectionId: undefined,
-    playbackSource: undefined,
+    playbackContext: undefined,
     canRemove: true,
     batchRemove: undefined,
     batchRemoveLabel: undefined,
@@ -236,10 +236,10 @@ const playingIndex = computed(() => {
 /** 按用户选择更新队列并播放歌曲 */
 const playTrack = (item: Track, index: number): void => {
   if (settings.player.singleTrackQueueMode === "replace") {
-    void player.playFrom(sortedItems.value, index, props.playbackSource);
+    void player.playFrom(sortedItems.value, index, props.playbackContext);
     return;
   }
-  void player.playNow(item, props.playbackSource);
+  void player.playNow(item, props.playbackContext);
 };
 
 /** 虚拟列表引用 */
@@ -277,6 +277,7 @@ const batch = useMultiSelect(sortedItems, {
   canRemove: computed(() => props.canRemove),
   removeHandler: props.batchRemove,
   removeLabel: computed(() => props.batchRemoveLabel),
+  playbackContext: computed(() => props.playbackContext),
   onChanged: (removedIds) => emit("change", removedIds),
 });
 const { deleteConfirmOpen, deleteDialogTitle, deleteDialogContent } = batch;
@@ -306,6 +307,7 @@ const { items: contextMenuItems, handleSelect: onContextMenu } = useTrackMenu(co
     const index = sortedItems.value.findIndex((item) => item.id === track.id);
     if (index >= 0) playTrack(track, index);
   },
+  playbackContext: computed(() => props.playbackContext),
   onAddToPlaylist: (track) => openPicker([track]),
   onRemove: (track) => batch.requestDelete([track], "remove"),
   onDeleteFile: (track) => batch.requestDelete([track], "file"),
@@ -693,7 +695,7 @@ defineExpose({
                       VIP
                     </span>
                     <span
-                      v-else-if="item.fee === 2 && !settings.preset.hideVipTag"
+                      v-else-if="item.fee === 4 && !settings.preset.hideVipTag"
                       class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid text-red-400 border-red-400/40"
                     >
                       EP

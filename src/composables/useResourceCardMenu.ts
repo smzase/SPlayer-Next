@@ -136,13 +136,12 @@ export const useResourceCardMenu = (resourceType: Ref<ResourceCardType>) => {
     });
     try {
       const tracks = await loadTracks(item, false);
-      const type =
-        resourceType.value === "playlist"
-          ? "list"
-          : resourceType.value === "radio"
-            ? "radio"
-            : "album";
-      await player.playFrom(tracks, 0, { id: item.id, type });
+      await player.playFrom(tracks, 0, {
+        provider: "netease",
+        originId: item.id,
+        originType: resourceType.value,
+        originName: item.title,
+      });
     } catch (error) {
       toast.error(
         error instanceof Error

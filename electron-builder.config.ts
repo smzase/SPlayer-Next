@@ -1,4 +1,20 @@
 import type { Configuration } from "electron-builder";
+import { readFileSync } from "node:fs";
+
+const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version as string;
+const prereleaseChannel = /-(alpha|beta)(?:\.|$)/.exec(packageVersion)?.[1];
+const inferredUpdateChannel = prereleaseChannel ?? "latest";
+const updateChannel = process.env.UPDATE_CHANNEL ?? inferredUpdateChannel;
+
+if (updateChannel !== "latest" && updateChannel !== "beta" && updateChannel !== "alpha") {
+  throw new Error(`不支持的更新通道: ${updateChannel}`);
+}
+if (packageVersion.includes("-") && !prereleaseChannel) {
+  throw new Error(`不支持的预发布版本格式: ${packageVersion}`);
+}
+if (updateChannel !== inferredUpdateChannel) {
+  throw new Error(`版本 ${packageVersion} 与更新通道 ${updateChannel} 不匹配`);
+}
 
 const config: Configuration = {
   appId: "top.imsyy.splayer-next",
@@ -7,6 +23,7 @@ const config: Configuration = {
   directories: { buildResources: "public" },
   afterPack: "./scripts/after-pack.ts",
   compression: "maximum",
+  generateUpdatesFilesForAllChannels: true,
   files: [
     "public/**",
     "out/**",
@@ -134,6 +151,7 @@ const config: Configuration = {
     provider: "github",
     owner: "SPlayer-Dev",
     repo: "SPlayer-Next",
+    channel: updateChannel,
   },
 };
 

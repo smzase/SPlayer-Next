@@ -1,3 +1,5 @@
+import type { TrackFee } from "@shared/types/player";
+
 interface PlaybackLogContext {
   app: {
     channel: string;
@@ -17,7 +19,7 @@ export interface PlaybackLogResource {
   artist: string;
   bitrate: number;
   level: string;
-  fee: number;
+  fee: TrackFee;
   time: number;
 }
 
@@ -65,76 +67,72 @@ export const buildPlv = (
   ctx: PlaybackLogContext,
   resource: PlaybackLogResource,
   source: PlaybackLogSource,
-): Record<string, unknown> => {
-  return {
-    mode: "circulation",
-    download: 0,
-    alg: "",
-    status: "front",
-    id: String(resource.id),
-    bitrate: resource.bitrate,
-    type: resource.type,
-    ...(resource.type === "dj" && resource.categoryId !== undefined
-      ? { categoryId: resource.categoryId }
-      : {}),
-    is_listentogether: 0,
-    source: source.name,
-    is_heart: 0,
-    resource_ratio: "",
-    resource_time: resource.time,
-    musiceffect_id: "",
-    app_mode: 2,
-    bitrate_level: resource.level,
-    vipType: ctx.auth.vipType,
-    fee: resource.fee,
-    file: 4,
-    rightSource: 0,
-    sourceId: source.id,
-    sourcetype: source.type,
-    libra_abt: "",
-    channel: ctx.app.channel,
-    curStartChannel: "",
-  };
-};
+): Record<string, unknown> => ({
+  mode: "circulation",
+  download: 0,
+  alg: "",
+  status: "front",
+  id: String(resource.id),
+  bitrate: resource.bitrate,
+  type: resource.type,
+  ...(resource.type === "dj" && resource.categoryId !== undefined
+    ? { categoryId: resource.categoryId }
+    : {}),
+  is_listentogether: 0,
+  source: source.name,
+  is_heart: 0,
+  resource_ratio: "",
+  resource_time: resource.time,
+  musiceffect_id: "",
+  app_mode: 2,
+  bitrate_level: resource.level,
+  vipType: ctx.auth.vipType,
+  fee: resource.fee,
+  file: 4,
+  rightSource: 0,
+  sourceId: source.id,
+  sourcetype: source.type,
+  libra_abt: "",
+  channel: ctx.app.channel,
+  curStartChannel: "",
+});
 
 export const buildPld = (
   ctx: PlaybackLogContext,
   resource: PlaybackLogResource,
   source: PlaybackLogSource,
   played: number,
-): Record<string, unknown> => {
-  return {
-    mode: "circulation",
-    download: 0,
-    alg: "",
-    status: "front",
-    id: String(resource.id),
-    time: played,
-    type: resource.type,
-    ...(resource.type === "dj" && resource.categoryId !== undefined
-      ? { categoryId: resource.categoryId }
-      : {}),
-    is_listentogether: 0,
-    source: source.name,
-    is_heart: 0,
-    realtime: played,
-    resource_ratio: "",
-    resource_time: resource.time,
-    musiceffect_id: "1001",
-    app_mode: 1,
-    lyriceffect: "default",
-    displayMode: "classic",
-    bitrate: resource.bitrate,
-    bitrate_level: resource.level,
-    vipType: ctx.auth.vipType,
-    fee: resource.fee,
-    file: 4,
-    rightSource: 0,
-    sourceId: source.id,
-    sourcetype: source.type,
-    end: "interrupt",
-    libra_abt: "",
-    channel: ctx.app.channel,
-    curStartChannel: "",
-  };
-};
+): Record<string, unknown> => ({
+  mode: "circulation",
+  download: 0,
+  alg: "",
+  status: "front",
+  id: String(resource.id),
+  time: played,
+  type: resource.type,
+  ...(resource.type === "dj" && resource.categoryId !== undefined
+    ? { categoryId: resource.categoryId }
+    : {}),
+  is_listentogether: 0,
+  source: source.name,
+  is_heart: 0,
+  realtime: played,
+  resource_ratio: "",
+  resource_time: resource.time,
+  musiceffect_id: "1001",
+  app_mode: 1,
+  lyriceffect: "default",
+  displayMode: "classic",
+  bitrate: resource.bitrate,
+  bitrate_level: resource.level,
+  vipType: ctx.auth.vipType,
+  fee: resource.fee,
+  file: 4,
+  rightSource: 0,
+  sourceId: source.id,
+  sourcetype: source.type,
+  end: "interrupt",
+  libra_abt: "",
+  channel: ctx.app.channel,
+  curStartChannel: "",
+});

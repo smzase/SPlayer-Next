@@ -1,4 +1,4 @@
-import type { NeteasePlaybackSource, Track } from "@shared/types/player";
+import type { PlaybackContext, Track } from "@shared/types/player";
 import type { TaskbarPlayMode, TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
 import {
   nextTaskbarPlayMode,
@@ -42,6 +42,8 @@ import i18n from "@/i18n";
 interface LoadRuntimeOptions {
   /** 是否抑制错误提示 */
   suppressErrorToast?: boolean;
+  /** 本次播放的来源上下文 */
+  context?: PlaybackContext;
 }
 
 /** 单次音源兜底过程的重试状态 */
@@ -143,7 +145,11 @@ export const load = async (
     if (meta) void coverLoader.loadCoverForTrack(meta);
   }
   try {
-    const result = await window.api.player.load(source, { autoPlay, meta });
+    const result = await window.api.player.load(source, {
+      autoPlay,
+      meta,
+      context: options.context,
+    });
     // 竞态保护
     if (token !== loadToken) return { ok: false };
     if (result.success && result.data) {
@@ -223,12 +229,14 @@ const shouldSuppressLoadError = (resolved: ResolvedTrackSource): boolean =>
 /**
  * 解析并加载 Track，遇到可兜底的音源失败时继续尝试下一个来源
  * @param track - 要加载的 Track
+ * @param context - 本次播放的来源上下文
  * @param autoPlay - 是否自动播放
  * @param shouldContinue - 竞态检查，返回 false 时放弃本轮加载
  * @param retryOnAnyFailure - 是否对任意加载失败继续换源
  */
 const loadTrackSourceWithFallback = async (
   track: Track,
+  context: PlaybackContext | undefined,
   autoPlay: boolean,
   shouldContinue: () => boolean,
   retryOnAnyFailure = false,
@@ -244,6 +252,7 @@ const loadTrackSourceWithFallback = async (
     if (!resolved) return { status: "unresolved" };
     const result = await load(resolved.source, autoPlay, track, {
       suppressErrorToast: usingInitial || shouldSuppressLoadError(resolved),
+      context,
     });
     if (!shouldContinue()) return { status: "cancelled" };
     // 预载 URL 可能已经过期，非本地来源失败后重新解析一次最新地址
@@ -268,8 +277,9 @@ const loadTrackSourceWithFallback = async (
  * 加载指定 Track 到播放器
  * 乐观更新：立即显示歌曲信息，快速切歌时只有最后一次 load 生效
  * @param track - 要播放的 Track，为 null 时忽略
+ * @param context - 本次播放的来源上下文
  */
-const loadTrack = async (track: Track | null): Promise<void> => {
+const loadTrack = async (track: Track | null, context?: PlaybackContext): Promise<void> => {
   if (!track) return;
   // Fuck DJ Mode
   const settings = useSettingsStore();
@@ -281,7 +291,9 @@ const loadTrack = async (track: Track | null): Promise<void> => {
   // 消费预载结果
   const preloaded = consumePreloadedTrack(track);
   // 乐观更新
-  useMediaStore().setTrack(track);
+  const media = useMediaStore();
+  media.setTrack(track);
+  media.setPlaybackContext(context);
   lyricLoader.beginLoad();
   resetForLoad(track.duration ?? 0);
   void window.api.player.stop();
@@ -289,6 +301,7 @@ const loadTrack = async (track: Track | null): Promise<void> => {
   let shouldSkip = false;
   const loaded = await loadTrackSourceWithFallback(
     track,
+    context,
     true,
     () => myToken === trackToken,
     false,
@@ -340,6 +353,7 @@ export const reloadCurrentTrack = async (forcePlay?: boolean): Promise<boolean> 
   status.trackLoading = true;
   const loaded = await loadTrackSourceWithFallback(
     track,
+    media.playbackContext,
     false,
     () => myToken === trackToken,
     true,
@@ -399,7 +413,7 @@ export const recoverFromSourceFailure = async (): Promise<void> => {
 export const play = async (): Promise<void> => {
   const status = useStatusStore();
   if (status.state === "stopped" && status.currentTrack) {
-    await loadTrack(status.currentTrack);
+    await loadTrack(status.currentTrack, status.currentPlaybackContext);
     return;
   }
   const prev = status.state;
@@ -575,12 +589,12 @@ export const switchDevice = async (deviceName: string | null): Promise<void> => 
  * 设置队列并从指定位置开始播放
  * @param items - 歌曲列表
  * @param startIndex - 起始播放位置，默认 0
- * @param playbackSource - 网易云播放来源上下文
+ * @param context - 队列中曲目共用的播放来源上下文
  */
 export const playFrom = async (
   items: readonly Track[],
   startIndex = 0,
-  playbackSource?: NeteasePlaybackSource,
+  context?: PlaybackContext,
 ): Promise<void> => {
   if (items.length === 0) return;
   const status = useStatusStore();
@@ -588,19 +602,9 @@ export const playFrom = async (
   // 退出特殊模式
   status.heartMode = false;
   status.fmMode = false;
-  const tracks = playbackSource
-    ? items.map((track) =>
-        track.source === "netease"
-          ? {
-              ...track,
-              playbackSource: { ...track.playbackSource, ...playbackSource },
-            }
-          : track,
-      )
-    : items;
-  const idx = Math.max(0, Math.min(startIndex, tracks.length - 1));
-  const isSameTrack = media.track?.id === tracks[idx]?.id;
-  queue.setQueue(tracks);
+  const idx = Math.max(0, Math.min(startIndex, items.length - 1));
+  const isSameTrack = media.track?.id === items[idx]?.id;
+  queue.setQueue(items, context);
   status.playIndex = idx;
   if (status.shuffleMode === "on") {
     queue.shuffleQueue(status.playIndex);
@@ -609,7 +613,7 @@ export const playFrom = async (
   if (isSameTrack) {
     if (!status.isPlaying) play();
   } else {
-    await loadTrack(status.currentTrack);
+    await loadTrack(status.currentTrack, status.currentPlaybackContext);
   }
 };
 
@@ -689,7 +693,7 @@ export const playHeartMode = async (tracks: readonly Track[]): Promise<void> => 
   // 心动 / FM 互斥
   status.fmMode = false;
   syncPlayMode();
-  await loadTrack(status.currentTrack);
+  await loadTrack(status.currentTrack, status.currentPlaybackContext);
 };
 
 /** 退出心动模式，保留当前队列继续播放 */
@@ -741,7 +745,7 @@ export const nextTrack = async (): Promise<void> => {
   } else {
     status.playIndex++;
   }
-  await loadTrack(status.currentTrack);
+  await loadTrack(status.currentTrack, status.currentPlaybackContext);
 };
 
 /**
@@ -759,7 +763,7 @@ export const playAtIndex = async (index: number): Promise<void> => {
   // 退出 FM
   status.fmMode = false;
   status.playIndex = index;
-  await loadTrack(status.currentTrack);
+  await loadTrack(status.currentTrack, status.currentPlaybackContext);
 };
 
 /**
@@ -778,7 +782,7 @@ export const prevTrack = async (): Promise<void> => {
   if (status.fmMode) return;
   if (queue.queueLength.value === 0) return;
   status.playIndex = status.playIndex > 0 ? status.playIndex - 1 : queue.queueLength.value - 1;
-  await loadTrack(status.currentTrack);
+  await loadTrack(status.currentTrack, status.currentPlaybackContext);
 };
 
 /** 队列播放结束，通知主进程停止并更新状态 */
@@ -920,7 +924,7 @@ export const removeFromQueue = async (index: number): Promise<void> => {
     }
     // 索引越界则回到首位
     if (status.playIndex >= queue.queueLength.value) status.playIndex = 0;
-    await loadTrack(status.currentTrack);
+    await loadTrack(status.currentTrack, status.currentPlaybackContext);
   }
 };
 
@@ -958,14 +962,20 @@ export const purgeDeletedTracks = async (ids: readonly string[]): Promise<void> 
  * 队列中已有同 ID 歌曲时移动到目标位置
  * @param item - 要插入的歌曲
  * @param afterIndex - 插入到此索引之后，默认为当前播放位置之后
+ * @param context - 播放来源上下文
  * @returns 歌曲在队列中的实际索引
  */
-export const insertToQueue = (item: Track, afterIndex?: number): number => {
+export const insertToQueue = (
+  item: Track,
+  afterIndex?: number,
+  context?: PlaybackContext,
+): number => {
   const status = useStatusStore();
   const len = queue.queue.value.length;
   const raw = afterIndex ?? status.playIndex + 1;
   const existingIdx = queue.findTrackIndex(item.id);
   if (existingIdx !== -1) {
+    queue.updateQueueItem(existingIdx, item, context);
     // 移动：目标需 clamp 到 length-1
     const safeAt = Math.max(0, Math.min(raw, len - 1));
     if (existingIdx === safeAt) return existingIdx;
@@ -974,7 +984,7 @@ export const insertToQueue = (item: Track, afterIndex?: number): number => {
   }
   // 插入：可以追加到末尾，clamp 到 length
   const safeAt = Math.max(0, Math.min(raw, len));
-  queue.insertToQueue(item, safeAt);
+  queue.insertToQueue(item, safeAt, context);
   if (safeAt <= status.playIndex) status.playIndex++;
   return safeAt;
 };
@@ -984,11 +994,13 @@ export const insertToQueue = (item: Track, afterIndex?: number): number => {
  * 跳过队列中已存在的（含当前播放曲目）与传入列表内部的重复
  * @param items - 要插入的曲目
  * @param position - 插入到当前曲目之后或队列末尾
+ * @param context - 播放来源上下文
  * @returns 实际插入的数量
  */
 export const insertManyToQueue = (
   items: readonly Track[],
   position: "next" | "end" = "next",
+  context?: PlaybackContext,
 ): number => {
   if (items.length === 0) return 0;
   const status = useStatusStore();
@@ -1001,7 +1013,7 @@ export const insertManyToQueue = (
   }
   if (fresh.length === 0) return 0;
   const insertAt = position === "end" ? queue.queue.value.length : status.playIndex + 1;
-  queue.insertManyToQueue(fresh, insertAt);
+  queue.insertManyToQueue(fresh, insertAt, context);
   return fresh.length;
 };
 
@@ -1009,28 +1021,18 @@ export const insertManyToQueue = (
  * 插入歌曲到当前位置之后并立即播放
  * 如果是当前正在播放的歌曲则继续播放，不重新加载
  */
-export const playNow = async (
-  item: Track,
-  playbackSource?: NeteasePlaybackSource,
-): Promise<void> => {
+export const playNow = async (item: Track, context?: PlaybackContext): Promise<void> => {
   const status = useStatusStore();
   const media = useMediaStore();
-  const target =
-    playbackSource && item.source === "netease"
-      ? {
-          ...item,
-          playbackSource: { ...item.playbackSource, ...playbackSource },
-        }
-      : item;
   // 同一首歌且已成功加载
-  if (media.track?.id === target.id && status.currentSource) {
+  if (media.track?.id === item.id && status.currentSource) {
     if (!status.isPlaying) play();
     return;
   }
   // 退出 FM
   status.fmMode = false;
-  status.playIndex = insertToQueue(target);
-  await loadTrack(target);
+  status.playIndex = insertToQueue(item, undefined, context);
+  await loadTrack(item, context);
 };
 
 /**
@@ -1196,10 +1198,12 @@ export const initPlayer = async (): Promise<void> => {
   const lastTrack = status.currentTrack;
   if (lastTrack) {
     const lastPosition = status.position;
-    useMediaStore().setTrack(lastTrack);
+    media.setTrack(lastTrack);
+    media.setPlaybackContext(status.currentPlaybackContext);
     lyricLoader.beginLoad();
     const loaded = await loadTrackSourceWithFallback(
       lastTrack,
+      status.currentPlaybackContext,
       settings.system.player.autoPlay,
       () => true,
     );

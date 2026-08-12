@@ -35,10 +35,20 @@ import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { setOrpheusProtocolRegistered } from "@main/services/orpheus";
 import { setTaskbarThumbnailEnabled } from "@main/services/thumbnail";
 import { setWindowsVolumeSyncEnabled } from "@main/services/windowsVolumeSync";
+import { applyChannelChange } from "@main/services/updater";
+import type { UpdateChannel } from "@shared/types/settings";
 
-/** 配置写入后的副作用 */
-const applyConfigChange = (keyPath: string, value: unknown): void => {
+/**
+ * 应用配置写入后的副作用
+ * @param keyPath - 配置路径
+ * @param value - 新值
+ * @param previous - 写入前的旧值
+ */
+const applyConfigChange = (keyPath: string, value: unknown, previous: unknown): void => {
   switch (keyPath) {
+    case "update.channel":
+      applyChannelChange(previous as UpdateChannel, value as UpdateChannel);
+      break;
     case "media.systemMediaControls":
       value ? enableMedia() : disableMedia();
       break;
@@ -143,8 +153,17 @@ const applyConfigChange = (keyPath: string, value: unknown): void => {
 export const registerConfigIpc = (): void => {
   ipcMain.handle("config:get", (_event, keyPath: string) => store.get(keyPath as ConfigPath));
   ipcMain.handle("config:set", (_event, keyPath: string, value: unknown) => {
+    if (
+      keyPath === "update.channel" &&
+      value !== "stable" &&
+      value !== "beta" &&
+      value !== "alpha"
+    ) {
+      throw new Error(`无效的更新通道: ${String(value)}`);
+    }
+    const previous = store.get(keyPath as ConfigPath);
     store.set(keyPath, value);
-    applyConfigChange(keyPath, value);
+    applyConfigChange(keyPath, value, previous);
   });
   ipcMain.handle("config:getAll", () => store.store);
   ipcMain.handle("config:reset", () => store.clear());

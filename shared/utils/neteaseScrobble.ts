@@ -1,16 +1,18 @@
-import type { NeteasePlaybackSourceType, Track } from "../types/player";
+import type { PlaybackContext, PlaybackOriginType, Track, TrackFee } from "../types/player";
+
+export type NeteaseScrobbleSourceType = "song" | "list" | "album" | "artist" | "radio";
 
 export interface NeteaseScrobbleTrack {
   id: string;
   sourceId: string;
-  sourceType: NeteasePlaybackSourceType;
+  sourceType: NeteaseScrobbleSourceType;
   resourceType: "song" | "dj";
   categoryId?: number;
   title: string;
   artist: string;
   bitrate: number;
   level: string;
-  fee: number;
+  fee: TrackFee;
   durationSec: number;
 }
 
@@ -36,14 +38,23 @@ const toLevel = (track: Track): string => {
   return "higher";
 };
 
+const toNeteaseSourceType = (type: PlaybackOriginType): NeteaseScrobbleSourceType => {
+  if (type === "track") return "song";
+  if (type === "playlist") return "list";
+  if (type === "album" || type === "artist" || type === "radio") return type;
+  return "song";
+};
+
 /**
  * 从播放曲目生成网易云打卡元数据
  * @param track - 当前播放曲目
+ * @param context - 本次播放的来源上下文
  * @param durationMs - 引擎确认后的时长
  * @returns 网易云曲目返回打卡元数据，其余来源返回 null
  */
 export const toNeteaseScrobbleTrack = (
   track: Track | null,
+  context: PlaybackContext | undefined,
   durationMs: number,
 ): NeteaseScrobbleTrack | null => {
   if (!track || track.source !== "netease") return null;
@@ -51,14 +62,24 @@ export const toNeteaseScrobbleTrack = (
   if (!trackId) return null;
   const voiceId = asNumericId(track.extId);
   const id = voiceId ?? trackId;
-  const contextId = asNumericId(track.playbackSource?.id);
+  const neteaseContext =
+    context?.provider === "netease" && context.originType !== "page" ? context : undefined;
+  const contextId = asNumericId(neteaseContext?.originId ?? track.playbackSource?.id);
   const radioId = asNumericId(track.album?.id);
   return {
     id,
     sourceId: contextId ?? (voiceId ? radioId : null) ?? id,
-    sourceType: voiceId ? "radio" : contextId ? (track.playbackSource?.type ?? "song") : "song",
+    sourceType: voiceId
+      ? "radio"
+      : contextId
+        ? neteaseContext
+          ? toNeteaseSourceType(neteaseContext.originType)
+          : (track.playbackSource?.type ?? "song")
+        : "song",
     resourceType: voiceId ? "dj" : "song",
-    categoryId: voiceId ? track.playbackSource?.categoryId : undefined,
+    ...(voiceId && track.playbackSource?.categoryId !== undefined
+      ? { categoryId: track.playbackSource.categoryId }
+      : {}),
     title: track.title,
     artist: track.artists.map((artist) => artist.name).join(" / "),
     bitrate: toBitrate(track),

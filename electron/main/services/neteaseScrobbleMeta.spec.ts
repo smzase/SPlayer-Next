@@ -21,7 +21,7 @@ describe("网易云听歌打卡元数据", () => {
   });
 
   it("没有播放上下文时以歌曲自身作为来源", () => {
-    expect(toNeteaseScrobbleTrack(track, 180000)).toMatchObject({
+    expect(toNeteaseScrobbleTrack(track, undefined, 180000)).toMatchObject({
       id: "123",
       sourceId: "123",
       sourceType: "song",
@@ -38,6 +38,7 @@ describe("网易云听歌打卡元数据", () => {
     expect(
       toNeteaseScrobbleTrack(
         { ...track, playbackSource: { id: sourceId, type: sourceType } },
+        undefined,
         180000,
       ),
     ).toMatchObject({
@@ -58,6 +59,7 @@ describe("网易云听歌打卡元数据", () => {
           album: { id: "9988", name: "测试播客" },
           playbackSource: { id: "9988", type: "radio", categoryId: 7 },
         },
+        undefined,
         180000,
       ),
     ).toMatchObject({
@@ -79,6 +81,7 @@ describe("网易云听歌打卡元数据", () => {
           album: { id: "9988", name: "测试播客" },
           playbackSource: undefined,
         },
+        undefined,
         180000,
       ),
     ).toMatchObject({
@@ -93,6 +96,7 @@ describe("网易云听歌打卡元数据", () => {
     expect(
       toNeteaseScrobbleTrack(
         { ...track, playbackSource: { id: "playlist:test", type: "list" } },
+        undefined,
         180000,
       ),
     ).toMatchObject({
