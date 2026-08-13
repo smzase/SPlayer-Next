@@ -77,7 +77,7 @@ export const startMcpServer = (): Promise<McpStatus> => {
       }
       return endpoint.handle(c.req.raw);
     });
-    app.get("/", (c) => c.text("SPlayer Next MCP server"));
+    app.get("/", (c) => c.text("SPlayer Next Plus MCP server"));
 
     let settled = false;
     const server = serve({ fetch: app.fetch, port, hostname: "127.0.0.1" }) as Server;

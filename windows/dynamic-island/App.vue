@@ -91,14 +91,14 @@ const currentLine = computed<LyricLine | null>(() => {
 /* 备用文本 */
 const fallbackText = computed<string>(() => {
   const t = track.value;
-  if (!t) return "SPlayer Next";
+  if (!t) return "SPlayer Next Plus";
   return artistsText.value ? `${t.title} - ${artistsText.value}` : t.title;
 });
 
 /* 实际显示的内容 */
 const displayLine = shallowRef<LyricLine | null>(null);
 /* 备用文本 */
-const displayFallback = ref("SPlayer Next");
+const displayFallback = ref("SPlayer Next Plus");
 /* 当前行索引 */
 const displayIndex = ref(-1);
 /* 副行文本 */

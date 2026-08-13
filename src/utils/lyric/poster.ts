@@ -255,7 +255,7 @@ export const createLyricPoster = async (options: LyricPosterOptions): Promise<Bl
   ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
   ctx.font = MARK_FONT;
   ctx.textAlign = "center";
-  ctx.fillText("Made by SPlayer Next", WIDTH / 2, totalHeight - PAD_BOTTOM - WATERMARK_H);
+  ctx.fillText("Made by SPlayer Next Plus", WIDTH / 2, totalHeight - PAD_BOTTOM - WATERMARK_H);
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

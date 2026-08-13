@@ -290,7 +290,7 @@ const controlsVisible = computed(() =>
 );
 const songInfoVisible = computed(() => !config.pureLyricMode && controlsVisible.value);
 
-const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next");
+const titleText = computed<string>(() => track.value?.title ?? "SPlayer Next Plus");
 const artistsText = computed<string>(() => formatArtists(track.value?.artists) || "未知艺术家");
 
 const effectiveTheme = computed<"light" | "dark">(() => {

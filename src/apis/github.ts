@@ -1,3 +1,5 @@
+import { REPO_URL } from "@/utils/config";
+
 /**
  * GitHub 仓库相关接口
  */
@@ -12,8 +14,8 @@ export interface Contributor {
   avatar: string;
 }
 
-/* 仓库标识 */
-const repoSlug = "SPlayer-Dev/SPlayer-Next";
+/** 仓库标识 */
+const repoSlug = new URL(REPO_URL).pathname.replace(/^\/|\/$/g, "");
 
 /**
  * 获取仓库贡献者列表

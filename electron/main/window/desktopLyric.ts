@@ -212,7 +212,7 @@ export const createDesktopLyricWindow = (): BrowserWindow => {
     minWidth: MIN_WIDTH,
     minHeight: initialHeight,
     maxHeight: initialHeight,
-    title: "SPlayer-Next - Desktop Lyric",
+    title: "SPlayer-Next-Plus - Desktop Lyric",
     frame: false,
     transparent: true,
     hasShadow: false,

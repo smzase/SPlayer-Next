@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "要发布的标签（例如 v1.1.0-beta.1 或 v1.1.0-alpha.1）"
+        description: "要发布的标签（缺失时从所选分支自动创建）"
         required: true
         type: string
 
@@ -19,6 +19,8 @@ permissions:
 env:
   NODE_VERSION: 22.x
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RELEASE_REPOSITORY: ${{ github.repository }}
+  RELEASE_SOURCE: ${{ github.sha }}
 
 # 同一个 tag 的发布串行执行，避免并发上传资源产生竞态
 concurrency:
@@ -26,9 +28,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 构建前只校验版本，标签在全部构建成功后随 Release 一起创建
+  validate:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_SOURCE }}
+
+      - name: Verify release metadata
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED_TAG="v$VERSION"
+          if [ "$RELEASE_TAG" != "$EXPECTED_TAG" ]; then
+            echo "标签 $RELEASE_TAG 与 package.json 版本 $EXPECTED_TAG 不一致"
+            exit 1
+          fi
+          case "$VERSION" in
+            *-alpha|*-alpha.*|*-beta|*-beta.*) ;;
+            *-*)
+              echo "不支持的预发布版本格式: $VERSION"
+              exit 1
+              ;;
+          esac
+
   # 各平台/架构在对应的原生 runner 上独立构建
   build:
     name: Build on ${{ matrix.name }}
+    needs: validate
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -56,7 +88,7 @@ jobs:
       - name: Check out git repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_SOURCE }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -163,7 +195,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Next-${{ matrix.name }}
+          name: SPlayer-Next-Plus-${{ matrix.name }}
           path: dist/*.*
 
   # 合并多架构更新清单并创建 GitHub 草稿 Release
@@ -177,7 +209,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_SOURCE }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -233,16 +265,28 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          TAG_SHA="$(git ls-remote origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}" | tail -n 1 | cut -f1)"
+          if [ -n "$TAG_SHA" ] && [ "$TAG_SHA" != "$SOURCE_SHA" ]; then
+            echo "标签 $RELEASE_TAG 已指向 $TAG_SHA，当前发行提交为 $SOURCE_SHA"
+            exit 1
+          fi
+
           # 重跑场景：若同名 release 已存在则先删除，避免脏状态（保留 tag）
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --yes
+          fi
+          if [ -n "$TAG_SHA" ]; then
+            TAG_OPTIONS=(--verify-tag)
+          else
+            TAG_OPTIONS=(--target "$SOURCE_SHA")
           fi
           if [ "$UPDATE_CHANNEL" != "latest" ]; then
             gh release create "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "$RELEASE_TAG" \
               --generate-notes \
-              --verify-tag \
+              "${TAG_OPTIONS[@]}" \
               --prerelease \
               release-assets/*
           else
@@ -250,7 +294,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$RELEASE_TAG" \
               --generate-notes \
-              --verify-tag \
+              "${TAG_OPTIONS[@]}" \
               --draft \
               release-assets/*
           fi

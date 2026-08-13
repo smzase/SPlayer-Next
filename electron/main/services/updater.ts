@@ -7,6 +7,8 @@ import { updaterLog } from "@main/utils/logger";
 import type { UpdateEvent, UpdateMeta } from "@shared/types/update";
 import type { UpdateChannel } from "@shared/types/settings";
 
+declare const __APP_RELEASES_URL__: string;
+
 const { autoUpdater } = electronUpdater;
 
 /**
@@ -16,7 +18,7 @@ const { autoUpdater } = electronUpdater;
 const canSelfInstall = !isMac && !isPortable && !isAppX;
 
 /** Releases 页 */
-const RELEASES_URL = "https://github.com/SPlayer-Dev/SPlayer-Next/releases";
+const RELEASES_URL = __APP_RELEASES_URL__;
 
 /** Microsoft Store 更新页 */
 const STORE_UPDATES_URL = "ms-windows-store://updates";

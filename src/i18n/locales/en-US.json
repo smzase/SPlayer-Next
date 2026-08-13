@@ -19,7 +19,7 @@
     "finish": "Finish",
     "footer": "You can adjust anything skipped here anytime in Settings",
     "welcome": {
-      "title": "Welcome to SPlayer-Next",
+      "title": "Welcome to SPlayer-Next-Plus",
       "subtitle": "A modern desktop music player — a few quick steps and you're ready",
       "start": "Get Started",
       "features": {
@@ -50,7 +50,7 @@
     },
     "library": {
       "title": "Local Music Library",
-      "subtitle": "Add folders to scan and SPlayer-Next will index them automatically. You can add more later."
+      "subtitle": "Add folders to scan and SPlayer-Next-Plus will index them automatically. You can add more later."
     },
     "streaming": {
       "title": "Streaming Servers",
@@ -72,7 +72,7 @@
     },
     "hotkeys": {
       "title": "Keyboard Shortcuts",
-      "subtitle": "SPlayer-Next ships with complete playback shortcuts you can use whenever you need them.",
+      "subtitle": "SPlayer-Next-Plus ships with complete playback shortcuts you can use whenever you need them.",
       "tips": {
         "global": {
           "title": "Global shortcuts",

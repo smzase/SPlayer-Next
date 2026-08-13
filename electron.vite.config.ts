@@ -11,6 +11,11 @@ import RekaResolver from "reka-ui/resolver";
 import Components from "unplugin-vue-components/vite";
 import pkg from "./package.json" with { type: "json" };
 
+const releaseRepository = process.env.RELEASE_REPOSITORY;
+const repositoryUrl = releaseRepository
+  ? `https://github.com/${releaseRepository}`
+  : pkg.repository.url;
+
 /** 获取当前 git 提交 */
 const getGitCommit = (): string => {
   try {
@@ -32,6 +37,9 @@ const getGitDate = (): string => {
 export default defineConfig({
   main: {
     publicDir: resolve(__dirname, "public"),
+    define: {
+      __APP_RELEASES_URL__: JSON.stringify(`${repositoryUrl}/releases`),
+    },
     build: {
       rollupOptions: {
         input: {
@@ -65,7 +73,7 @@ export default defineConfig({
     root: ".",
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
-      __APP_REPO_URL__: JSON.stringify(pkg.repository.url),
+      __APP_REPO_URL__: JSON.stringify(repositoryUrl),
       __APP_REPO_NAME__: JSON.stringify(pkg.productName),
       __APP_AUTHOR__: JSON.stringify(pkg.author.name),
       __APP_HOMEPAGE__: JSON.stringify(pkg.homepage),

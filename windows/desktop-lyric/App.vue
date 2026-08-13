@@ -87,7 +87,7 @@ const displayItems = computed<DisplayItem[]>(() => {
   const lines = lyric.value;
   const cur = track.value;
   // 无曲目
-  if (!cur) return placeholder("ph-idle", "SPlayer Next Desktop Lyric");
+  if (!cur) return placeholder("ph-idle", "SPlayer Next Plus Desktop Lyric");
   // 占位歌曲信息
   const trackKey = cur.id ?? cur.title;
   const subText = artistsText.value || undefined;
@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
           </svg>
         </button>
         <div class="song-info">
-          <div class="song-title">{{ track?.title ?? "SPlayer Next Desktop Lyric" }}</div>
+          <div class="song-title">{{ track?.title ?? "SPlayer Next Plus Desktop Lyric" }}</div>
           <div v-if="track" class="song-artist">{{ artistsText || "未知艺术家" }}</div>
         </div>
       </div>

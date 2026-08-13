@@ -2,6 +2,11 @@ import { app } from "electron";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 
+// Plus 版本继续使用原数据目录，覆盖升级后无需迁移配置、数据库和登录状态。
+if (!process.env.PORTABLE_EXECUTABLE_DIR) {
+  app.setPath("userData", path.join(app.getPath("appData"), "SPlayer-Next"));
+}
+
 /**
  * 便携模式：将 userData 重定向到 exe 同级 UserData 目录
  *

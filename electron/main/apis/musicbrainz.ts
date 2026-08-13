@@ -2,11 +2,11 @@ import { net } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { isConfiguredCacheExpired } from "@main/utils/cacheRefresh";
-import { getArtistCacheDir } from "@main/utils/config";
+import { appVersion, getArtistCacheDir } from "@main/utils/config";
 import { toCacheUrl } from "@main/utils/protocol";
 
 /** MusicBrainz User-Agent */
-const UA = "SPlayer-Next/1.0.0 (https://github.com/imsyy/SPlayer)";
+const UA = `SPlayer-Next-Plus/${appVersion} (https://github.com/smzase/SPlayer-Next-Plus)`;
 
 /** 预取并发数 */
 const PREFETCH_CONCURRENCY = 2;

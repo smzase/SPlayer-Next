@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-SPlayer-Next — desktop music player on **Electron + Vue 3 + TypeScript**, with Rust native modules (NAPI-RS) for audio decoding, system media integration, and Windows taskbar lyric. Successor to SPlayer.
+SPlayer-Next-Plus — desktop music player on **Electron + Vue 3 + TypeScript**, with Rust native modules (NAPI-RS) for audio decoding, system media integration, and Windows taskbar lyric. Successor to SPlayer.
 
 ## Commands
 
@@ -21,6 +21,16 @@ pnpm build:native         # Rust only; add `--dev` for debug
 `SKIP_NATIVE_BUILD=true` skips Rust during dev.
 
 `audio-engine` static-links FFmpeg via the `ffmpeg_audio` crate (vendor zip + cc-built at compile time). Zero environment dependency — no `FFMPEG_DIR` / `PKG_CONFIG_PATH`, no system FFmpeg required.
+
+### Fork Release Compatibility
+
+- The user-facing product name is `SPlayer-Next-Plus`, and releases are published from `smzase/SPlayer-Next-Plus`.
+- Preserve the existing `appId`, Windows NSIS GUID, AppUserModelId, protocol identifiers, and the `SPlayer-Next` userData directory so upgrades continue to use existing settings, databases, and login state. Do not change them unless breaking compatibility is explicitly requested.
+- `dev.yml` is used for snapshot builds and does not require a version bump for every build.
+- `release.yml` requires `package.json.version` to match the release tag exactly. Increment the version for every new release.
+- GitHub Actions uses `RELEASE_REPOSITORY=${{ github.repository }}` to generate the update source for the current fork. Local development update settings live in `dev-app-update.yml`.
+- When merging upstream, preserve fork-only features. If both sides implement the same feature, integrate the fork's additional behavior into the newer upstream architecture instead of discarding it.
+- Do not commit generated build artifacts such as `dist/`, `out/`, or `win-unpacked.tmp`. Publish distributable files through GitHub Actions artifacts or GitHub Releases instead.
 
 ## Architecture
 

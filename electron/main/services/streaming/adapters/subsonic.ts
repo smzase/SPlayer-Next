@@ -5,7 +5,7 @@ import type { StreamingRuntimeConfig } from "@shared/types/streaming";
 import type { StreamingAdapter } from "./types";
 
 const API_VERSION = "1.16.1";
-const CLIENT_NAME = "SPlayer-Next";
+const CLIENT_NAME = "SPlayer-Next-Plus";
 const REQUEST_TIMEOUT_MS = 15_000;
 
 interface SubsonicSong {

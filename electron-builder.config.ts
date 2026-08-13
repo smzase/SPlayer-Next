@@ -5,9 +5,16 @@ const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version 
 const prereleaseChannel = /-(alpha|beta)(?:\.|$)/.exec(packageVersion)?.[1];
 const inferredUpdateChannel = prereleaseChannel ?? "latest";
 const updateChannel = process.env.UPDATE_CHANNEL ?? inferredUpdateChannel;
+const repositoryUrl = JSON.parse(readFileSync("package.json", "utf8")).repository.url as string;
+const defaultReleaseRepository = new URL(repositoryUrl).pathname.replace(/^\/|\/$/g, "");
+const releaseRepository = process.env.RELEASE_REPOSITORY ?? defaultReleaseRepository;
+const [releaseOwner, releaseRepo, ...unexpectedParts] = releaseRepository.split("/");
 
 if (updateChannel !== "latest" && updateChannel !== "beta" && updateChannel !== "alpha") {
   throw new Error(`不支持的更新通道: ${updateChannel}`);
+}
+if (!releaseOwner || !releaseRepo || unexpectedParts.length > 0) {
+  throw new Error(`无效的发行仓库: ${releaseRepository}`);
 }
 if (packageVersion.includes("-") && !prereleaseChannel) {
   throw new Error(`不支持的预发布版本格式: ${packageVersion}`);
@@ -17,8 +24,9 @@ if (updateChannel !== inferredUpdateChannel) {
 }
 
 const config: Configuration = {
+  // 保留既有安装身份，使 Plus 版本覆盖升级时继续使用原安装和配置。
   appId: "top.imsyy.splayer-next",
-  productName: "SPlayer-Next",
+  productName: "SPlayer-Next-Plus",
   copyright: "Copyright © imsyy 2025",
   directories: { buildResources: "public" },
   afterPack: "./scripts/after-pack.ts",
@@ -70,7 +78,7 @@ const config: Configuration = {
     },
   ],
   win: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Next-Plus",
     icon: "public/icons/logo.ico",
     artifactName: "${productName}-${version}-${arch}.${ext}",
     forceCodeSigning: false,
@@ -83,8 +91,8 @@ const config: Configuration = {
     installerIcon: "public/icons/favicon.ico",
     uninstallerIcon: "public/icons/favicon.ico",
     artifactName: "${productName}-${version}-${arch}-setup.${ext}",
-    shortcutName: "SPlayer Next",
-    uninstallDisplayName: "SPlayer Next",
+    shortcutName: "SPlayer Next Plus",
+    uninstallDisplayName: "SPlayer Next Plus",
     createDesktopShortcut: "always",
     allowElevation: true,
     allowToChangeInstallationDirectory: true,
@@ -94,7 +102,7 @@ const config: Configuration = {
     artifactName: "${productName}-${version}-${arch}-portable.${ext}",
   },
   mac: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Next-Plus",
     icon: "public/icons/icon.icns",
     artifactName: "${productName}-${version}-${arch}.${ext}",
     identity: null,
@@ -118,9 +126,9 @@ const config: Configuration = {
     artifactName: "${productName}-${version}-${arch}.${ext}",
   },
   linux: {
-    executableName: "SPlayer-Next",
+    executableName: "SPlayer-Next-Plus",
     icon: "public/icons/favicon-512x512.png",
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "${productName}-${version}-${arch}.${ext}",
     maintainer: "imsyy.top",
     category: "Audio;Music;AudioVideo;",
     target: ["AppImage", "deb", "rpm", "tar.gz", "pacman"],
@@ -128,10 +136,10 @@ const config: Configuration = {
     desktop: { entry: { MimeType: "x-scheme-handler/orpheus;" } },
   },
   appImage: {
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "${productName}-${version}-${arch}.${ext}",
   },
   pacman: {
-    artifactName: "${name}-${version}-${arch}.${ext}",
+    artifactName: "${productName}-${version}-${arch}.${ext}",
     depends: [
       "gtk3",
       "libnotify",
@@ -149,8 +157,8 @@ const config: Configuration = {
   },
   publish: {
     provider: "github",
-    owner: "SPlayer-Dev",
-    repo: "SPlayer-Next",
+    owner: releaseOwner,
+    repo: releaseRepo,
     channel: updateChannel,
   },
 };
