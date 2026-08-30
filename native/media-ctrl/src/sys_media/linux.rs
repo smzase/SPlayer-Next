@@ -287,7 +287,7 @@ async fn run_mpris_loop(
     let mut cover_guard: Option<NamedTempFile> = None;
 
     let pid = process::id();
-    let identity = format!("splayer-next.instance{pid}");
+    let identity = format!("splayer_next.instance{pid}");
 
     let player = Player::builder(&identity)
         .can_play(true)
@@ -296,7 +296,7 @@ async fn run_mpris_loop(
         .can_go_previous(true)
         .can_seek(true)
         .can_control(true)
-        .minimum_rate(0.2)
+        .minimum_rate(0.5)
         .maximum_rate(2.0)
         .playback_status(MprisPlaybackStatus::Stopped)
         .identity("SPlayer-Next")

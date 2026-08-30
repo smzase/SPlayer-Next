@@ -298,30 +298,32 @@ const codecLabel = (codec: string): string => {
               stroke-linejoin="round"
               vector-effect="non-scaling-stroke"
             />
-            <circle
-              v-if="peakHour"
-              :cx="hourlyPoints[peakHour.hour].x"
-              :cy="hourlyPoints[peakHour.hour].y"
-              r="3"
-              fill="rgb(var(--s-surface-panel))"
-              stroke="rgb(var(--s-primary))"
-              stroke-width="2"
-              vector-effect="non-scaling-stroke"
-            />
           </template>
         </svg>
+        <!-- 最高点指示点 -->
         <div
-          v-if="hourlyTotal > 0 && peakHour"
-          class="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md bg-primary px-2 py-1 text-[10px] font-semibold text-on-primary tabular-nums"
+          v-if="!loading && hourlyTotal > 0 && peakHour"
+          class="pointer-events-none absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-surface-panel shadow-sm"
+          :style="{
+            left: `${(hourlyPoints[peakHour.hour].x / 240) * 100}%`,
+            top: `${(hourlyPoints[peakHour.hour].y / 128) * 100}%`,
+          }"
+        />
+        <!-- 最高峰时段提示气泡 -->
+        <div
+          v-if="!loading && hourlyTotal > 0 && peakHour"
+          class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-center text-[10px] font-semibold text-on-primary tabular-nums shadow-md"
           :style="{
             left: `${(peakLabelX / 240) * 100}%`,
             top: `${(peakLabelY / 128) * 100}%`,
           }"
         >
-          <span class="block text-[9px] font-medium leading-none text-on-primary/70">
+          <span
+            class="block whitespace-nowrap text-[9px] font-medium leading-none text-on-primary/80"
+          >
             {{ t("stats.peakListening") }}
           </span>
-          <span class="mt-1 block text-xs leading-none">
+          <span class="mt-1 block whitespace-nowrap text-xs font-bold leading-none">
             {{ String(peakHour.hour).padStart(2, "0") }}:00
           </span>
         </div>

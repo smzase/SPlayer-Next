@@ -1,11 +1,19 @@
 use anyhow::Result;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 mod unsupported;
 #[cfg(target_os = "windows")]
 mod windows;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+use linux::Backend as SelectedBackend;
+#[cfg(target_os = "macos")]
+use macos::Backend as SelectedBackend;
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 use unsupported::Backend as SelectedBackend;
 #[cfg(target_os = "windows")]
 use windows::Backend as SelectedBackend;
@@ -51,7 +59,14 @@ mod tests {
 
     #[test]
     fn reports_platform_backend_support() {
-        assert_eq!(is_supported(), cfg!(target_os = "windows"));
+        assert_eq!(
+            is_supported(),
+            cfg!(any(
+                target_os = "windows",
+                target_os = "linux",
+                target_os = "macos"
+            ))
+        );
     }
 
     #[cfg(target_os = "windows")]

@@ -314,6 +314,8 @@ const playerCategory: SettingCategory = {
           type: "switch",
           binding: { store: "settings", path: "player.pauseOnDeviceSwitch" },
           defaultValue: false,
+          action: (enabled) =>
+            window.api.player.setPauseOnDeviceSwitch(Boolean(enabled)).then(() => {}),
         },
       ],
     },

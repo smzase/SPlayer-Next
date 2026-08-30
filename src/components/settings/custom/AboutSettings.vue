@@ -207,7 +207,7 @@ onMounted(async () => {
         >
           <SImg
             :src="dev.avatar"
-            fallback="/images/avatar.jpg"
+            fallback="./images/avatar.jpg"
             class="size-9 rounded-full shrink-0"
           />
           <div class="min-w-0">

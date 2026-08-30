@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "Library" });
+
 import type { PlaybackContext } from "@shared/types/player";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useLibraryStore } from "@/stores/library";

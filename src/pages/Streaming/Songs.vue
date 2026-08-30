@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "StreamingSongs" });
+
 import { useStreamingStore } from "@/stores/streaming";
 import SongList from "@/components/list/SongList.vue";
 import * as player from "@/core/player";

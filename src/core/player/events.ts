@@ -1,7 +1,6 @@
 import type { PlayerEvent } from "@shared/types/player";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
-import { useSettingsStore } from "@/stores/settings";
 import { useFavorite } from "@/composables/useFavorite";
 import * as playback from "@/services/playback";
 import * as autoClose from "@/services/autoClose";
@@ -78,6 +77,10 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       }
       status.duration = event.data.duration;
       status.volume = event.data.volume;
+      if (event.data.speed != null) {
+        status.speed = event.data.speed;
+        playback.setSpeed(event.data.speed);
+      }
       playback.setDuration(event.data.duration);
       playback.setPlaying(event.data.state === "playing");
       break;
@@ -162,14 +165,6 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       break;
     case "deviceChanged": {
       refreshDevices();
-      const settings = useSettingsStore();
-      if (
-        settings.player.pauseOnDeviceSwitch &&
-        settings.player.outputDevice === null &&
-        status.state === "playing"
-      ) {
-        await pause();
-      }
       break;
     }
   }

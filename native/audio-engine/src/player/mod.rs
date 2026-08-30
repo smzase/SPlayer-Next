@@ -5,13 +5,13 @@ use std::thread::JoinHandle;
 use anyhow::Result;
 use ffmpeg_audio::HttpCancelHandle;
 use parking_lot::Mutex;
-use rodio::Player as RodioPlayer;
 use tracing::{debug, info};
 
-use crate::audio_output::AudioOutput;
+use crate::audio_output::{AudioOutput, OutputFailureCallback};
 use crate::decoder;
 use crate::equalizer::{Equalizer, EQ_BAND_COUNT};
 use crate::fft::FftAnalyzer;
+use crate::playback::PlaybackHandle;
 use crate::shared::Shared;
 use crate::tempo::StretchProcessor;
 
@@ -26,19 +26,14 @@ pub use transition::{LoadedPlayback, SeekTake};
 
 /// 内部播放器，管理音频输出、解码和状态
 pub struct InnerPlayer {
-    /// 跨线程安全的音频输出包装：内部专用线程独占 cpal::Stream，
-    /// 此处只持有 Send 的 Mixer，保证 InnerPlayer 整体是 Send 的
+    /// 输出设备与配置句柄（不持有流），保证 InnerPlayer 整体是 Send 的
     output: Option<AudioOutput>,
     /// 使用 Arc 包装，允许 fade 线程在 Mutex 外操作音量
-    sink: Option<Arc<RodioPlayer>>,
+    playback: Option<Arc<PlaybackHandle>>,
     shared: Option<Arc<Shared>>,
     /// 解码线程句柄，join 后可回收 DecoderData 复用于 seek
     decoder_thread: Option<JoinHandle<decoder::DecoderData>>,
     fft: Arc<FftAnalyzer>,
-    /// 当前音频的采样率（seek 重建 DecoderSource 时需要）
-    audio_sample_rate: u32,
-    /// 当前音频的声道数
-    audio_channels: u16,
     /// 当前音频的时长（秒）
     audio_duration: f64,
     /// 原始封面数据缓存（load 时提取，getCoverRaw 时返回，避免重复打开文件）
@@ -67,8 +62,8 @@ pub struct InnerPlayer {
     /// FFT 推送定时器的停止信号和线程句柄
     fft_timer_stop: Option<Arc<AtomicBool>>,
     fft_timer_handle: Option<JoinHandle<()>>,
-    /// 用户选择的输出设备名称（None = 系统默认）
-    selected_device_name: Option<String>,
+    /// 用户选择的输出设备（设备 ID，None = 跟随系统默认）
+    selected_device: Option<String>,
     /// 音量归一化开关
     normalization_enabled: bool,
     /// 跨曲目共享的均衡器（load/seek 时交给 DSP 线程）
@@ -80,11 +75,13 @@ pub struct InnerPlayer {
     /// commit_loaded 比对 token 与最新值，不一致则该次加载已被新加载取代，需丢弃
     /// 用于防止快速切歌时旧 IO 完成后覆盖新音频的竞态
     load_token: Arc<AtomicU64>,
+    /// 当前输出流代次。错误回调仅允许上报与此值一致的输出，避免旧流销毁后的迟到事件重建新流。
+    output_generation: Arc<AtomicU64>,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
     pending_load_handle: Option<HttpCancelHandle>,
 }
 
-/// 编译期保证 `InnerPlayer: Send`：cpal::Stream（!Send）已通过 AudioOutput 隔离到专用线程，
+/// 编译期保证 `InnerPlayer: Send`：cpal::Stream 由 `PlaybackHandle` 持有且各后端均为 Send，
 /// 此处不再需要 `unsafe impl Send`。如果未来有人加了 !Send 字段，这条断言会编译失败提醒。
 const _: fn() = || {
     fn assert_send<T: Send>() {}
@@ -94,13 +91,39 @@ const _: fn() = || {
 impl InnerPlayer {
     /// 未初始化时通过 `AudioOutput::new` 懒构造音频输出。
     /// 设备失效时的重建由 `reinit_output` 显式处理，不在此函数内自动恢复
-    fn ensure_output(&mut self) -> Result<&AudioOutput> {
+    fn ensure_output(&mut self, requested_sample_rate: Option<u32>) -> Result<&AudioOutput> {
         if self.output.is_none() {
-            self.output = Some(AudioOutput::new(self.selected_device_name.as_deref())?);
+            let generation = self.reserve_output_generation();
+            let on_failure = self.make_failure_callback(generation);
+            self.output = Some(AudioOutput::new(
+                self.selected_device.as_deref(),
+                requested_sample_rate,
+                generation,
+                on_failure,
+            )?);
         }
         self.output
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("ensure_output 后置条件违反"))
+    }
+
+    /// 构造输出失败回调：只发送轻量 `PlayerEvent::OutputFailed`，
+    /// 禁止在实时错误线程做任何阻塞操作
+    pub fn make_failure_callback(&self, generation: u64) -> OutputFailureCallback {
+        let Some(cb) = self.event_callback.as_ref().map(Arc::clone) else {
+            return std::sync::Arc::new(|| {});
+        };
+        let active_generation = Arc::clone(&self.output_generation);
+        std::sync::Arc::new(move || {
+            if active_generation.load(Ordering::Acquire) == generation {
+                cb(PlayerEvent::OutputFailed);
+            }
+        })
+    }
+
+    /// 预留下一代输出流，并立即使旧输出的回调失效。
+    pub fn reserve_output_generation(&self) -> u64 {
+        self.output_generation.fetch_add(1, Ordering::AcqRel) + 1
     }
 
     /// 当前实际输出流采样率（播放重采样目标）
@@ -111,6 +134,14 @@ impl InnerPlayer {
             .unwrap_or(decoder::DEFAULT_TARGET_SAMPLE_RATE)
     }
 
+    /// 当前实际输出流声道数
+    pub fn output_channels(&self) -> u16 {
+        self.output
+            .as_ref()
+            .map(AudioOutput::channels)
+            .unwrap_or(decoder::DEFAULT_OUTPUT_CHANNELS)
+    }
+
     pub fn new() -> Result<Self> {
         // 延迟初始化：构造时不要求有音频设备，load 时再打开
         let output = None;
@@ -119,12 +150,10 @@ impl InnerPlayer {
 
         Ok(Self {
             output,
-            sink: None,
+            playback: None,
             shared: None,
             decoder_thread: None,
             fft: Arc::new(FftAnalyzer::new()),
-            audio_sample_rate: 0,
-            audio_channels: 0,
             audio_duration: 0.0,
             cover_raw: None,
             state: PlayerState::Idle,
@@ -141,32 +170,31 @@ impl InnerPlayer {
             fft_enabled: Arc::new(AtomicBool::new(false)),
             fft_timer_stop: None,
             fft_timer_handle: None,
-            selected_device_name: None,
+            selected_device: None,
             normalization_enabled: false,
-            equalizer: Arc::new(Mutex::new(Equalizer::new(initial_rate))),
+            equalizer: Arc::new(Mutex::new(Equalizer::new(
+                initial_rate,
+                decoder::DEFAULT_OUTPUT_CHANNELS,
+            ))),
             tempo: Arc::new(Mutex::new(StretchProcessor::new(
-                decoder::TARGET_CHANNELS,
+                decoder::DEFAULT_OUTPUT_CHANNELS,
                 initial_rate,
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
+            output_generation: Arc::new(AtomicU64::new(0)),
             pending_load_handle: None,
         })
     }
 
     /// 切换输出设备（下一次重建设备时生效）
-    pub fn set_output_device(&mut self, device_name: Option<String>) {
-        info!(device = ?device_name, "切换输出设备");
-        self.selected_device_name = device_name;
+    pub fn set_output_device(&mut self, device_id: Option<String>) {
+        info!(device = ?device_id, "切换输出设备");
+        self.selected_device = device_id;
     }
 
-    /// 获取当前选择的输出设备名称（None = 系统默认）
-    pub fn selected_device_name(&self) -> Option<&str> {
-        self.selected_device_name.as_deref()
-    }
-
-    /// 获取当前音频源
-    pub fn current_source(&self) -> Option<String> {
-        self.current_source.clone()
+    /// 获取当前选择的输出设备（None = 跟随系统默认）
+    pub fn selected_device(&self) -> Option<&str> {
+        self.selected_device.as_deref()
     }
 
     /// 注册事件回调（支持热替换：先停止旧的定时器/渐变，确保旧回调的 Arc 引用尽快释放）
@@ -189,18 +217,6 @@ impl InnerPlayer {
         self.emit(PlayerEvent::SourceError);
     }
 
-    /// 仅重建输出设备（系统休眠唤醒、设备热拔插等场景调用）
-    ///
-    /// 通过赋值新的 `AudioOutput` 触发旧 `AudioOutput` 的 `Drop`：旧 owner 线程
-    /// 退出 + 旧 `cpal::Stream` 在该线程内释放，再创建新 `AudioOutput`（新 owner 线程）。
-    /// 此函数仅替换输出设备，真正的状态恢复交由 NAPI 绑定层异步完成。
-    pub fn recreate_output_device(&mut self) -> Result<()> {
-        info!(device = ?self.selected_device_name, "开始重建音频输出");
-        self.output.take();
-        self.output = Some(AudioOutput::new(self.selected_device_name.as_deref())?);
-        Ok(())
-    }
-
     /// 设置封面缓存目录
     pub fn set_cover_cache_dir(&mut self, dir: String) {
         self.cover_cache_dir = Some(dir);
@@ -214,6 +230,11 @@ impl InnerPlayer {
     /// 暴露给 NAPI 绑定层：归一化开关
     pub fn is_normalization_enabled(&self) -> bool {
         self.normalization_enabled
+    }
+
+    /// 当前音频源路径/地址
+    pub fn current_source(&self) -> Option<&str> {
+        self.current_source.as_deref()
     }
 
     /// 恢复播放。Paused 时渐入恢复；Stopped/Idle/已播完时返回 Some(source)，
@@ -231,12 +252,17 @@ impl InnerPlayer {
             PlayerState::Playing => Ok(None),
             // 暂停状态：渐入恢复
             PlayerState::Paused => {
+                // 如果没有有效的播放链路或解码线程，交给调用方从当前音源重载复活
+                if self.playback.is_none() || self.decoder_thread.is_none() {
+                    return Ok(self.current_source.clone());
+                }
+
                 // 先取消未完成的渐出：否则其完成回调可能在 sink.play() 之后执行
                 // sink.pause()，导致状态 Playing 但实际无声
                 self.cancel_fade();
-                if let Some(ref sink) = self.sink {
-                    sink.set_volume(0.0);
-                    sink.play();
+                if let Some(ref playback) = self.playback {
+                    playback.set_volume(0.0);
+                    playback.play();
                 }
 
                 self.state = PlayerState::Playing;
@@ -268,16 +294,14 @@ impl InnerPlayer {
         });
 
         // 立即启动非阻塞渐出，避免被后续 stop_*_timer 的 join 阻塞
-        // fade 完成后在回调中执行 sink.pause + 恢复音量
-        let target_volume = self.target_volume;
-        let sink_for_callback = self.sink.as_ref().map(Arc::clone);
+        // fade 完成后在回调中执行 sink.pause（保持静音，不恢复音量以免串音或爆音）
+        let playback_for_callback = self.playback.as_ref().map(Arc::clone);
         self.start_fade(
-            target_volume,
+            self.target_volume,
             0.0,
             Some(Box::new(move || {
-                if let Some(sink) = sink_for_callback {
-                    sink.pause();
-                    sink.set_volume(target_volume);
+                if let Some(playback) = playback_for_callback {
+                    playback.pause();
                 }
             })),
         );
@@ -285,6 +309,35 @@ impl InnerPlayer {
         // 渐出已在后台运行，再同步停止定时器（join 开销不会影响音频淡出时序）
         self.stop_position_timer();
         self.stop_fft_timer();
+    }
+
+    /// 立即暂停播放，用于切换输出设备前阻止短暂串音
+    pub fn pause_immediately(&mut self) {
+        if self.state != PlayerState::Playing {
+            return;
+        }
+        self.cancel_fade();
+        if let Some(ref playback) = self.playback {
+            playback.pause();
+        }
+        self.state = PlayerState::Paused;
+        self.emit(PlayerEvent::StateChanged {
+            state: PlayerState::Paused,
+        });
+        self.stop_position_timer();
+        self.stop_fft_timer();
+    }
+
+    /// 恢复失败后保留当前曲目与位置，播放器进入暂停态
+    ///
+    /// 不转 Stopped（避免 JS 按"播放结束"自动切歌），等待有限重试或用户手动操作。
+    pub fn enter_paused_for_recovery(&mut self) {
+        if self.state != PlayerState::Paused {
+            self.state = PlayerState::Paused;
+            self.emit(PlayerEvent::StateChanged {
+                state: PlayerState::Paused,
+            });
+        }
     }
 
     /// 停止播放并释放资源
@@ -315,8 +368,8 @@ impl InnerPlayer {
             shared.stop();
         }
         // 4. 释放 Sink（drop DecoderSource，解除迭代器阻塞）
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
         // 5. 等待解码线程退出，回收 DecoderData（FFmpeg 资源在此 drop）
         if let Some(handle) = self.decoder_thread.take() {
@@ -334,8 +387,8 @@ impl InnerPlayer {
     /// 设置音量（0.0 ~ 1.0）
     pub fn set_volume(&mut self, volume: f32) {
         self.target_volume = volume;
-        if let Some(ref sink) = self.sink {
-            sink.set_volume(volume);
+        if let Some(ref playback) = self.playback {
+            playback.set_volume(volume);
         }
     }
 
@@ -384,8 +437,8 @@ impl InnerPlayer {
 
     /// 检查播放是否已结束
     pub fn is_finished(&self) -> bool {
-        match (&self.shared, &self.sink) {
-            (Some(shared), Some(sink)) => shared.is_done() && sink.empty(),
+        match (&self.shared, &self.playback) {
+            (Some(shared), Some(_)) => shared.is_all_consumed(),
             _ => false,
         }
     }
@@ -468,6 +521,7 @@ impl InnerPlayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn decode_failure_mid_stream_emits_source_error() {
@@ -500,5 +554,26 @@ mod tests {
             playback_completion_event(&shared, 0.0, 30.0),
             PlayerEvent::SourceError
         ));
+    }
+
+    #[test]
+    fn stale_output_failure_callback_is_ignored() {
+        let mut player = InnerPlayer::new().unwrap();
+        let calls = Arc::new(AtomicUsize::new(0));
+        let calls_for_event = Arc::clone(&calls);
+        player.set_event_callback(Arc::new(move |event| {
+            if matches!(event, PlayerEvent::OutputFailed) {
+                calls_for_event.fetch_add(1, Ordering::Relaxed);
+            }
+        }));
+
+        let generation = player.reserve_output_generation();
+        let callback = player.make_failure_callback(generation);
+        callback();
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+
+        player.reserve_output_generation();
+        callback();
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
     }
 }

@@ -1,7 +1,7 @@
 //! 变速 / 变调（Signalsmith Stretch 算法）
 //!
 //! 接入位置：`source.rs` 的 `DecoderSource::next()`，紧挨现有均衡器。
-//! 输入/输出都是交错 f32 立体声样本。
+//! 输入/输出都是交错 f32 多声道样本。
 //!
 //! 参数：
 //! - `speed`：[0.5, 2.0]，1.0 = 原速；通过 `process` 输入/输出长度比实现
@@ -21,7 +21,7 @@ const FLOAT_EQ_EPS: f32 = 1e-4;
 pub(crate) struct StretchProcessor {
     stretch: Stretch,
     channels: u16,
-    /// 当前 stretch 内核构建所用的采样率，set_sample_rate 比对以决定是否重建
+    /// 当前 stretch 内核构建所用的采样率
     sample_rate: u32,
     speed: f32,
     pitch_semitones: i8,
@@ -45,15 +45,14 @@ impl StretchProcessor {
         }
     }
 
-    /// 更新采样率（输出设备切换导致播放采样率变化时调用）
-    /// 采样率变了必须重建 stretch 内核——否则变速/变调的时间与音高换算全部偏移
-    /// 采样率不变时直接返回
-    pub(crate) fn set_sample_rate(&mut self, sample_rate: u32) {
-        if sample_rate == self.sample_rate {
+    /// 更新输出格式；采样率或声道数改变后必须重建 stretch 内核
+    pub(crate) fn set_output_format(&mut self, sample_rate: u32, channels: u16) {
+        if sample_rate == self.sample_rate && channels == self.channels {
             return;
         }
         self.sample_rate = sample_rate;
-        self.stretch = Stretch::preset_default(self.channels as u32, sample_rate);
+        self.channels = channels;
+        self.stretch = Stretch::preset_default(u32::from(channels), sample_rate);
         // 新内核 transpose 归零，强制按当前参数重新下发
         self.applied_transpose = 0.0;
         self.sync_transpose_to_stretch();
@@ -190,5 +189,14 @@ mod tests {
         let mut output = Vec::new();
         p.process(&input, &mut output);
         assert_eq!(output, input);
+    }
+
+    #[test]
+    fn rebuilds_for_multichannel_output() {
+        let mut p = StretchProcessor::new(2, 48_000);
+        p.set_output_format(96_000, 6);
+
+        assert_eq!(p.channels, 6);
+        assert_eq!(p.sample_rate, 96_000);
     }
 }

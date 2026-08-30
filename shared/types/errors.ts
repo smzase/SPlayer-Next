@@ -61,6 +61,8 @@ export enum ErrorCode {
   // 通用
   /** 加载已被更新的 load/stop 取代（快速切歌、停止），属正常竞态结果，前端静默处理 */
   LOAD_SUPERSEDED = "LOAD_SUPERSEDED",
+  /** 连续播放失败达到上限 */
+  MAX_CONSECUTIVE_FAILURES = "MAX_CONSECUTIVE_FAILURES",
   /** 未知错误 */
   UNKNOWN = "UNKNOWN",
 }

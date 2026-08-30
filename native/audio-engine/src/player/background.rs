@@ -3,18 +3,23 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use rodio::Player as RodioPlayer;
-
 use super::events::playback_completion_event;
 use super::{InnerPlayer, PlayerEvent, PlayerState};
+use crate::playback::PlaybackHandle;
 
 /// 渐变步数
 const FADE_STEPS: u32 = 20;
 
 /// 可取消的渐变：在独立线程中逐步调整音量，cancel 为 true 时提前退出
-fn fade_volume(sink: &RodioPlayer, from: f32, to: f32, duration_ms: u64, cancel: &AtomicBool) {
+fn fade_volume(
+    playback: &PlaybackHandle,
+    from: f32,
+    to: f32,
+    duration_ms: u64,
+    cancel: &AtomicBool,
+) {
     if duration_ms == 0 {
-        sink.set_volume(to);
+        playback.set_volume(to);
         return;
     }
     let step_duration = Duration::from_millis(duration_ms / u64::from(FADE_STEPS));
@@ -23,7 +28,7 @@ fn fade_volume(sink: &RodioPlayer, from: f32, to: f32, duration_ms: u64, cancel:
             return;
         }
         let progress = step as f32 / FADE_STEPS as f32;
-        sink.set_volume(from + (to - from) * progress);
+        playback.set_volume(from + (to - from) * progress);
         // 分片可取消：渐变时长用户可配，长渐变的整步 sleep 会让 cancel_fade 的
         // 同步 join 卡住最长一个步长
         sleep_unless_stopped(cancel, step_duration);
@@ -67,11 +72,11 @@ impl InnerPlayer {
         let cancel = Arc::new(AtomicBool::new(false));
         self.fade_cancel = Some(Arc::clone(&cancel));
 
-        if let Some(ref sink) = self.sink {
-            let sink = Arc::clone(sink);
+        if let Some(ref playback) = self.playback {
+            let playback = Arc::clone(playback);
             let fade_ms = self.fade_duration_ms;
             let handle = thread::spawn(move || {
-                fade_volume(&sink, from, to, fade_ms, &cancel);
+                fade_volume(&playback, from, to, fade_ms, &cancel);
                 if !cancel.load(Ordering::Relaxed) {
                     if let Some(callback) = on_complete {
                         callback();
@@ -111,7 +116,7 @@ impl InnerPlayer {
                 let position = seek_base + shared.consumed_position();
                 cb(PlayerEvent::Position { position, duration });
 
-                // 检测播放结束：all_consumed 表示 rodio 侧已消费完所有数据
+                // 检测播放结束：all_consumed 表示输出回调已消费完所有数据
                 if shared.is_all_consumed() {
                     // 解码因读取失败中止且距末尾尚远 → 音源失效，前端重新解析地址续播；
                     // 距末尾 3s 内的失败按正常结束处理——Content-Length 偏大的转码源

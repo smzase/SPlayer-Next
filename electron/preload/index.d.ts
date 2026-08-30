@@ -22,6 +22,7 @@ import {
 } from "@shared/types/window";
 import { HotkeyApi } from "@shared/types/hotkey";
 import { StreamingApi } from "@shared/types/streaming";
+import { RecognitionApi } from "@shared/types/recognition";
 import { LastfmApi } from "@shared/types/lastfm";
 import { IpcResponse } from "@shared/types/player";
 import { StatsApi } from "@shared/types/stats";
@@ -30,6 +31,7 @@ import { CloudUploadApi } from "@shared/types/cloudUpload";
 import { CommentsApi } from "@shared/types/comment";
 import { AiModelApi } from "@shared/types/ai";
 import { PlaylistApi } from "@shared/types/playlist";
+import { OpenccApi } from "@shared/types/opencc";
 
 declare global {
   interface Window {
@@ -85,6 +87,7 @@ declare global {
       apis: ApisApi;
       cloud: CloudUploadApi;
       lyrics: LyricsApi;
+      opencc: OpenccApi;
       comments: CommentsApi;
       download: DownloadApi;
       theme: {
@@ -111,6 +114,7 @@ declare global {
       stats: StatsApi;
       hotkey: HotkeyApi;
       streaming: StreamingApi;
+      recognition: RecognitionApi;
       lastfm: LastfmApi;
       externalApi: {
         restart: () => Promise<ExternalApiStatus>;

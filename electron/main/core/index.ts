@@ -86,11 +86,7 @@ export const initApp = (): void => {
     return;
   }
   app.on("second-instance", (_event, commandLine) => {
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
+    focusMainWindow();
     const url = extractOrpheusUrl(commandLine);
     if (url) captureOrpheusUrl(url);
   });

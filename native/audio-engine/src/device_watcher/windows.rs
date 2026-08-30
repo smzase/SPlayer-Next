@@ -71,7 +71,7 @@ impl IMMNotificationClient_Impl for DeviceNotificationClient_Impl {
     }
 
     fn OnPropertyValueChanged(&self, _device_id: &PCWSTR, _key: &PROPERTYKEY) -> WindowsResult<()> {
-        self.notify();
+        // 音量等设备属性变化也会走此回调，不代表输出设备发生切换
         Ok(())
     }
 }
@@ -218,7 +218,7 @@ mod tests {
                 .OnPropertyValueChanged(PCWSTR::null(), PROPERTYKEY::default())
                 .unwrap();
         }
-        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed)));
+        assert!(receiver.try_recv().is_err());
     }
 
     #[test]

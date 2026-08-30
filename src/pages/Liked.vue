@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "Liked" });
+
 import type { PlaybackContext, Track } from "@shared/types/player";
 import type { ContentScope } from "@/types/collection";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";

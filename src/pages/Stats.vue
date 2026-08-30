@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "Stats" });
+
 import type {
   DailyPlayStats,
   HourlyPlayStats,
@@ -7,6 +9,9 @@ import type {
   TopArtist,
   TopTrack,
 } from "@shared/types/stats";
+import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
+
+const { isFloatingBar } = useFloatingPlayerBar();
 
 const libraryStats = ref<LibraryStats | null>(null);
 const daily = ref<DailyPlayStats[]>([]);
@@ -40,7 +45,10 @@ onMounted(async () => {
 
 <template>
   <div class="h-full overflow-y-auto [scrollbar-gutter:stable]">
-    <div class="mx-auto flex max-w-[1400px] flex-col gap-5 px-5 pt-2 pb-10">
+    <div
+      class="mx-auto flex max-w-[1400px] flex-col gap-5 px-5 pt-2"
+      :class="isFloatingBar ? 'pb-28' : 'pb-10'"
+    >
       <!-- 曲库概览 -->
       <StatsOverview :stats="libraryStats" />
       <!-- 聆听足迹、播放时段与音质构成 -->

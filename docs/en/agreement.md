@@ -85,7 +85,7 @@ The software does not include developer-controlled telemetry or usage analytics 
 
 ## 10. Distribution channels and security
 
-Official version information and original packages are published through <https://github.com/SPlayer-Dev/SPlayer-Next>; <https://splayer.imsyy.top> provides documentation and download entry points.
+Official version information and original packages are published through <https://github.com/SPlayer-Dev/SPlayer-Next>; <https://splayer-next.imsyy.top> provides documentation and download entry points.
 
 The website may offer third-party acceleration routes that proxy official GitHub assets, so requests pass through those services. Other mirrors, app stores, repackaged builds, and redistributions are not controlled or verified by the developers and are not official releases. They may be modified, outdated, bundled, or malicious.
 
@@ -127,5 +127,5 @@ If a provision is invalid or unenforceable, the remaining provisions continue to
 
 - [GitHub repository](https://github.com/SPlayer-Dev/SPlayer-Next)
 - [Issue tracker](https://github.com/SPlayer-Dev/SPlayer-Next/issues)
-- [Official website](https://splayer.imsyy.top)
+- [Official website](https://splayer-next.imsyy.top)
 - Email: imsyy1024@gmail.com

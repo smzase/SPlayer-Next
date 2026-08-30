@@ -240,10 +240,10 @@ fn expected_bgra_len(width: i32, height: i32) -> Option<usize> {
 /// 更新封面（BGRA、顶向下、不透明），并让 DWM 失效以重新拉取
 #[napi]
 pub fn set_cover(bgra: Buffer, width: i32, height: i32) {
-    let bytes = bgra.to_vec();
-    if expected_bgra_len(width, height) != Some(bytes.len()) {
+    if expected_bgra_len(width, height) != Some(bgra.len()) {
         return;
     }
+    let bytes = bgra.to_vec();
     COVER.with(|cell| {
         *cell.borrow_mut() = Some(CoverData {
             bgra: bytes,

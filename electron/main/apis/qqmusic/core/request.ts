@@ -9,6 +9,12 @@
  */
 
 import { QM_API_URL, QM_HEADERS, SESSION_TTL, getCommonParams } from "./config";
+import {
+  clearSessionCookies,
+  getSessionCookies,
+  saveSessionCookies,
+} from "@main/database/sessions";
+import { coreLog } from "@main/utils/logger";
 
 /** Session 字段（可能缺失则下次请求会自动补拿） */
 interface SessionCache {
@@ -20,6 +26,45 @@ interface SessionCache {
 
 let session: SessionCache = { expireAt: 0 };
 let initPromise: Promise<void> | null = null;
+let userCookies: Record<string, string> | null = null;
+let sessionGeneration = 0;
+
+/** 使当前客户端会话失效，避免账号变化后继续复用旧会话 */
+const invalidateSession = (): void => {
+  sessionGeneration++;
+  session = { expireAt: 0 };
+};
+
+/** 读取内存或数据库中的 QM cookies */
+export const getQQMusicCookies = (): Record<string, string> => {
+  if (userCookies !== null) return userCookies;
+  userCookies = getSessionCookies("qqmusic");
+  return userCookies;
+};
+
+/** 更新 QM cookies 并落库 */
+export const mergeQQMusicCookies = (cookies: Record<string, string>): void => {
+  const current = getQQMusicCookies();
+  userCookies = { ...current, ...cookies };
+  saveSessionCookies("qqmusic", userCookies);
+  invalidateSession();
+  coreLog.info("[qm-cookie] 更新并保存 Cookie 到数据库，包含字段:", Object.keys(userCookies));
+};
+
+/** 清空 QM cookies 登录态 */
+export const clearQQMusicCookies = (): void => {
+  userCookies = {};
+  clearSessionCookies("qqmusic");
+  invalidateSession();
+  coreLog.info("[qm-cookie] 已从数据库中清空 QM Session");
+};
+
+/** 提取当前登录 uin（纯数字形式） */
+export const getQQMusicUin = (): string => {
+  const cookies = getQQMusicCookies();
+  const raw = cookies.uin || cookies.wxuin || cookies.p_uin || "";
+  return raw ? raw.replace(/^o/, "") : "0";
+};
 
 /** 重试次数与退避 */
 const MAX_RETRY = 2;
@@ -33,11 +78,30 @@ interface FcgResponse {
   [key: string]: unknown;
 }
 
-/** 直接发起一次 fcg POST（不做 session 注入，用于初始化自身） */
-const postRaw = async (body: unknown): Promise<FcgResponse> => {
+interface QMRequestOptions {
+  /** 是否在请求前初始化客户端会话 */
+  session?: boolean;
+}
+
+/** 发起一次 fcg POST（自动注入 Cookie） */
+const postRaw = async (
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<FcgResponse> => {
+  const cookies = getQQMusicCookies();
+  const cookieEntries = Object.entries(cookies).filter(([_, v]) => !!v);
+  const cookieStr =
+    cookieEntries.length > 0
+      ? cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ")
+      : QM_HEADERS.Cookie;
+
   const res = await fetch(QM_API_URL, {
     method: "POST",
-    headers: QM_HEADERS,
+    headers: {
+      ...QM_HEADERS,
+      ...(cookieStr ? { Cookie: cookieStr } : {}),
+      ...extraHeaders,
+    },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(8000),
   });
@@ -50,17 +114,22 @@ const ensureSession = (): Promise<void> => {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    const generation = sessionGeneration;
     try {
+      const uin = getQQMusicUin();
       const body = {
-        comm: getCommonParams(),
+        comm: {
+          ...getCommonParams(),
+          ...(uin && uin !== "0" ? { uin } : {}),
+        },
         request: {
           module: "music.getSession.session",
           method: "GetSession",
-          param: { caller: 0, uid: "0", vkey: 0 },
+          param: { caller: 0, uid: uin, vkey: 0 },
         },
       };
       const data = await postRaw(body);
-      if (data.code === 0 && data.request?.code === 0) {
+      if (generation === sessionGeneration && data.code === 0 && data.request?.code === 0) {
         const info =
           ((data.request.data as { session?: Partial<SessionCache> }) ?? {}).session ?? {};
         session = {
@@ -85,20 +154,25 @@ const ensureSession = (): Promise<void> => {
  * @param module 业务 module（如 music.search.SearchCgiService）
  * @param method 业务 method（如 DoSearchForQQMusicMobile）
  * @param param  业务 param
+ * @param options 请求选项
  * @returns request.data 的业务数据段
  */
 export const qmRequest = async <T = unknown>(
   module: string,
   method: string,
   param: Record<string, unknown>,
+  options: QMRequestOptions = {},
 ): Promise<T> => {
-  await ensureSession();
+  const useSession = options.session !== false;
+  if (useSession) await ensureSession();
 
+  const uin = getQQMusicUin();
   const comm = {
     ...getCommonParams(),
-    ...(session.uid ? { uid: session.uid } : {}),
-    ...(session.sid ? { sid: session.sid } : {}),
-    ...(session.userip ? { userip: session.userip } : {}),
+    ...(uin && uin !== "0" ? { uin } : {}),
+    ...(useSession && session.uid ? { uid: session.uid } : {}),
+    ...(useSession && session.sid ? { sid: session.sid } : {}),
+    ...(useSession && session.userip ? { userip: session.userip } : {}),
   };
 
   const body = { comm, request: { module, method, param } };

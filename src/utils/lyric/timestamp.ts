@@ -24,15 +24,23 @@ export const ANGLE_TIME_RE = /<(\d+):(\d+)(?:[.:](\d{1,3}))?>([^<]*)/g;
  * @param min 分钟字符串
  * @param sec 秒字符串
  * @param ms 毫秒字符串（1~3 位）
+ * @param padEndMs 是否自动归一化毫秒位数（默认 true）
  * @returns 毫秒数，不超过 MAX_TIME
  */
-export const parseTime = (min: string, sec: string, ms: string): number => {
+export const parseTime = (
+  min: string,
+  sec: string,
+  ms: string,
+  padEndMs: boolean = true,
+): number => {
   const m = parseInt(min, 10);
   const s = parseInt(sec, 10);
   let millis = parseInt(ms, 10) || 0;
 
-  if (ms.length === 1) millis *= 100;
-  else if (ms.length === 2) millis *= 10;
+  if (padEndMs) {
+    if (ms.length === 1) millis *= 100;
+    else if (ms.length === 2) millis *= 10;
+  }
 
   return Math.min(m * 60_000 + s * 1000 + millis, MAX_TIME);
 };

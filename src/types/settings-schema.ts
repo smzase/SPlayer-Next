@@ -69,6 +69,8 @@ export interface SettingItem {
   action?: (value?: unknown) => void | Promise<void>;
   /** custom 类型的组件 */
   component?: Component;
+  /** custom 类型组件的属性 */
+  componentProps?: Record<string, unknown>;
   /** custom：独占整行 */
   fullWidth?: boolean;
   /** 搜索用额外关键词（i18n keys） */
@@ -98,6 +100,8 @@ export interface SettingSection {
   items: SettingItem[];
   /** 标题旁的徽标 */
   tag?: SettingTag;
+  /** 条件隐藏分区 */
+  visible?: () => boolean;
 }
 
 /** 设置分类 */

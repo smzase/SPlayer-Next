@@ -11,6 +11,8 @@ import { useSettingsStore } from "@/stores/settings";
 import { DEFAULT_LYRIC_FORMAT_ORDER } from "@/types/settings";
 import {
   embeddedLyricFromDetail,
+  isBetterFormat,
+  isPluginLyricPreferred,
   resolveLocalRepoLyric,
   resolveOnlineByPreference,
   resolvePluginLyric,
@@ -131,9 +133,37 @@ const tryLocalRepo = async (token: number, track: Track): Promise<boolean> => {
  * @returns 是否已提交有效歌词
  */
 const tryPluginFallback = async (token: number, track: Track): Promise<boolean> => {
+  // 插件优选时不处理
+  if (isPluginLyricPreferred()) return false;
   const resolved = await resolvePluginLyric(track);
   if (token !== currentToken) return false;
   return resolved ? commitResolvedAndHasParsed(token, resolved) : false;
+};
+
+/**
+ * 插件优先加载
+ * 插件请求与正常流程并发发出，正常流程先展示，插件返回更优格式时替换
+ * @param token - 竞态 token
+ * @param track - 歌曲信息
+ * @param run - 正常加载流程
+ */
+const withPluginPrefer = async (
+  token: number,
+  track: Track,
+  run: () => Promise<void>,
+): Promise<void> => {
+  if (!isPluginLyricPreferred()) {
+    await run();
+    return;
+  }
+  const pluginTask = resolvePluginLyric(track);
+  await run();
+  const plugin = await pluginTask;
+  if (!plugin || token !== currentToken) return;
+  const currentFormat = useMediaStore().activeLyric?.format ?? null;
+  if (isBetterFormat(plugin.source.format, currentFormat)) {
+    commitResolvedAndHasParsed(token, plugin);
+  }
 };
 
 /**
@@ -142,39 +172,41 @@ const tryPluginFallback = async (token: number, track: Track): Promise<boolean> 
  * @param track - 歌曲信息
  * @param detail - 歌曲详细信息
  */
-const loadStreamingLyric = async (
+const loadStreamingLyric = (
   token: number,
   track: Track,
   detail: TrackDetail | null,
-): Promise<void> => {
-  const resolved = await resolveStreamingByPreference(track, () => token === currentToken);
-  if (token !== currentToken) return;
-  const embeddedFallback = embeddedLyricFromDetail(detail);
-  if (resolved && commitResolvedAndHasParsed(token, resolved)) return;
-  if (token !== currentToken) return;
-  if (await tryPluginFallback(token, track)) return;
-  if (embeddedFallback) {
-    commit(token, embeddedFallback.source, { content: embeddedFallback.content });
-  } else {
-    commit(token, null, null);
-  }
-};
+): Promise<void> =>
+  withPluginPrefer(token, track, async () => {
+    const resolved = await resolveStreamingByPreference(track, () => token === currentToken);
+    if (token !== currentToken) return;
+    const embeddedFallback = embeddedLyricFromDetail(detail);
+    if (resolved && commitResolvedAndHasParsed(token, resolved)) return;
+    if (token !== currentToken) return;
+    if (await tryPluginFallback(token, track)) return;
+    if (embeddedFallback) {
+      commit(token, embeddedFallback.source, { content: embeddedFallback.content });
+    } else {
+      commit(token, null, null);
+    }
+  });
 
 /**
  * 在线平台歌曲歌词加载
  * @param token - 竞态 token
  * @param track - 歌曲信息
  */
-const loadPlatformLyric = async (token: number, track: Track): Promise<void> => {
-  const online = await resolveOnlineByPreference(track, {
-    hasLocal: false,
-    localFormat: null,
-    shouldContinue: () => token === currentToken,
+const loadPlatformLyric = (token: number, track: Track): Promise<void> =>
+  withPluginPrefer(token, track, async () => {
+    const online = await resolveOnlineByPreference(track, {
+      hasLocal: false,
+      localFormat: null,
+      shouldContinue: () => token === currentToken,
+    });
+    if (token !== currentToken) return;
+    if (online) await applyOnline(token, track, online, null);
+    else if (!(await tryPluginFallback(token, track))) commit(token, null, null);
   });
-  if (token !== currentToken) return;
-  if (online) await applyOnline(token, track, online, null);
-  else if (!(await tryPluginFallback(token, track))) commit(token, null, null);
-};
 
 /** 开启新一轮加载周期 */
 export const beginLoad = (): number => {
@@ -231,21 +263,24 @@ export const loadForTrack = async (detail: TrackDetail | null): Promise<void> =>
     // 本地文件存在但解析后空
     const hasUsableLocal = !!local && media.parsedLyric.length > 0;
     const localFormat = local?.source.format ?? null;
-    // 按偏好获取歌词
-    const online = await resolveOnlineByPreference(track, {
-      hasLocal: hasUsableLocal,
-      localFormat,
-      onCandidate: (result) => commit(token, result.source, result.input),
-      shouldContinue: () => token === currentToken,
+
+    await withPluginPrefer(token, track, async () => {
+      // 按偏好获取歌词
+      const online = await resolveOnlineByPreference(track, {
+        hasLocal: hasUsableLocal,
+        localFormat,
+        onCandidate: (result) => commit(token, result.source, result.input),
+        shouldContinue: () => token === currentToken,
+      });
+      if (token !== currentToken) return;
+      // id 回查本地 TTML 库
+      if (online && (await tryLocalRepo(token, track))) return;
+      if (online) {
+        await applyOnline(token, track, online, local);
+      } else if (!hasUsableLocal && !(await tryPluginFallback(token, track))) {
+        commit(token, null, null);
+      }
     });
-    if (token !== currentToken) return;
-    // id 回查本地 TTML 库
-    if (online && (await tryLocalRepo(token, track))) return;
-    if (online) {
-      await applyOnline(token, track, online, local);
-    } else if (!hasUsableLocal && !(await tryPluginFallback(token, track))) {
-      commit(token, null, null);
-    }
   } catch (err) {
     console.error("[lyricLoader] loadForTrack failed:", err);
     commit(token, null, null);
@@ -277,22 +312,25 @@ const refreshPreference = async (): Promise<void> => {
   if (token !== currentToken) return;
   const localFormat = local?.source.format ?? null;
   const showingOnline = media.activeLyric?.source === "online";
-  /** 按偏好获取歌词 */
-  const online = await resolveOnlineByPreference(track, {
-    hasLocal: !!local,
-    localFormat,
-    onCandidate: (result) => commit(token, result.source, result.input),
-    shouldContinue: () => token === currentToken,
+
+  await withPluginPrefer(token, track, async () => {
+    /** 按偏好获取歌词 */
+    const online = await resolveOnlineByPreference(track, {
+      hasLocal: !!local,
+      localFormat,
+      onCandidate: (result) => commit(token, result.source, result.input),
+      shouldContinue: () => token === currentToken,
+    });
+    if (token !== currentToken) return;
+    if (online) {
+      await applyOnline(token, track, online, local);
+      return;
+    }
+    // 目标是本地
+    if (!showingOnline) return;
+    if (local) commitLocal(token, local);
+    else commit(token, null, null);
   });
-  if (token !== currentToken) return;
-  if (online) {
-    await applyOnline(token, track, online, local);
-    return;
-  }
-  // 目标是本地
-  if (!showingOnline) return;
-  if (local) commitLocal(token, local);
-  else commit(token, null, null);
 };
 
 /** 监听歌词偏好变化 */
@@ -302,6 +340,7 @@ export const watchLyricPreference = (): void => {
     () => [
       settings.lyric.lyricSourcePreference,
       settings.lyric.smartPreferOnline,
+      settings.lyric.preferPluginLyric,
       settings.lyric.detectBackgroundLyrics,
       settings.system.lyric.enableOnlineTTMLLyric,
       settings.system.localLyric.enableLocalTTMLOverride,

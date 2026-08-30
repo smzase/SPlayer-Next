@@ -13,6 +13,9 @@ import album from "./album";
 import artist from "./artist";
 import song_info from "./song_info";
 import song_list from "./song_list";
+import user_detail from "./user_detail";
+import song_url from "./song_url";
+import comment from "./comment";
 
 export const modules: Record<string, QMModule> = {
   hot_search,
@@ -24,4 +27,7 @@ export const modules: Record<string, QMModule> = {
   artist,
   song_info,
   song_list,
+  user_detail,
+  song_url,
+  comment,
 };

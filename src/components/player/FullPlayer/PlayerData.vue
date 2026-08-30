@@ -162,9 +162,9 @@ const alignItems = computed(() => {
     :class="alignItems"
   >
     <!-- 标题 -->
-    <div class="max-w-full text-[2em] font-semibold truncate">
+    <SMarquee fit class="max-w-full text-[2em] font-semibold leading-tight">
       {{ displayTrack.title }}
-    </div>
+    </SMarquee>
     <!-- 副标题/注释 -->
     <div
       v-if="!simple && displayTrack.comment"

@@ -4,6 +4,7 @@ use ffmpeg_audio::SourceAudioInfo;
 
 mod cover;
 mod editor;
+mod folder_cover;
 mod lyrics;
 mod tag_fields;
 
@@ -24,6 +25,7 @@ pub struct AudioMetadata {
     pub duration_secs: f64,
     /// 播放采样率（重采样后，用于音频输出）
     pub sample_rate: u32,
+    /// 音源原始声道数
     pub channels: u16,
     /// 原始采样率（解码前，用于前端显示）
     pub original_sample_rate: u32,

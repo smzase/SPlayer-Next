@@ -2,7 +2,6 @@ import type { Track } from "@shared/types/player";
 import type { QualityLevel } from "@/utils/quality";
 import { isPlatform } from "@shared/types/platform";
 import { useStreamingStore } from "@/stores/streaming";
-import { useSettingsStore } from "@/stores/settings";
 import { resolveByPlugin } from "@/services/audioSource";
 import { resolveNeteaseDownloadUrl } from "@/apis/song/netease";
 
@@ -24,6 +23,7 @@ export interface DownloadSource {
 export const resolveDownloadSource = async (
   track: Track,
   level: QualityLevel,
+  usePlaybackForDownload: boolean,
 ): Promise<DownloadSource | null> => {
   // 流媒体
   if (track.source === "streaming") {
@@ -39,8 +39,7 @@ export const resolveDownloadSource = async (
   // 官方接口
   if (track.source === "netease") {
     try {
-      const usePlayback = useSettingsStore().system.download.usePlaybackForDownload;
-      const resolved = await resolveNeteaseDownloadUrl(track, level, usePlayback);
+      const resolved = await resolveNeteaseDownloadUrl(track, level, usePlaybackForDownload);
       if (resolved) return resolved;
     } catch {
       // 官方失败回落插件

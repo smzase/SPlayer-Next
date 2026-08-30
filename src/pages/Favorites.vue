@@ -1,4 +1,6 @@
 <script setup lang="ts">
+defineOptions({ name: "Favorites" });
+
 import type { CoverItem } from "@/types/artist";
 import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 import { useUserStore } from "@/stores/user";

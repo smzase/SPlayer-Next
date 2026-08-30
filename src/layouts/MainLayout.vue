@@ -69,6 +69,43 @@ const routeKey = computed(() => {
   return hasParam ? route.path : (route.matched[1]?.path ?? route.path);
 });
 
+/** 需要受控缓存的页面组件白名单 */
+const cachedViews = [
+  "Home",
+  "Library",
+  "Liked",
+  "History",
+  "Download",
+  "Daily",
+  "Favorites",
+  "Cloud",
+  "LocalList",
+  "Folders",
+  "SearchPage",
+  "Stats",
+  "StreamingIndex",
+];
+
+const mainContainerRef = shallowRef<HTMLElement | null>(null);
+const mainScrollMap = new Map<string, number>();
+
+// 路由离开前记录滚动位置
+watch(
+  () => route.fullPath,
+  (_newPath, oldPath) => {
+    if (oldPath && mainContainerRef.value) {
+      mainScrollMap.set(oldPath, mainContainerRef.value.scrollTop);
+    }
+  },
+);
+
+// 路由切换完成后恢复滚动位置
+const handleAfterEnter = (): void => {
+  if (!mainContainerRef.value) return;
+  const saved = mainScrollMap.get(route.fullPath) ?? 0;
+  mainContainerRef.value.scrollTop = saved;
+};
+
 /** 侧边栏样式 */
 const sidebarClass = computed(() => {
   const classes: string[] = [];
@@ -138,10 +175,12 @@ const playerBarInnerClass = computed(() => {
       </header>
 
       <!-- 主内容区 -->
-      <main class="flex-1 overflow-y-auto overflow-x-hidden">
+      <main ref="mainContainerRef" class="flex-1 overflow-y-auto overflow-x-hidden">
         <RouterView v-slot="{ Component }">
-          <Transition :name="routeTransitionName" mode="out-in">
-            <component :is="Component" :key="routeKey" />
+          <Transition :name="routeTransitionName" mode="out-in" @after-enter="handleAfterEnter">
+            <KeepAlive :max="10" :include="cachedViews">
+              <component :is="Component" :key="routeKey" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>

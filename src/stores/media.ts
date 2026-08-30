@@ -9,6 +9,7 @@ import { extractLyricAuthors } from "@/utils/lyric/author";
 import { applyLyricExclude } from "@/utils/lyric/lyricStripper";
 import { normalizeLyricLines } from "@/utils/lyric/normalize";
 import { applyProfanityUncensor } from "@/utils/preset/profanity";
+import { applyLyricCjkTransform } from "@/utils/lyric/cjkTransform";
 
 export const useMediaStore = defineStore("media", () => {
   watchLyricPreference();
@@ -119,6 +120,19 @@ export const useMediaStore = defineStore("media", () => {
     syncToMain();
   };
 
+  /** 简繁转换竞态 token */
+  let transformToken = 0;
+
+  // 监听简繁转换及强迫症设置变化并重新解析当前歌词
+  watch(
+    () => [useSettingsStore().lyric.cjkTransform, useSettingsStore().preset.uncensorProfanity],
+    () => {
+      if (activeLyric.value && lyricContent.value) {
+        setLyric(activeLyric.value, lyricContent.value);
+      }
+    },
+  );
+
   /**
    * 原子写入歌词
    * @param source - 歌词源
@@ -126,9 +140,9 @@ export const useMediaStore = defineStore("media", () => {
    */
   const setLyric = (source: LyricData, input: LyricInput | null): void => {
     let nextLines: LyricLine[] = [];
+    const settings = useSettingsStore();
     if (source && input) {
       try {
-        const settings = useSettingsStore();
         const lines = parseLyric(input, source.format, settings.locale, {
           detectBackground: settings.lyric.detectBackgroundLyrics,
         });
@@ -154,6 +168,17 @@ export const useMediaStore = defineStore("media", () => {
     lyricIndex.value = -1;
     lyricLoading.value = false;
     syncToMain();
+
+    // 应用 OpenCC 简繁转换
+    const cjkMode = settings.lyric.cjkTransform;
+    if (hasContent && cjkMode && cjkMode !== "none") {
+      const token = ++transformToken;
+      applyLyricCjkTransform(nextLines, cjkMode).then((transformed) => {
+        if (token !== transformToken) return;
+        parsedLyric.value = transformed;
+        syncToMain();
+      });
+    }
   };
 
   /**

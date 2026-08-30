@@ -83,8 +83,8 @@ const menuItemClass =
       >
         <slot name="header" />
         <SDivider v-if="$slots.header" class="mx-1.5 my-0.5" />
-        <template v-for="item in visibleItems" :key="item.key">
-          <SDivider v-if="item.separator" class="mx-1.5 my-0.5" />
+        <template v-for="(item, index) in visibleItems" :key="item.key">
+          <SDivider v-if="item.separator && index > 0" class="mx-1.5 my-0.5" />
           <!-- 子菜单 -->
           <ContextMenuSub v-if="item.children">
             <ContextMenuSubTrigger :disabled="item.disabled" :class="menuItemClass">
@@ -99,8 +99,8 @@ const menuItemClass =
                 :collision-padding="12"
                 :class="[contentClass, 'max-h-60 overflow-y-auto']"
               >
-                <template v-for="child in item.children" :key="child.key">
-                  <SDivider v-if="child.separator" class="mx-1.5 my-0.5" />
+                <template v-for="(child, childIndex) in item.children" :key="child.key">
+                  <SDivider v-if="child.separator && childIndex > 0" class="mx-1.5 my-0.5" />
                   <ContextMenuItem
                     v-else
                     :disabled="child.disabled"

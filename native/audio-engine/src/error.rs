@@ -6,7 +6,6 @@ use std::io::ErrorKind;
 
 use ffmpeg_audio::error::HttpError;
 use ffmpeg_audio::AudioError;
-use rodio::cpal;
 use thiserror::Error;
 
 /// 原生层内部使用的稳定错误类别
@@ -96,22 +95,17 @@ impl AudioEngineError {
                 | ErrorKind::ConnectionReset
                 | ErrorKind::ConnectionAborted
                 | ErrorKind::NotConnected
-                | ErrorKind::AddrNotAvailable
-                | ErrorKind::BrokenPipe => AudioErrorKind::NetworkUnreachable,
+                | ErrorKind::AddrNotAvailable => AudioErrorKind::NetworkUnreachable,
+                // 裸 BrokenPipe 多为本地文件读取中断，属于数据源故障；
+                // 设备流错误会由输出模块边界显式标记为 Device，不会落入这里
+                ErrorKind::BrokenPipe => AudioErrorKind::DecodeFailed,
                 _ => return None,
             });
         }
         if let Some(error) = source.downcast_ref::<AudioError>() {
             return Some(Self::classify_audio_error(error));
         }
-        if source.downcast_ref::<cpal::BuildStreamError>().is_some()
-            || source
-                .downcast_ref::<cpal::DefaultStreamConfigError>()
-                .is_some()
-            || source.downcast_ref::<cpal::DevicesError>().is_some()
-            || source.downcast_ref::<cpal::DeviceNameError>().is_some()
-            || source.downcast_ref::<rodio::DeviceSinkError>().is_some()
-        {
+        if source.downcast_ref::<cpal::Error>().is_some() {
             return Some(AudioErrorKind::Device);
         }
         None
@@ -136,8 +130,9 @@ impl AudioEngineError {
                 | ErrorKind::ConnectionReset
                 | ErrorKind::ConnectionAborted
                 | ErrorKind::NotConnected
-                | ErrorKind::AddrNotAvailable
-                | ErrorKind::BrokenPipe => AudioErrorKind::NetworkUnreachable,
+                | ErrorKind::AddrNotAvailable => AudioErrorKind::NetworkUnreachable,
+                // 与裸 io::Error 同理由：BrokenPipe 归为数据源故障，设备错误不走此路径
+                ErrorKind::BrokenPipe => AudioErrorKind::DecodeFailed,
                 _ => AudioErrorKind::DecodeFailed,
             },
             AudioError::Eof
@@ -212,8 +207,8 @@ mod tests {
     }
 
     #[test]
-    fn rodio_device_sink_errors_are_device_errors() {
-        let error = anyhow::Error::new(rodio::DeviceSinkError::NoDevice);
+    fn cpal_errors_are_device_errors() {
+        let error = anyhow::Error::new(cpal::Error::from(cpal::ErrorKind::DeviceBusy));
 
         assert!(matches!(
             AudioEngineError::classify(&error),

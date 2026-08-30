@@ -98,22 +98,6 @@ export const clearFinished = (): void => {
   getDb().prepare("DELETE FROM download_tasks WHERE status NOT IN ('queued','downloading')").run();
 };
 
-/** 仅保留最近 keep 条已结束任务，更旧的删除（限制历史无界增长） */
-export const pruneFinished = (keep: number): void => {
-  getDb()
-    .prepare(
-      `DELETE FROM download_tasks
-       WHERE status NOT IN ('queued','downloading')
-         AND task_id NOT IN (
-           SELECT task_id FROM download_tasks
-           WHERE status NOT IN ('queued','downloading')
-           ORDER BY created_at DESC
-           LIMIT ?
-         )`,
-    )
-    .run(keep);
-};
-
 /** 启动时把残留的进行中任务重置为中断 */
 export const markInterrupted = (): void => {
   getDb()

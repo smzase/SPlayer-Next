@@ -31,7 +31,8 @@ export const parseKRC = (text: string, detectBackground = true): LyricLine[] => 
     const header = LINE_HEADER_RE.exec(trimmed);
     if (!header) continue;
 
-    const lineStart = parseTime(header[1], header[2], header[3]);
+    // krc 的时间第三位永远是毫秒数，如 [01:02.3] 实际上是 [01:02.003]，设置 padEndMs = false
+    const lineStart = parseTime(header[1], header[2], header[3], false);
     const rest = trimmed.slice(header[0].length);
 
     WORD_RE.lastIndex = 0;

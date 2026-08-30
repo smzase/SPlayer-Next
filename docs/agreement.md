@@ -156,7 +156,7 @@
 
 ## 十、官方分发渠道与安全风险
 
-10.1 **官方渠道**：本软件的官方版本信息与原始安装包发布于 GitHub 仓库 <https://github.com/SPlayer-Dev/SPlayer-Next>，官方网站 <https://splayer.imsyy.top> 提供文档与下载入口。
+10.1 **官方渠道**：本软件的官方版本信息与原始安装包发布于 GitHub 仓库 <https://github.com/SPlayer-Dev/SPlayer-Next>，官方网站 <https://splayer-next.imsyy.top> 提供文档与下载入口。
 
 10.2 **第三方线路与再分发**：官方网站可能提供第三方下载加速线路，它们仅代理 GitHub 上的官方资源，请求会经过相应第三方服务。除此之外，第三方网站、网盘、应用商店、论坛或个人提供的转载、重新打包或再分发均不受开发者控制，**不构成官方发布行为**。
 
@@ -244,7 +244,7 @@
 
 - **GitHub 仓库**：<https://github.com/SPlayer-Dev/SPlayer-Next>
 - **问题反馈**：<https://github.com/SPlayer-Dev/SPlayer-Next/issues>
-- **官方网站**：<https://splayer.imsyy.top>
+- **官方网站**：<https://splayer-next.imsyy.top>
 - **电子邮箱**：imsyy1024@gmail.com
 
 ---

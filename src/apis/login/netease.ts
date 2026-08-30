@@ -4,6 +4,7 @@
 
 import type { UserProfile } from "@/types/user";
 import { netease as neteaseApi } from "@/apis/netease";
+import type { QrLoginAdapter, QrLoginState } from "./platform";
 
 interface LoginStatusBody {
   code?: number | string;
@@ -59,6 +60,25 @@ export const qrCheck = async (key: string): Promise<QrCheckResult> => {
  */
 export const qrContent = (key: string): string => `https://music.163.com/login?codekey=${key}`;
 
+export const neteaseQrLoginAdapter: QrLoginAdapter = {
+  create: async () => {
+    const key = await qrKey();
+    return { key, content: qrContent(key) };
+  },
+  check: async (key) => {
+    const result = await qrCheck(key);
+    const state: QrLoginState =
+      result.code === 800
+        ? "expired"
+        : result.code === 802
+          ? "scanned"
+          : result.code === 803
+            ? "success"
+            : "waiting";
+    return { state, nickname: result.nickname, avatarUrl: result.avatarUrl };
+  },
+};
+
 /**
  * 校验 cookie 并取当前用户 profile
  * @returns 已登录返回 profile；未登录或 cookie 失效返回 null
@@ -66,13 +86,23 @@ export const qrContent = (key: string): string => `https://music.163.com/login?c
 export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
   const body = await neteaseApi.login_status<LoginStatusBody>({ timestamp: Date.now() });
   if (body?.code !== undefined && Number(body.code) !== 200) return null;
-  const raw = body?.data?.profile ?? body?.profile;
-  const userId = raw?.userId ?? body?.data?.account?.id ?? body?.account?.id;
-  if (!userId) return null;
-  const profile = raw ?? {};
+  const account = body?.data?.account ?? body?.account;
+  const profile = body?.data?.profile ?? body?.profile;
+
+  // 游客/匿名账号（anonimous 为 true、或无有效 profile/nickname）判定为未登录
+  if (
+    !account ||
+    (account as { anonimous?: boolean }).anonimous ||
+    !profile ||
+    !profile.userId ||
+    !profile.nickname
+  ) {
+    return null;
+  }
+
   return {
-    userId,
-    nickname: profile.nickname ?? "",
+    userId: profile.userId,
+    nickname: profile.nickname,
     avatarUrl: profile.avatarUrl,
     backgroundUrl: profile.backgroundUrl,
     signature: profile.signature,

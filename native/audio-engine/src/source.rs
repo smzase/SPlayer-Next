@@ -1,15 +1,13 @@
 use std::sync::Arc;
-use std::time::Duration;
-
-use rodio::{ChannelCount, SampleRate, Source};
 
 use crate::fft::FftAnalyzer;
 use crate::shared::{PopResult, Shared};
 const UNDERRUN_SILENCE_MS: u32 = 20;
 
-/// rodio 音频源，从共享缓冲区拉取样本。
+/// 平台无关的解码样本读取器。
 /// DSP 已在后台线程完成；这里不获取 DSP 锁、不扩容，欠载时返回短静音垫片。
-pub struct DecoderSource {
+/// 所有平台的 CPAL 输出回调都从该读取器拉取样本。
+pub struct DecoderSampleReader {
     shared: Arc<Shared>,
     fft: Arc<FftAnalyzer>,
     /// DSP 后样本缓冲，直接接管 chunk 的 Vec，不复制也不扩容
@@ -17,30 +15,27 @@ pub struct DecoderSource {
     local_index: usize,
     /// 解码暂时跟不上时输出的短静音垫片，避免阻塞实时输出链路
     underrun_silence_remaining: usize,
-    sample_rate: SampleRate,
-    channels: ChannelCount,
+    sample_rate: u32,
+    channels: u16,
 }
 
-impl DecoderSource {
-    pub fn new(
-        shared: Arc<Shared>,
-        fft: Arc<FftAnalyzer>,
-        sample_rate: u32,
-        channels: u16,
-    ) -> Self {
+impl DecoderSampleReader {
+    pub fn new(shared: Arc<Shared>, fft: Arc<FftAnalyzer>) -> Self {
+        let sample_rate = shared.sample_rate();
+        let channels = shared.channels();
         Self {
             shared,
             fft,
             local_buffer: Vec::new(),
             local_index: 0,
             underrun_silence_remaining: 0,
-            sample_rate: SampleRate::new(sample_rate).expect("采样率必须大于零"),
-            channels: ChannelCount::new(channels).expect("声道数必须大于零"),
+            sample_rate,
+            channels,
         }
     }
 }
 
-impl Iterator for DecoderSource {
+impl Iterator for DecoderSampleReader {
     type Item = f32;
 
     fn next(&mut self) -> Option<f32> {
@@ -78,8 +73,8 @@ impl Iterator for DecoderSource {
                     self.shared.recycle_player_buffer(chunk.player_samples);
                 }
                 PopResult::Pending => {
-                    let silence_samples = (u64::from(self.sample_rate.get())
-                        * u64::from(self.channels.get())
+                    let silence_samples = (u64::from(self.sample_rate)
+                        * u64::from(self.channels)
                         * u64::from(UNDERRUN_SILENCE_MS)
                         / 1000) as usize;
                     self.underrun_silence_remaining = silence_samples.saturating_sub(1);
@@ -95,30 +90,15 @@ impl Iterator for DecoderSource {
     }
 }
 
-impl Drop for DecoderSource {
+impl Drop for DecoderSampleReader {
     fn drop(&mut self) {
         self.shared
             .recycle_player_buffer(std::mem::take(&mut self.local_buffer));
     }
 }
 
-impl Source for DecoderSource {
-    fn current_span_len(&self) -> Option<usize> {
-        None
-    }
-
-    fn channels(&self) -> ChannelCount {
-        self.channels
-    }
-
-    fn sample_rate(&self) -> SampleRate {
-        self.sample_rate
-    }
-
-    fn total_duration(&self) -> Option<Duration> {
-        None
-    }
-}
+/// 解码样本读取器别名，作为播放输出链路的输入类型
+pub type DecoderSource = DecoderSampleReader;
 
 #[cfg(test)]
 mod tests {
@@ -134,7 +114,7 @@ mod tests {
             source_sample_count: 4,
         });
 
-        let mut source = DecoderSource::new(shared, Arc::new(FftAnalyzer::new()), 48_000, 2);
+        let mut source = DecoderSource::new(shared, Arc::new(FftAnalyzer::new()));
 
         assert!((source.next().unwrap() - 0.1).abs() < 1e-6);
         assert!((source.next().unwrap() + 0.1).abs() < 1e-6);
@@ -150,8 +130,7 @@ mod tests {
             fft_samples: vec![],
             source_sample_count: 8,
         });
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.25));
         assert!((shared.consumed_position() - 0.004).abs() < f64::EPSILON);
@@ -165,8 +144,7 @@ mod tests {
             fft_samples: Vec::new(),
             source_sample_count: 8,
         });
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.0));
         assert!((shared.consumed_position() - 0.004).abs() < f64::EPSILON);
@@ -175,8 +153,7 @@ mod tests {
     #[test]
     fn returns_short_silence_when_decoder_temporarily_underruns() {
         let shared = Shared::new(1000, 2);
-        let mut source =
-            DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()), 1000, 2);
+        let mut source = DecoderSource::new(Arc::clone(&shared), Arc::new(FftAnalyzer::new()));
 
         assert_eq!(source.next(), Some(0.0));
         shared.push_output(AudioChunk {

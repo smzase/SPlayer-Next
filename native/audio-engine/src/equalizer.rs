@@ -2,7 +2,7 @@
 //!
 //! 滤波器系数采用 RBJ Audio EQ Cookbook 的 peaking 公式，
 //! 实现形式为 Direct Form II Transposed（数值稳定）。
-//! 每条频段、每个声道独立保留状态，立体声共享系数（左右声道处理一致）。
+//! 每条频段、每个声道独立保留状态，所有声道共享系数。
 
 use std::f32::consts::PI;
 
@@ -16,9 +16,6 @@ pub const EQ_Q: f32 = 1.4;
 
 /// 频段数量
 pub const EQ_BAND_COUNT: usize = 10;
-
-/// 声道数（仅支持立体声）
-pub const EQ_CHANNEL_COUNT: usize = 2;
 
 /// 每段增益限制（dB）
 const BAND_GAIN_LIMIT_DB: f32 = 15.0;
@@ -103,10 +100,10 @@ impl BiquadFilter {
     }
 }
 
-/// 10 频段均衡器，立体声独立保留滤波器状态
+/// 10 频段均衡器，各输出声道独立保留滤波器状态
 pub struct Equalizer {
     /// [声道][频段]
-    filters: [[BiquadFilter; EQ_BAND_COUNT]; EQ_CHANNEL_COUNT],
+    filters: Vec<[BiquadFilter; EQ_BAND_COUNT]>,
     sample_rate: f32,
     band_gains_db: [f32; EQ_BAND_COUNT],
     preamp_linear: f32,
@@ -114,9 +111,9 @@ pub struct Equalizer {
 }
 
 impl Equalizer {
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new(sample_rate: u32, channels: u16) -> Self {
         Self {
-            filters: [[BiquadFilter::passthrough(); EQ_BAND_COUNT]; EQ_CHANNEL_COUNT],
+            filters: vec![[BiquadFilter::passthrough(); EQ_BAND_COUNT]; usize::from(channels)],
             sample_rate: sample_rate as f32,
             band_gains_db: [0.0; EQ_BAND_COUNT],
             preamp_linear: 1.0,
@@ -128,13 +125,19 @@ impl Equalizer {
         self.enabled = enabled;
     }
 
-    /// 更新采样率（输出设备切换导致播放采样率变化时调用），重算所有滤波器系数
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+    /// 更新输出格式，设备采样率或声道数变化时重建对应滤波器状态
+    pub fn set_output_format(&mut self, sample_rate: u32, channels: u16) {
         let rate = sample_rate as f32;
-        if (self.sample_rate - rate).abs() < f32::EPSILON {
+        let channels = usize::from(channels);
+        let rate_changed = (self.sample_rate - rate).abs() >= f32::EPSILON;
+        let channels_changed = self.filters.len() != channels;
+        if !rate_changed && !channels_changed {
             return;
         }
         self.sample_rate = rate;
+        if channels_changed {
+            self.filters = vec![[BiquadFilter::passthrough(); EQ_BAND_COUNT]; channels];
+        }
         self.recompute_coefficients();
     }
 
@@ -190,21 +193,49 @@ impl Equalizer {
         }
     }
 
-    /// 处理交错排列的立体声 PCM（L R L R ...）。EQ 关闭时直接返回。
-    pub fn process_interleaved_stereo(&mut self, samples: &mut [f32]) {
-        if !self.enabled {
+    /// 处理交错排列的多声道 PCM。EQ 关闭时直接返回。
+    pub fn process_interleaved(&mut self, samples: &mut [f32]) {
+        let channels = self.filters.len();
+        if !self.enabled || channels == 0 {
             return;
         }
         let preamp = self.preamp_linear;
-        for frame in samples.chunks_exact_mut(EQ_CHANNEL_COUNT) {
-            let mut left = frame[0] * preamp;
-            let mut right = frame[1] * preamp;
-            for band in 0..EQ_BAND_COUNT {
-                left = self.filters[0][band].process_sample(left);
-                right = self.filters[1][band].process_sample(right);
+        for frame in samples.chunks_exact_mut(channels) {
+            for (channel, sample) in frame.iter_mut().enumerate() {
+                let mut value = *sample * preamp;
+                for band in 0..EQ_BAND_COUNT {
+                    value = self.filters[channel][band].process_sample(value);
+                }
+                *sample = value;
             }
-            frame[0] = left;
-            frame[1] = right;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn processes_every_output_channel_independently() {
+        let mut equalizer = Equalizer::new(48_000, 6);
+        equalizer.set_enabled(true);
+        equalizer.set_preamp_db(6.0);
+        let mut samples = vec![0.1, -0.2, 0.3, -0.4, 0.5, -0.6];
+
+        equalizer.process_interleaved(&mut samples);
+
+        for (actual, original) in samples.iter().zip([0.1_f32, -0.2, 0.3, -0.4, 0.5, -0.6]) {
+            assert!(actual.abs() > original.abs());
+        }
+    }
+
+    #[test]
+    fn rebuilds_filters_when_output_channel_count_changes() {
+        let mut equalizer = Equalizer::new(48_000, 2);
+        equalizer.set_output_format(96_000, 8);
+
+        assert_eq!(equalizer.filters.len(), 8);
+        assert_eq!(equalizer.sample_rate, 96_000.0);
     }
 }

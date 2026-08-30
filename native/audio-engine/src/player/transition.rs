@@ -2,18 +2,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use anyhow::Result;
-use ffmpeg_audio::HttpCancelHandle;
-use parking_lot::Mutex;
-use rodio::Player as RodioPlayer;
-
 use crate::audio_output::AudioOutput;
 use crate::decoder;
 use crate::equalizer::Equalizer;
 use crate::metadata::AudioMetadata;
+use crate::playback::PlaybackHandle;
 use crate::shared::Shared;
 use crate::source::DecoderSource;
 use crate::tempo::StretchProcessor;
+use anyhow::Result;
+use ffmpeg_audio::HttpCancelHandle;
+use parking_lot::Mutex;
 
 use super::{InnerPlayer, PlayerEvent, PlayerState};
 
@@ -54,6 +53,8 @@ pub struct SeekTake {
     pub was_playing: bool,
     /// 当前输出设备采样率（新 Shared 沿用，与复用的重采样器目标一致）
     pub output_sample_rate: u32,
+    /// 当前输出设备声道数
+    pub output_channels: u16,
     /// 本次 seek 的 token，commit_seeked 时比对最新值，不一致说明已被新 load/seek/stop 取代
     pub token: u64,
     /// 解码侧 DSP 共享实例
@@ -73,11 +74,8 @@ pub struct LoadedPlayback {
 impl InnerPlayer {
     /// 给 NAPI 绑定层 async load 用：原子地发出停止信号 + take 所有旧线程 handle
     /// 调用方负责在工作线程 join 这些 handle，主线程持锁阶段不阻塞
-    /// 返回旧输出流供工作线程在打开新流前释放；token 用于校验本次 load 是否已被取代
-    pub fn take_for_async_load(
-        &mut self,
-        handle: HttpCancelHandle,
-    ) -> (OldThreads, Option<AudioOutput>, u64) {
+    /// 返回旧线程集合与本次 load 的 token（token 用于校验本次 load 是否已被取代）
+    pub fn take_for_async_load(&mut self, handle: HttpCancelHandle) -> (OldThreads, u64) {
         // 自增 token：本次 load 的标识；任何并发的更早 commit_loaded 比较时会发现不匹配
         let token = self.load_token.fetch_add(1, Ordering::AcqRel) + 1;
         if let Some(previous) = self.pending_load_handle.replace(handle) {
@@ -98,8 +96,8 @@ impl InnerPlayer {
         if let Some(ref shared) = self.shared {
             shared.stop();
         }
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
         if let Some(ref shared) = self.shared {
             shared.drain_buffer();
@@ -117,7 +115,7 @@ impl InnerPlayer {
             fft_timer: self.fft_timer_handle.take(),
             fade_handle: self.fade_handle.take(),
         };
-        (old_threads, self.output.take(), token)
+        (old_threads, token)
     }
 
     /// token 是否仍是最新值（seek 失败回退到 load 前校验，避免复活已被取代的旧源）
@@ -171,8 +169,8 @@ impl InnerPlayer {
         if let Some(ref shared) = self.shared {
             shared.stop();
         }
-        if let Some(sink) = self.sink.take() {
-            sink.stop();
+        if let Some(playback) = self.playback.take() {
+            playback.stop();
         }
 
         let old_threads = OldThreads {
@@ -199,6 +197,7 @@ impl InnerPlayer {
             current_source: self.current_source.clone(),
             was_playing: self.state == PlayerState::Playing,
             output_sample_rate: self.output_sample_rate(),
+            output_channels: self.output_channels(),
             token,
             equalizer: Arc::clone(&self.equalizer),
             tempo: Arc::clone(&self.tempo),
@@ -207,6 +206,7 @@ impl InnerPlayer {
 
     /// seek 三段式的最后一段：主线程持锁，attach 新 sink + 新解码线程
     ///
+    /// `output` 为输出重建（`reinit_output`）时新建的输出，seek 本身传 `None` 沿用现有输出。
     /// 返回 false 表示本次 seek 已被更新的 load/seek/stop 取代，结果被丢弃
     pub fn commit_seeked(
         &mut self,
@@ -214,6 +214,7 @@ impl InnerPlayer {
         position_secs: f64,
         shared: Arc<Shared>,
         handle: JoinHandle<decoder::DecoderData>,
+        output: Option<AudioOutput>,
     ) -> Result<bool> {
         // 抢占检查：与 commit_loaded 同款，不一致则丢弃本次 seek 结果
         if token != self.load_token.load(Ordering::Acquire) {
@@ -223,30 +224,20 @@ impl InnerPlayer {
             return Ok(false);
         }
 
-        let sink = {
-            let output = self.ensure_output()?;
-            Arc::new(RodioPlayer::connect_new(output.mixer()))
+        if let Some(out) = output {
+            self.output = Some(out);
+        }
+        let reader = DecoderSource::new(Arc::clone(&shared), Arc::clone(&self.fft));
+        let was_paused = self.state == PlayerState::Paused;
+        let volume = self.target_volume;
+        let playback = {
+            let output = self.ensure_output(None)?;
+            Arc::new(PlaybackHandle::attach(output, reader, volume, was_paused)?)
         };
 
-        let sample_rate = shared.sample_rate();
-        let decoder_source = DecoderSource::new(
-            Arc::clone(&shared),
-            Arc::clone(&self.fft),
-            sample_rate,
-            self.audio_channels,
-        );
-
-        let was_paused = self.state == PlayerState::Paused;
-        sink.set_volume(self.target_volume);
-        if was_paused {
-            sink.pause();
-        }
-        sink.append(decoder_source);
-
-        self.sink = Some(sink);
+        self.playback = Some(playback);
         self.shared = Some(shared);
         self.decoder_thread = Some(handle);
-        self.audio_sample_rate = sample_rate;
         self.seek_base = position_secs;
 
         if was_paused {
@@ -301,32 +292,19 @@ impl InnerPlayer {
         self.pending_load_handle = cancel;
         self.output = Some(output);
 
-        let sink = {
-            let output = self.ensure_output()?;
-            Arc::new(RodioPlayer::connect_new(output.mixer()))
+        let reader = DecoderSource::new(Arc::clone(&shared), Arc::clone(&self.fft));
+        let volume = self.target_volume;
+        let playback = {
+            let output = self.ensure_output(None)?;
+            Arc::new(PlaybackHandle::attach(output, reader, volume, !auto_play)?)
         };
 
-        let decoder_source = DecoderSource::new(
-            Arc::clone(&shared),
-            Arc::clone(&self.fft),
-            metadata.sample_rate,
-            metadata.channels,
-        );
-
-        sink.set_volume(self.target_volume);
-        if !auto_play {
-            sink.pause();
-        }
-        sink.append(decoder_source);
-
-        self.sink = Some(sink);
+        self.playback = Some(playback);
         self.shared = Some(shared);
         self.decoder_thread = Some(decode_handle);
         self.seek_base = 0.0;
         self.current_source = Some(source.to_string());
 
-        self.audio_sample_rate = metadata.sample_rate;
-        self.audio_channels = metadata.channels;
         self.audio_duration = metadata.duration_secs;
         self.cover_raw = metadata.cover_raw.take();
 

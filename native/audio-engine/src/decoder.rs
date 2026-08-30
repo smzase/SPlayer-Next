@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use ffmpeg_audio::{
     sys, AudioError, AudioReader, HttpAudioSource, HttpCancelHandle, ResampleOptions, Resampler,
     SeekMode,
@@ -19,14 +19,17 @@ use crate::priority;
 use crate::shared::{AudioChunk, Shared};
 use crate::tempo::StretchProcessor;
 
-/// 播放输出目标格式（重采样后送入 rodio）
-pub const TARGET_CHANNELS: u16 = 2;
+/// 无输出设备信息时初始化 DSP 使用的默认声道数
+pub const DEFAULT_OUTPUT_CHANNELS: u16 = 2;
 
 /// 播放输出默认采样率
 pub const DEFAULT_TARGET_SAMPLE_RATE: u32 = 48_000;
 
 /// FFT 计算所需的目标采样率
 pub const FFT_TARGET_SAMPLE_RATE: u32 = 48_000;
+
+/// FFT 始终分析双声道视图，与真实播放输出声道链路相互独立
+const FFT_CHANNELS: u16 = 2;
 
 /// 自定义 File IO 读取失败时，ffmpeg_audio 的 read 回调可能映射为此错误码
 const AVERROR_EIO: i32 = sys::averror(libc::EIO);
@@ -43,9 +46,13 @@ impl OutputLimiter {
         Self { gain: 1.0 }
     }
 
-    fn process(&mut self, samples: &mut [f32]) {
-        for sample in samples {
-            let peak = sample.abs();
+    fn process(&mut self, samples: &mut [f32], channels: u16) {
+        let channels = usize::from(channels);
+        debug_assert!(channels > 0 && samples.len().is_multiple_of(channels));
+        for frame in samples.chunks_exact_mut(channels) {
+            let peak = frame
+                .iter()
+                .fold(0.0_f32, |peak, sample| peak.max(sample.abs()));
             let target_gain = if peak > OUTPUT_CEILING {
                 OUTPUT_CEILING / peak
             } else {
@@ -56,8 +63,10 @@ impl OutputLimiter {
             } else {
                 self.gain += (1.0 - self.gain) * LIMITER_RELEASE;
             }
-            *sample *= self.gain;
-            *sample = sample.clamp(-OUTPUT_CEILING, OUTPUT_CEILING);
+            for sample in frame {
+                *sample *= self.gain;
+                *sample = sample.clamp(-OUTPUT_CEILING, OUTPUT_CEILING);
+            }
         }
     }
 }
@@ -65,7 +74,7 @@ impl OutputLimiter {
 /// 解码会话所需的资源（跨 seek 复用，避免重建 ffmpeg_audio 上下文）
 ///
 /// 此处必须进行 1-to-N 分发，因为需要两个可能存在采样率差异的音源
-///  - 播放重采样器输出设备采样率的 stereo f32
+///  - 播放重采样器输出设备采样率、设备声道数的交错 f32
 ///  - FFT 重采样器输出 48kHz 的 stereo f32
 pub struct DecoderData {
     reader: AudioReader,
@@ -81,6 +90,13 @@ pub struct PreparedDecoder {
     metadata: AudioMetadata,
     replay_gain_db: Option<f32>,
     cancel_handle: Option<HttpCancelHandle>,
+}
+
+impl PreparedDecoder {
+    /// 音源原始采样率，用于输出流采样率协商（设备支持时按精确采样率打开）
+    pub fn original_sample_rate(&self) -> u32 {
+        self.metadata.original_sample_rate
+    }
 }
 
 /// 统一结束解码线程；panic 属于源错误，但仍需结束 source 迭代
@@ -119,6 +135,12 @@ impl DecoderData {
     pub fn cancel_handle(&self) -> Option<HttpCancelHandle> {
         self.cancel_handle.clone()
     }
+
+    /// 输出设备格式变化后重建播放重采样器；FFT 分支仍保持固定双声道分析格式
+    pub fn reconfigure_player_output(&mut self, sample_rate: u32, channels: u16) -> Result<()> {
+        self.player_resampler = build_player_resampler(&self.reader, sample_rate, channels)?;
+        Ok(())
+    }
 }
 
 /// 启动解码线程，返回音频元数据和线程句柄
@@ -135,6 +157,8 @@ pub fn prepare_decode(
     let info = reader.source_info();
     let duration_secs = reader.duration().map(|d| d.as_secs_f64()).unwrap_or(0.0);
     let stream_info = metadata::extract_stream_info(info);
+    ensure!(stream_info.channels > 0, "源音频没有有效声道");
+    let source_channels = u16::try_from(stream_info.channels).context("源音频声道数超出范围")?;
     let codec = info.codec_name.clone().unwrap_or_default();
 
     let raw_metadata = reader.metadata();
@@ -153,7 +177,7 @@ pub fn prepare_decode(
         comment: tags.comment,
         duration_secs,
         sample_rate: stream_info.sample_rate,
-        channels: TARGET_CHANNELS,
+        channels: source_channels,
         original_sample_rate: stream_info.sample_rate,
         bits_per_sample: stream_info.bits_per_sample,
         bit_rate: stream_info.bit_rate,
@@ -190,7 +214,8 @@ pub fn start_prepared_decode(
         cancel_handle,
     } = prepared;
     let target_rate = shared.sample_rate();
-    let (player_resampler, fft_resampler) = build_resamplers(&reader, target_rate)?;
+    let (player_resampler, fft_resampler) =
+        build_resamplers(&reader, target_rate, shared.channels())?;
     metadata.sample_rate = target_rate;
 
     if let Some(db) = replay_gain_db {
@@ -279,6 +304,7 @@ fn process_audio_chunk(
     tempo: &Mutex<StretchProcessor>,
     limiter: &mut OutputLimiter,
     tempo_scratch: &mut Vec<f32>,
+    channels: u16,
 ) -> AudioChunk {
     if chunk.player_samples.is_empty() {
         return chunk;
@@ -286,15 +312,15 @@ fn process_audio_chunk(
 
     equalizer
         .lock()
-        .process_interleaved_stereo(&mut chunk.player_samples);
+        .process_interleaved(&mut chunk.player_samples);
     if tempo.lock().is_bypass() {
-        limiter.process(&mut chunk.player_samples);
+        limiter.process(&mut chunk.player_samples, channels);
         return chunk;
     }
 
     tempo_scratch.clear();
     tempo.lock().process(&chunk.player_samples, tempo_scratch);
-    limiter.process(tempo_scratch);
+    limiter.process(tempo_scratch, channels);
     std::mem::swap(&mut chunk.player_samples, tempo_scratch);
     chunk
 }
@@ -303,7 +329,14 @@ fn run_dsp_loop(shared: &Shared, equalizer: &Mutex<Equalizer>, tempo: &Mutex<Str
     let mut limiter = OutputLimiter::new();
     let mut tempo_scratch = shared.take_player_buffer();
     while let Some(chunk) = shared.pop_decoded() {
-        let chunk = process_audio_chunk(chunk, equalizer, tempo, &mut limiter, &mut tempo_scratch);
+        let chunk = process_audio_chunk(
+            chunk,
+            equalizer,
+            tempo,
+            &mut limiter,
+            &mut tempo_scratch,
+            shared.channels(),
+        );
         shared.push_output(chunk);
         if shared.is_stopping() {
             break;
@@ -347,18 +380,30 @@ fn open_source(
     Ok((reader, cancel))
 }
 
-fn build_resamplers(reader: &AudioReader, target_rate: u32) -> Result<(Resampler, Resampler)> {
+fn build_player_resampler(
+    reader: &AudioReader,
+    target_rate: u32,
+    target_channels: u16,
+) -> Result<Resampler> {
     let player_opts = ResampleOptions::new()
         .sample_rate(target_rate as i32)
-        .channels(i32::from(TARGET_CHANNELS))
+        .channels(i32::from(target_channels))
         .format::<f32>();
-    let player_resampler = reader
+    reader
         .build_resampler(player_opts)
-        .with_context(|| "构建播放重采样器失败")?;
+        .with_context(|| "构建播放重采样器失败")
+}
+
+fn build_resamplers(
+    reader: &AudioReader,
+    target_rate: u32,
+    target_channels: u16,
+) -> Result<(Resampler, Resampler)> {
+    let player_resampler = build_player_resampler(reader, target_rate, target_channels)?;
 
     let fft_opts = ResampleOptions::new()
         .sample_rate(FFT_TARGET_SAMPLE_RATE as i32)
-        .channels(i32::from(TARGET_CHANNELS))
+        .channels(i32::from(FFT_CHANNELS))
         .format::<f32>();
     let fft_resampler = reader
         .build_resampler(fft_opts)
@@ -371,7 +416,7 @@ fn build_resamplers(reader: &AudioReader, target_rate: u32) -> Result<(Resampler
 fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
     // 响度归一化：有 ReplayGain 标签时用固定增益，否则用实时分析
     let has_replay_gain = (shared.normalization_gain() - 1.0).abs() > f32::EPSILON;
-    let mut loudness = LoudnessAnalyzer::new(shared.sample_rate(), TARGET_CHANNELS);
+    let mut loudness = LoudnessAnalyzer::new(shared.sample_rate(), shared.channels());
     loudness.set_has_replay_gain(has_replay_gain);
 
     // 用于日志诊断：记录是否曾成功解码过帧
@@ -480,10 +525,33 @@ fn run_decoding_loop(data: &mut DecoderData, shared: &Shared) {
 mod tests {
     use super::*;
     use crate::shared::PopResult;
+    use std::io::Cursor;
+
+    fn mono_wav() -> Vec<u8> {
+        let sample_rate = 48_000_u32;
+        let frames = 1024_u32;
+        let data_size = frames * 2;
+        let mut bytes = Vec::with_capacity(44 + data_size as usize);
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&(36 + data_size).to_le_bytes());
+        bytes.extend_from_slice(b"WAVE");
+        bytes.extend_from_slice(b"fmt ");
+        bytes.extend_from_slice(&16_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&sample_rate.to_le_bytes());
+        bytes.extend_from_slice(&(sample_rate * 2).to_le_bytes());
+        bytes.extend_from_slice(&2_u16.to_le_bytes());
+        bytes.extend_from_slice(&16_u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&data_size.to_le_bytes());
+        bytes.resize(44 + data_size as usize, 0);
+        bytes
+    }
 
     #[test]
     fn panic_marks_decode_failed_and_finishes_source() {
-        let shared = Shared::new(48_000, TARGET_CHANNELS);
+        let shared = Shared::new(48_000, DEFAULT_OUTPUT_CHANNELS);
 
         run_decode_safely(&shared, || panic!("模拟解码 panic"));
 
@@ -495,7 +563,7 @@ mod tests {
 
     #[test]
     fn normal_completion_does_not_mark_decode_failed() {
-        let shared = Shared::new(48_000, TARGET_CHANNELS);
+        let shared = Shared::new(48_000, DEFAULT_OUTPUT_CHANNELS);
 
         run_decode_safely(&shared, || {});
 
@@ -507,7 +575,7 @@ mod tests {
 
     #[test]
     fn dsp_applies_equalizer_and_limiter_before_output() {
-        let equalizer = Mutex::new(Equalizer::new(48_000));
+        let equalizer = Mutex::new(Equalizer::new(48_000, 2));
         equalizer.lock().set_enabled(true);
         equalizer.lock().set_preamp_db(12.0);
         let tempo = Mutex::new(StretchProcessor::new(2, 48_000));
@@ -524,6 +592,7 @@ mod tests {
             &tempo,
             &mut limiter,
             &mut scratch,
+            2,
         );
 
         assert!(processed
@@ -534,7 +603,7 @@ mod tests {
 
     #[test]
     fn tempo_changes_output_length_but_preserves_source_count() {
-        let equalizer = Mutex::new(Equalizer::new(48_000));
+        let equalizer = Mutex::new(Equalizer::new(48_000, 2));
         let tempo = Mutex::new(StretchProcessor::new(2, 48_000));
         tempo.lock().set_speed(2.0);
         let mut limiter = OutputLimiter::new();
@@ -551,9 +620,44 @@ mod tests {
             &tempo,
             &mut limiter,
             &mut scratch,
+            2,
         );
 
         assert_eq!(processed.source_sample_count, 4096);
         assert_eq!(processed.player_samples.len(), 2048);
+    }
+
+    #[test]
+    fn limiter_uses_one_gain_for_the_whole_multichannel_frame() {
+        let mut limiter = OutputLimiter::new();
+        let original = [2.0_f32, 1.0, 0.5, -0.5, -1.0, -2.0];
+        let mut samples = original;
+
+        limiter.process(&mut samples, 6);
+
+        let gain = samples[0] / original[0];
+        for (actual, input) in samples.iter().zip(original) {
+            assert!((actual / input - gain).abs() < 1e-6);
+        }
+        assert!(samples.iter().all(|sample| sample.abs() <= OUTPUT_CEILING));
+    }
+
+    #[test]
+    fn playback_and_fft_resamplers_use_independent_channel_counts() {
+        let mut reader = AudioReader::new(Cursor::new(mono_wav())).unwrap();
+        assert_eq!(reader.source_info().channels, 1);
+        let (mut player_resampler, mut fft_resampler) =
+            build_resamplers(&reader, 48_000, 6).unwrap();
+        let frame = reader.receive_frame().unwrap().unwrap();
+
+        player_resampler.process::<f32>(Some(&frame)).unwrap();
+        fft_resampler.process::<f32>(Some(&frame)).unwrap();
+
+        let player_samples = player_resampler.output_as::<f32>();
+        let fft_samples = fft_resampler.output_as::<f32>();
+        assert!(!player_samples.is_empty());
+        assert!(!fft_samples.is_empty());
+        assert_eq!(player_samples.len() % 6, 0);
+        assert_eq!(fft_samples.len() % usize::from(FFT_CHANNELS), 0);
     }
 }

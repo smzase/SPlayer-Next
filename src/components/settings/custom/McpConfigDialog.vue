@@ -98,7 +98,7 @@ const handleInject = async (agent: McpAgentApp) => {
         >
           <SImg
             class="size-8 shrink-0 rounded-md"
-            :src="`/images/ai/${agent.id}.webp`"
+            :src="`./images/ai/${agent.id === 'claudedesktop' ? 'claudecode' : agent.id}.webp`"
             :alt="agent.name"
           />
           <div class="flex-1 min-w-0 flex flex-col">

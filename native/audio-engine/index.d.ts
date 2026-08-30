@@ -4,7 +4,12 @@
 export declare class AudioPlayer {
   /** 创建新的播放器实例 */
   constructor()
-  /** 重新初始化音频输出设备（系统休眠唤醒后调用） */
+  /**
+   * 重新初始化音频输出设备（系统休眠唤醒、设备热插拔或输出流错误后调用）
+   *
+   * 恢复为全成全败：新输出创建失败时不启动解码、不提交状态，保留当前曲目与位置，
+   * 播放器进入暂停态并返回设备错误；在线音源不会因设备错误触发 URL 重取或 sourceError。
+   */
   reinitOutput(): Promise<void>
   /** 设置封面缓存目录（在 load 前调用一次即可） */
   setCoverCacheDir(dir: string): void
@@ -31,6 +36,8 @@ export declare class AudioPlayer {
   play(): Promise<void>
   /** 暂停播放 */
   pause(): void
+  /** 立即暂停播放，用于输出设备切换前阻止短暂串音 */
+  pauseImmediately(): void
   /** 停止播放并释放资源 */
   stop(): void
   /**
@@ -94,9 +101,13 @@ export declare class AudioPlayer {
   getOutputDevices(): Array<JsAudioDevice>
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName(): string | null
-  /** 切换输出设备（传 None/undefined 使用系统默认） */
-  setOutputDevice(deviceName?: string | undefined | null): Promise<void>
-  /** 获取当前选择的输出设备名称（None = 系统默认） */
+  /** 切换输出设备（传设备 ID，None/undefined 使用系统默认） */
+  setOutputDevice(deviceId?: string | undefined | null): Promise<void>
+  /**
+   * 获取当前选择的输出设备 ID（None = 跟随系统默认）
+   *
+   * 旧配置存的是显示名，此处原样返回，由 `open_device` 回退解析
+   */
   getSelectedDeviceName(): string | null
   /** 设置播放速度（自动 clamp 到 [0.5, 2.0]） */
   setSpeed(speed: number): void
@@ -127,6 +138,9 @@ export declare function initLogger(logDir: string, isDev: boolean): void
 
 /** 音频输出设备信息 */
 export interface JsAudioDevice {
+  /** 稳定设备 ID（cpal `DeviceId` 的字符串形式） */
+  id: string
+  /** 显示名 */
   name: string
   /** 是否为系统默认设备 */
   isDefault: boolean
@@ -177,7 +191,7 @@ export interface JsMusicMetadata {
 
 /** 播放器事件，推送给 JS 侧 */
 export interface JsPlayerEvent {
-  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" */
+  /** 事件类型："stateChanged" | "ended" | "sourceError" | "position" | "fftData" | "outputStalled" | "outputFailed" */
   type: string
   /** 状态（仅 stateChanged 时有值） */
   state?: string

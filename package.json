@@ -12,7 +12,7 @@
     "email": "imsyy1024@gmail.com",
     "url": "https://imsyy.top"
   },
-  "homepage": "https://splayer.imsyy.top",
+  "homepage": "https://splayer-next.imsyy.top",
   "repository": {
     "type": "git",
     "url": "https://github.com/smzase/SPlayer-Next-Plus"
@@ -70,7 +70,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@applemusic-like-lyrics/core": "^0.5.1",
+    "@applemusic-like-lyrics/core": "^0.5.2",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron/rebuild": "^4.2.0",

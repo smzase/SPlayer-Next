@@ -74,3 +74,28 @@ jobs:
 
       - name: Test Rust workspace
         run: pnpm test:native
+
+  native-linux:
+    name: Native modules on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: native-linux
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            libasound2-dev libdbus-1-dev libpipewire-0.3-dev libpulse-dev pkg-config clang
+
+      - name: Check audio engine
+        run: cargo test -p audio-engine
