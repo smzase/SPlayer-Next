@@ -14,6 +14,7 @@
   "onboarding": {
     "next": "下一步",
     "back": "上一步",
+    "remove": "移除",
     "finish": "完成",
     "footer": "可随时在「设置」中调整本次未配置的内容",
     "welcome": {
@@ -583,6 +584,42 @@
       "notes": "笔记"
     }
   },
+  "recognition": {
+    "title": "听歌识曲",
+    "description": "识别电脑或麦克风中的音乐",
+    "sourceLabel": "音频来源",
+    "start": "开始识别",
+    "cancel": "取消识别",
+    "empty": "未识别出音乐，请重试",
+    "phase": {
+      "idle": "准备识别",
+      "capturing": "正在采集音频…",
+      "fingerprinting": "正在生成音频指纹…",
+      "matching": "正在匹配歌曲…",
+      "done": "识别完成",
+      "error": "识别失败"
+    },
+    "source": {
+      "system": "系统声音",
+      "microphone": "麦克风",
+      "systemHint": "识别电脑中正在播放的声音",
+      "microphoneHint": "使用麦克风采集周围声音"
+    },
+    "hint": {
+      "system": "播放歌曲或背景音乐后开始识别",
+      "microphone": "允许麦克风权限后开始识别"
+    },
+    "error": {
+      "unsupported": "当前平台不支持系统声音识别",
+      "no-device": "未找到可用的麦克风设备",
+      "permission-denied": "麦克风权限被拒绝",
+      "capture-failed": "音频采集失败，请重试",
+      "silent-input": "没有检测到有效声音",
+      "network": "识曲服务请求失败，请检查网络",
+      "afp-unavailable": "识曲服务暂不可用，请稍后重试",
+      "unknown": "识曲失败，请稍后重试"
+    }
+  },
   "audioRecognition": {
     "title": "听歌识曲",
     "subtitle": "识别电脑中正在播放的歌曲、视频背景音乐等声音",
@@ -683,7 +720,10 @@
       "loading": "正在开启私人 FM…",
       "entered": "已开启私人 FM",
       "already": "已处于私人 FM",
-      "failed": "私人 FM 开启失败，请稍后重试"
+      "failed": "私人 FM 开启失败，请稍后重试",
+      "modeSettings": "私人 FM 模式选择",
+      "modeTooltip": "FM 模式与场景",
+      "modeSettingsTip": "选择喜好的推荐模式与场景"
     },
     "lyricOffset": {
       "title": "歌词偏移",
@@ -792,6 +832,9 @@
     "stereo": "立体声",
     "mono": "单声道",
     "multiChannel": "多声道"
+  },
+  "song": {
+    "unknownArtist": "未知艺术家"
   },
   "playlist": {
     "title": "播放列表",
@@ -993,6 +1036,7 @@
       "about": "关于软件"
     },
     "section": {
+      "platformLogin": "平台登录",
       "network": "网络代理",
       "aboutApp": "关于软件",
       "specialThanks": "特别致谢",
@@ -1011,6 +1055,7 @@
       "lyricDisplay": "显示效果",
       "lyricSpring": "弹簧动画",
       "lyricLayout": "布局与透明度",
+      "lyricAMLLOptimize": "AMLL 歌词优化",
       "desktopLyric": "桌面歌词",
       "dynamicIsland": "灵动岛歌词",
       "taskbarLyric": "任务栏歌词",
@@ -1200,6 +1245,29 @@
       "label": "自动升级歌词格式",
       "description": "当前歌词格式较低时，从其他平台获取更高级的格式覆盖"
     },
+    "preferPluginLyric": {
+      "label": "优先使用插件歌词",
+      "description": "开启后先向插件请求歌词，未命中再回落到内置平台；关闭时插件仅作为兜底"
+    },
+    "cjkTransform": {
+      "label": "繁简转换",
+      "description": "对歌词文本进行简繁中文或日文汉字转换",
+      "none": "不转换",
+      "s2t": "简体 → 繁体",
+      "t2s": "繁体 → 简体",
+      "s2tw": "简体 → 台湾正体",
+      "tw2s": "台湾正体 → 简体",
+      "s2hk": "简体 → 香港繁体",
+      "hk2s": "香港繁体 → 简体",
+      "s2twp": "简体 → 台湾正体",
+      "tw2sp": "台湾正体 → 简体",
+      "t2tw": "繁体 → 台湾正体",
+      "tw2t": "台湾正体 → 繁体",
+      "t2hk": "繁体 → 香港繁体",
+      "hk2t": "香港繁体 → 繁体",
+      "jp2t": "日本新字体 → 繁体",
+      "t2jp": "繁体 → 日本新字体"
+    },
     "detectBackgroundLyrics": {
       "label": "自动识别背景歌词",
       "description": "根据括号识别背景人声，误判时可关闭"
@@ -1336,6 +1404,30 @@
     "amllScaleSpringSoft": {
       "label": "缩放强制软弹簧",
       "description": "启用后将强制使用较软的焦点行缩放弹簧动效"
+    },
+    "amllCleanUnintentionalOverlaps": {
+      "label": "清洗时间重叠",
+      "description": "自动截断两行之间非刻意的微小时间重叠，避免多行同时高亮"
+    },
+    "amllTryAdvanceStartTime": {
+      "label": "提前入场动画",
+      "description": "尝试让歌词入场动画提前开始（最多 1 秒），使过渡更加平滑"
+    },
+    "amllConvertExcessiveBackgroundLines": {
+      "label": "合并背景人声",
+      "description": "将多行连续背景人声转换为单行背景人声与主歌词行的形式"
+    },
+    "amllSyncMainAndBackgroundLines": {
+      "label": "同步背景人声时间",
+      "description": "自动同步主歌词与背景人声的时间轴"
+    },
+    "amllNormalizeSpaces": {
+      "label": "规范化空格",
+      "description": "将歌词文本中的多个连续空格合并为单个空格"
+    },
+    "amllResetLineTimestamps": {
+      "label": "重设行时间戳",
+      "description": "将行级时间戳强制重设为字级时间戳范围"
     },
     "autoCenterCover": {
       "label": "自动居中封面",
@@ -1879,6 +1971,27 @@
         "disconnected": "已断开 Last.fm 连接"
       }
     },
+    "platformLogin": {
+      "title": "登录 {name} 账号",
+      "desc": "登录后可获取对应平台播放地址",
+      "vipTag": " · VIP 会员",
+      "loginWeb": "网页登录",
+      "loginQr": "扫码登录",
+      "qrTitle": "扫码登录",
+      "manualCookie": "Cookie 登录",
+      "logout": "退出登录",
+      "logoutTitle": "退出 {name} 登录",
+      "logoutConfirm": "确定要退出当前 {name} 账号（{user}）吗？",
+      "cookieTitle": "设置 {name} Cookie",
+      "cookiePlaceholder": "请输入 Cookie",
+      "toast": {
+        "loginSuccess": "{name} 登录成功：{user}",
+        "loginFailed": "{name} 登录失败，请重试",
+        "logoutDone": "已退出 {name} 登录",
+        "cookieSuccess": "{name} Cookie 设置成功",
+        "cookieInvalid": "Cookie 无效，请检查后重试"
+      }
+    },
     "rememberWindowState": {
       "label": "记忆窗口状态",
       "description": "下次启动时恢复窗口的大小、位置和最大化状态"
@@ -2096,6 +2209,7 @@
       "securityWarning": "插件为第三方代码，软件已尽可能做了沙箱隔离，但仍无法完全杜绝风险，恶意插件可能访问你的数据或执行危险操作。请仅安装来自可信来源的插件。",
       "hint": "从本地或在线安装",
       "hintDetail": "通过插件扩展软件功能，详见",
+      "import": "导入插件",
       "docs": "插件文档",
       "importLocal": "本地导入",
       "importFromUrl": "在线导入",

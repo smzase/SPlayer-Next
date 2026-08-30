@@ -113,6 +113,8 @@
     "retry": "Retry",
     "prev": "Previous",
     "next": "Next",
+    "back": "Back",
+    "remove": "Remove",
     "search": "Search",
     "loading": "Loading",
     "noData": "No data",
@@ -595,6 +597,42 @@
       "notes": "Posts"
     }
   },
+  "recognition": {
+    "title": "Identify Music",
+    "description": "Identify music from your computer or microphone",
+    "sourceLabel": "Audio source",
+    "start": "Start identifying",
+    "cancel": "Cancel",
+    "empty": "No music was identified. Try again",
+    "phase": {
+      "idle": "Ready to identify",
+      "capturing": "Capturing audio…",
+      "fingerprinting": "Generating audio fingerprint…",
+      "matching": "Matching song…",
+      "done": "Identification complete",
+      "error": "Identification failed"
+    },
+    "source": {
+      "system": "System audio",
+      "microphone": "Microphone",
+      "systemHint": "Identify sound currently playing on this computer",
+      "microphoneHint": "Capture nearby sound through the microphone"
+    },
+    "hint": {
+      "system": "Start identification while a song or background music is playing",
+      "microphone": "Allow microphone access to start identification"
+    },
+    "error": {
+      "unsupported": "System-audio identification is not supported on this platform",
+      "no-device": "No microphone device was found",
+      "permission-denied": "Microphone permission was denied",
+      "capture-failed": "Audio capture failed. Please try again",
+      "silent-input": "No usable audio was detected",
+      "network": "The identification service could not be reached",
+      "afp-unavailable": "The identification service is temporarily unavailable",
+      "unknown": "Identification failed. Please try again later"
+    }
+  },
   "audioRecognition": {
     "title": "Identify Music",
     "subtitle": "Identify songs and background music currently playing on your computer",
@@ -695,7 +733,10 @@
       "loading": "Starting Personal FM…",
       "entered": "Personal FM started",
       "already": "Already in Personal FM",
-      "failed": "Failed to start Personal FM, please try again later"
+      "failed": "Failed to start Personal FM, please try again later",
+      "modeSettings": "Personal FM Mode",
+      "modeTooltip": "FM Mode & Scene",
+      "modeSettingsTip": "Select preferred recommendation mode and scene"
     },
     "lyricOffset": {
       "title": "Lyric Offset",
@@ -804,6 +845,9 @@
     "stereo": "Stereo",
     "mono": "Mono",
     "multiChannel": "Multi-channel"
+  },
+  "song": {
+    "unknownArtist": "Unknown artist"
   },
   "playlist": {
     "title": "Playlist",
@@ -1005,6 +1049,7 @@
       "about": "About"
     },
     "section": {
+      "platformLogin": "Platform Login",
       "network": "Network & Proxy",
       "aboutApp": "About",
       "specialThanks": "Special Thanks",
@@ -1023,6 +1068,7 @@
       "lyricDisplay": "Display Effects",
       "lyricSpring": "Spring Animation",
       "lyricLayout": "Layout & Opacity",
+      "lyricAMLLOptimize": "AMLL Lyric Optimization",
       "desktopLyric": "Desktop Lyric",
       "dynamicIsland": "Dynamic Island Lyric",
       "taskbarLyric": "Taskbar Lyric",
@@ -1212,6 +1258,29 @@
       "label": "Auto-Upgrade Lyric Format",
       "description": "Fetch a higher-ranked format from other platforms when the current one is low"
     },
+    "preferPluginLyric": {
+      "label": "Prefer Plugin Lyrics",
+      "description": "Query plugins first and fall back to built-in platforms on a miss; when off, plugins are only a last resort"
+    },
+    "cjkTransform": {
+      "label": "Chinese Conversion",
+      "description": "Convert lyric text between Simplified and Traditional Chinese or Japanese Kanji",
+      "none": "Off",
+      "s2t": "Simplified → Traditional",
+      "t2s": "Traditional → Simplified",
+      "s2tw": "Simplified → Traditional (Taiwan)",
+      "tw2s": "Traditional (Taiwan) → Simplified",
+      "s2hk": "Simplified → Traditional (Hong Kong)",
+      "hk2s": "Traditional (Hong Kong) → Simplified",
+      "s2twp": "Simplified → Traditional (Taiwan)",
+      "tw2sp": "Traditional (Taiwan) → Simplified",
+      "t2tw": "Traditional → Traditional (Taiwan)",
+      "tw2t": "Traditional (Taiwan) → Traditional",
+      "t2hk": "Traditional → Traditional (Hong Kong)",
+      "hk2t": "Traditional (Hong Kong) → Traditional",
+      "jp2t": "Japanese Shinjitai → Traditional",
+      "t2jp": "Traditional → Japanese Shinjitai"
+    },
     "detectBackgroundLyrics": {
       "label": "Auto-Detect Background Lyrics",
       "description": "Detect backing vocals from brackets. Disable this if lyrics are misdetected"
@@ -1348,6 +1417,30 @@
     "amllScaleSpringSoft": {
       "label": "Scale Soft Spring",
       "description": "Forces the active line scale animation to use a softer spring profile."
+    },
+    "amllCleanUnintentionalOverlaps": {
+      "label": "Clean Unintentional Overlaps",
+      "description": "Automatically trim minor unintentional timestamp overlaps between lines to avoid multiple active lines"
+    },
+    "amllTryAdvanceStartTime": {
+      "label": "Advance Animation Start Time",
+      "description": "Advance lyric entry animation (up to 1s) for smoother transitions"
+    },
+    "amllConvertExcessiveBackgroundLines": {
+      "label": "Convert Excessive Background Lines",
+      "description": "Convert consecutive multi-line background vocals into a single-line background vocal attached to the main line"
+    },
+    "amllSyncMainAndBackgroundLines": {
+      "label": "Sync Background Lines Timing",
+      "description": "Synchronize timing between main lines and background vocal lines"
+    },
+    "amllNormalizeSpaces": {
+      "label": "Normalize Spaces",
+      "description": "Collapse consecutive spaces in lyrics into a single space"
+    },
+    "amllResetLineTimestamps": {
+      "label": "Reset Line Timestamps",
+      "description": "Force line-level timestamps to match word-level timestamp boundaries"
     },
     "autoCenterCover": {
       "label": "Auto Center Cover",
@@ -1891,6 +1984,27 @@
         "disconnected": "Disconnected from Last.fm"
       }
     },
+    "platformLogin": {
+      "title": "Log in to {name} Account",
+      "desc": "Log in to retrieve playback streams directly from the platform",
+      "vipTag": " · VIP Member",
+      "loginWeb": "Web Login",
+      "loginQr": "QR Login",
+      "qrTitle": "Scan to Log In",
+      "manualCookie": "Cookie Login",
+      "logout": "Log Out",
+      "logoutTitle": "Log Out from {name}",
+      "logoutConfirm": "Are you sure you want to log out of current {name} account ({user})?",
+      "cookieTitle": "Set {name} Cookie",
+      "cookiePlaceholder": "Please enter Cookie",
+      "toast": {
+        "loginSuccess": "{name} login successful: {user}",
+        "loginFailed": "{name} login failed, please try again",
+        "logoutDone": "Logged out from {name}",
+        "cookieSuccess": "{name} Cookie set successfully",
+        "cookieInvalid": "Invalid Cookie, please check and retry"
+      }
+    },
     "rememberWindowState": {
       "label": "Remember Window State",
       "description": "Restore window size, position and maximized state on next launch"
@@ -2108,6 +2222,7 @@
       "securityWarning": "Plugins are third-party code. The app sandboxes them as much as possible, but the risk cannot be fully eliminated — a malicious plugin may access your data or perform dangerous actions. Only install plugins from sources you trust.",
       "hint": "Install from local file or URL",
       "hintDetail": "Extend the app with plugins. See the",
+      "import": "Import Plugin",
       "docs": "plugin docs",
       "importLocal": "Local",
       "importFromUrl": "From URL",

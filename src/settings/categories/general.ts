@@ -134,7 +134,12 @@ const generalCategory: SettingCategory = {
           type: "custom",
           component: StorageManager,
           fullWidth: true,
-          keywords: ["backup.label", "restore.label", "resetSettings.label", "resetAll.label"],
+          keywords: [
+            "settings.backup.label",
+            "settings.restore.label",
+            "settings.resetSettings.label",
+            "settings.resetAll.label",
+          ],
         },
       ],
     },
