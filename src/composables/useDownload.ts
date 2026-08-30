@@ -8,8 +8,8 @@ import type {
 import { QUALITY_LABELS, type QualityLevel } from "@/utils/quality";
 import { useSettingsStore } from "@/stores/settings";
 import { useDownloadStore } from "@/stores/download";
-import { resolveDownloadSource } from "@/services/downloadSource";
-import { resolveDownloadLyric } from "@/services/downloadLyric";
+import { resolveDownloadSource } from "@/services/download/source";
+import { resolveDownloadLyric } from "@/services/download/lyric";
 import { buildDownloadLyric } from "@/utils/lyric/serialize";
 import { toast } from "@/composables/useToast";
 
@@ -79,7 +79,7 @@ export const useDownload = () => {
     if (track.source === "local") return null;
     const download = useSettingsStore().system.download;
     const level = opts.quality ?? download.quality;
-    const source = await resolveDownloadSource(track, level);
+    const source = await resolveDownloadSource(track, level, download.usePlaybackForDownload);
     if (!source) {
       toast.error(t("download.resolveFailed", { title: track.title }));
       return null;
@@ -125,6 +125,8 @@ export const useDownload = () => {
       lyricText,
       ttmlText,
       tagOptions,
+      usePlaybackForDownload: download.usePlaybackForDownload,
+      lyricFileFormat: download.lyricFileFormat,
     };
   };
 

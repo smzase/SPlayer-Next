@@ -2,7 +2,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useMediaStore } from "@/stores/media";
 
 /** 悬浮播放栏底部留白 */
-const PLAYER_BAR_GAP = 112;
+export const PLAYER_BAR_GAP = 112;
 
 /**
  * 悬浮播放栏状态

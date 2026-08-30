@@ -126,6 +126,8 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
 ]);
 
 /** 国内 IP 前缀池 */
+const SESSIONLESS: ReadonlySet<string> = new Set(["audio_match"]);
+
 const CN_IP_PREFIXES = [
   "116.25",
   "121.8",
@@ -258,7 +260,7 @@ export const callNetease = async (
     name.startsWith("captcha") ||
     name === "logout" ||
     name === "register_anonimous";
-  if (!isSessionEndpoint && params.cookie === undefined) {
+  if (!isSessionEndpoint && !SESSIONLESS.has(name) && params.cookie === undefined) {
     await ensureNeteaseAnonymousSession();
   }
   const session = loadSession();

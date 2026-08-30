@@ -1,4 +1,5 @@
 import type { PlaybackContext, Track } from "@shared/types/player";
+import type { PersonalFmOptions } from "@/types/netease";
 import type { TaskbarPlayMode, TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
 import {
   nextTaskbarPlayMode,
@@ -702,9 +703,9 @@ export const exitHeartMode = (): void => {
 };
 
 /** 进入私人 FM */
-export const playPersonalFm = async (): Promise<boolean> => {
+export const playPersonalFm = async (options?: PersonalFmOptions): Promise<boolean> => {
   const status = useStatusStore();
-  const track = await fm.start();
+  const track = await fm.start(options);
   if (!track) return false;
   status.fmMode = true;
   // 心动 / FM 互斥

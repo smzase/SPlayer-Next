@@ -1,5 +1,6 @@
 import localforage from "localforage";
 import type { Track } from "@shared/types/player";
+import type { Platform, PlatformProfile } from "@shared/types/platform";
 import { fetchDailySongs } from "@/apis/recommend/netease";
 import { useUserStore } from "@/stores/user";
 
@@ -131,9 +132,28 @@ export const useDataStore = defineStore(
       return dailyRecommendLoading;
     };
 
+    const platformProfiles = ref<Partial<Record<Platform, PlatformProfile>>>({});
+
+    const getPlatformProfile = (platform: Platform): PlatformProfile | null =>
+      platformProfiles.value[platform] ?? null;
+
+    const setPlatformProfile = (platform: Platform, profile: PlatformProfile | null): void => {
+      const next = { ...platformProfiles.value };
+      if (profile) next[platform] = profile;
+      else delete next[platform];
+      platformProfiles.value = next;
+    };
+
+    const clearPlatformProfile = (platform: Platform): void => {
+      setPlatformProfile(platform, null);
+    };
     return {
       searchHistory,
       showHotSearch,
+      platformProfiles,
+      getPlatformProfile,
+      setPlatformProfile,
+      clearPlatformProfile,
       addSearchHistory,
       removeSearchHistory,
       clearSearchHistory,
@@ -145,7 +165,7 @@ export const useDataStore = defineStore(
   {
     persist: {
       storage: localStorage,
-      pick: ["searchHistory", "showHotSearch"],
+      pick: ["searchHistory", "showHotSearch", "platformProfiles"],
     },
   },
 );
