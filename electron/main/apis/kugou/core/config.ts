@@ -1,3 +1,5 @@
+import { store } from "@main/store";
+
 /**
  * KG API 通用常量与工具
  */
@@ -8,6 +10,23 @@ export const KG_GATEWAY_URL = "https://gateway.kugou.com";
 /** KG客户端标识 */
 export const KG_APPID = 1005;
 export const KG_CLIENTVER = 20489;
+
+/** 概念版（lite）客户端标识 */
+export const KG_LITE_APPID = 3116;
+export const KG_LITE_CLIENTVER = 11440;
+
+/**
+ * 是否启用概念版模式（登录、签名与播放解析整体切换到 lite 标识）
+ */
+export const isKugouConceptMode = (): boolean =>
+  store.get("system.kugouLoginVersion") === "concept";
+
+/** 按模式取 appid */
+export const getKgAppid = (): number => (isKugouConceptMode() ? KG_LITE_APPID : KG_APPID);
+
+/** 按模式取 clientver */
+export const getKgClientver = (): number =>
+  isKugouConceptMode() ? KG_LITE_CLIENTVER : KG_CLIENTVER;
 
 /** 主搜索（带封面）：mobilecdn 的 /api/v3/search/song */
 export const KG_MOBILECDN_URL = "http://mobilecdn.kugou.com/api/v3/search/song";

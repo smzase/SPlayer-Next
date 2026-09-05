@@ -30,16 +30,11 @@
   font-size: inherit;
   font-weight: inherit;
   transform-origin: left;
-  opacity: var(--lp-inactive-opacity, 0.3);
+  opacity: 1;
   contain: content;
-  transition: opacity 0.3s ease;
   pointer-events: none;
   --ba: 0.2;
   --da: 0.2;
-
-  &.active {
-    opacity: var(--lp-active-opacity, 1);
-  }
 
   &.duet {
     text-align: right;

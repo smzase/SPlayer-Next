@@ -257,11 +257,7 @@ onBeforeUnmount(() => {
     </div>
     <div class="header">
       <div class="header-section header-left">
-        <button
-          class="header-btn logo-btn"
-          :title="track?.title ?? '回到主窗口'"
-          @click="onHeaderAction('focus-main')"
-        >
+        <button class="header-btn logo-btn" @click="onHeaderAction('focus-main')">
           <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
             <path
               class="logo-primary"
@@ -283,35 +279,30 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="header-section header-center">
-        <button class="header-btn" title="上一曲" @click="onHeaderAction('prev')">
+        <button class="header-btn" @click="onHeaderAction('prev')">
           <IconLucideSkipBack />
         </button>
-        <button
-          class="header-btn"
-          :title="playing ? '暂停' : '播放'"
-          @click="onHeaderAction('toggle-play')"
-        >
+        <button class="header-btn" @click="onHeaderAction('toggle-play')">
           <IconLucidePause v-if="playing" />
           <IconLucidePlay v-else />
         </button>
-        <button class="header-btn" title="下一曲" @click="onHeaderAction('next')">
+        <button class="header-btn" @click="onHeaderAction('next')">
           <IconLucideSkipForward />
         </button>
       </div>
       <div class="header-section header-right">
-        <button class="header-btn" title="设置" @click="onHeaderAction('open-settings')">
+        <button class="header-btn" @click="onHeaderAction('open-settings')">
           <IconLucideSettings />
         </button>
         <button
           ref="lockButton"
           class="header-btn lock-btn"
-          :title="config.locked ? '解锁窗口' : '锁定窗口'"
           @click="onHeaderAction('toggle-locked')"
         >
           <IconLucideUnlock v-if="config.locked" />
           <IconLucideLock v-else />
         </button>
-        <button class="header-btn" title="关闭桌面歌词" @click="onHeaderAction('close')">
+        <button class="header-btn" @click="onHeaderAction('close')">
           <IconLucideX />
         </button>
       </div>

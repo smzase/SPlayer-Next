@@ -4,6 +4,7 @@ import { toast } from "@/composables/useToast";
 import { getPlatformAccountAdapter } from "@/apis/login/platform";
 import { REPO_NAME } from "@/utils/config";
 import type { Platform } from "@shared/types/platform";
+import type { DropdownMenuItem } from "@/components/ui/SDropdownMenu.vue";
 
 defineOptions({ inheritAttrs: false });
 
@@ -21,6 +22,43 @@ const cookieModalOpen = ref(false);
 const qrModalOpen = ref(false);
 const cookieSubmitting = ref(false);
 const manualCookie = ref("");
+const selectedQrKey = ref<string>("");
+
+const qrDropdownItems = computed<DropdownMenuItem[]>(() => {
+  if (!adapter.value.qrLoginOptions) return [];
+  return adapter.value.qrLoginOptions.map((opt) => ({
+    key: opt.key,
+    label: t(opt.labelKey),
+  }));
+});
+
+const activeQrAdapter = computed(() => {
+  if (adapter.value.qrLoginOptions?.length) {
+    const target = adapter.value.qrLoginOptions.find((o) => o.key === selectedQrKey.value);
+    return target?.adapter ?? adapter.value.qrLoginOptions[0].adapter;
+  }
+  return adapter.value.qrLogin;
+});
+
+const currentQrTitle = computed(() => {
+  if (adapter.value.qrLoginOptions?.length) {
+    const target = adapter.value.qrLoginOptions.find((o) => o.key === selectedQrKey.value);
+    return target ? t(target.labelKey) : "";
+  }
+  return "";
+});
+
+const handleQrOptionSelect = (key: string): void => {
+  selectedQrKey.value = key;
+  qrModalOpen.value = true;
+};
+
+const openSingleQrModal = (): void => {
+  if (adapter.value.qrLoginOptions?.length) {
+    selectedQrKey.value = adapter.value.qrLoginOptions[0].key;
+  }
+  qrModalOpen.value = true;
+};
 
 watch(cookieModalOpen, (val) => {
   if (!val) {
@@ -160,7 +198,7 @@ const handleQrSuccess = async (): Promise<void> => {
           <div class="text-sm text-on-surface-variant/70 mt-0.5 truncate">
             {{
               profile
-                ? `${adapter.userIdLabel}: ${profile.userId}${profile.isVip ? t("settings.platformLogin.vipTag") : ""}`
+                ? `${adapter.userIdLabel}: ${profile.userId}`
                 : t("settings.platformLogin.desc")
             }}
           </div>
@@ -188,16 +226,36 @@ const handleQrSuccess = async (): Promise<void> => {
             </template>
             {{ t("settings.platformLogin.manualCookie") }}
           </SButton>
+
+          <!-- 多扫码方式下拉菜单 -->
+          <SDropdownMenu
+            v-if="adapter.qrLoginOptions && adapter.qrLoginOptions.length > 1"
+            :items="qrDropdownItems"
+            @select="handleQrOptionSelect"
+          >
+            <template #trigger>
+              <SButton variant="secondary" size="small" type="primary">
+                <template #icon><IconLucideQrCode class="size-4" /></template>
+                {{ t("settings.platformLogin.loginQr") }}
+                <template #extra>
+                  <IconLucideChevronDown class="size-3.5 ml-0.5 opacity-70" />
+                </template>
+              </SButton>
+            </template>
+          </SDropdownMenu>
+
+          <!-- 单扫码方式按钮 -->
           <SButton
-            v-if="adapter.qrLogin"
+            v-else-if="adapter.qrLogin"
             variant="secondary"
             size="small"
             type="primary"
-            @click="qrModalOpen = true"
+            @click="openSingleQrModal"
           >
             <template #icon><IconLucideQrCode class="size-4" /></template>
             {{ t("settings.platformLogin.loginQr") }}
           </SButton>
+
           <SButton
             v-if="adapter.openWebLogin"
             variant="secondary"
@@ -237,16 +295,21 @@ const handleQrSuccess = async (): Promise<void> => {
       </template>
     </SDialog>
 
-    <SDialog v-if="adapter.qrLogin" v-model:open="qrModalOpen" :closable="false" width="380px">
+    <!-- 二维码登录弹窗 -->
+    <SDialog v-if="activeQrAdapter" v-model:open="qrModalOpen" :closable="false" width="380px">
       <div class="flex flex-col items-center gap-4 py-3">
         <div class="flex flex-col items-center gap-2">
           <SLogo :size="48" />
           <div class="text-xl font-semibold text-on-surface">{{ REPO_NAME }}</div>
+          <div v-if="currentQrTitle" class="text-xs text-on-surface-variant font-medium">
+            {{ currentQrTitle }}
+          </div>
         </div>
         <QrLoginPanel
-          class="mt-4"
+          :key="selectedQrKey"
+          class="mt-2"
           :active="qrModalOpen"
-          :adapter="adapter.qrLogin"
+          :adapter="activeQrAdapter"
           @success="handleQrSuccess"
         />
       </div>

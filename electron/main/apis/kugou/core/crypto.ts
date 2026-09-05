@@ -10,17 +10,31 @@ import {
   publicEncrypt,
   randomBytes,
 } from "node:crypto";
-import { KG_APPID, KG_CLIENTVER } from "./config";
+import { getKgAppid, getKgClientver, isKugouConceptMode } from "./config";
 
-/** KG Android 签名盐值 */
+/** KG Android 签名盐值（标准版） */
 const ANDROID_SIGN_SALT = "OIlwieks28dk2k092lksi2UIkp";
+/** KG Android 签名盐值（概念版） */
+const LITE_SIGN_SALT = "LnT6xpN3khm36zse0QzvmgTZ3waWdRSA";
 /** KG Web 签名盐值 */
 const WEB_SIGN_SALT = "NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt";
-/** KG key 签名盐值 */
+/** KG key 签名盐值（标准版） */
 const SIGN_KEY_SALT = "57ae12eb6890223e355ccfcb74edf70d";
+/** KG key 签名盐值（概念版） */
+const LITE_SIGN_KEY_SALT = "185672dd44712f60bb1736df5a377e82";
 const KG_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB
 -----END PUBLIC KEY-----`;
+const KG_LITE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDECi0Np2UR87scwrvTr72L6oO01rBbbBPriSDFPxr3Z5syug0O24QyQO8bg27+0+4kBzTBTBOZ/WWU0WryL1JSXRTXLgFVxtzIY41Pe7lPOgsfTCn5kZcvKhYKJesKnnJDNr5/abvTGf+rHG3YRwsCHcQ08/q6ifSioBszvb3QiwIDAQAB
+-----END PUBLIC KEY-----`;
+
+/** 概念版模式下的签名盐值集合 */
+const currentSalts = () => ({
+  androidSign: isKugouConceptMode() ? LITE_SIGN_SALT : ANDROID_SIGN_SALT,
+  signKey: isKugouConceptMode() ? LITE_SIGN_KEY_SALT : SIGN_KEY_SALT,
+  publicKey: isKugouConceptMode() ? KG_LITE_PUBLIC_KEY : KG_PUBLIC_KEY,
+});
 
 /**
  * 按 KG 客户端协议执行无填充 RSA 加密
@@ -31,14 +45,15 @@ export const rsaEncryptKugou = (data: Record<string, unknown>): string => {
   const input = Buffer.from(JSON.stringify(data));
   const block = Buffer.alloc(128);
   input.copy(block);
-  return publicEncrypt({ key: KG_PUBLIC_KEY, padding: constants.RSA_NO_PADDING }, block).toString(
-    "hex",
-  );
+  return publicEncrypt(
+    { key: currentSalts().publicKey, padding: constants.RSA_NO_PADDING },
+    block,
+  ).toString("hex");
 };
 
 export const rsaEncryptKugouPkcs1 = (data: Record<string, unknown>): string =>
   publicEncrypt(
-    { key: KG_PUBLIC_KEY, padding: constants.RSA_PKCS1_PADDING },
+    { key: currentSalts().publicKey, padding: constants.RSA_PKCS1_PADDING },
     Buffer.from(JSON.stringify(data)),
   ).toString("hex");
 
@@ -114,7 +129,9 @@ export const signatureAndroidParams = (
     })
     .join("");
   const bodyStr = typeof data === "string" ? data : data.toString("utf8");
-  return cryptoMd5(`${ANDROID_SIGN_SALT}${paramsString}${bodyStr}${ANDROID_SIGN_SALT}`);
+  return cryptoMd5(
+    `${currentSalts().androidSign}${paramsString}${bodyStr}${currentSalts().androidSign}`,
+  );
 };
 
 /**
@@ -140,10 +157,10 @@ export const signatureWebParams = (params: Record<string, unknown>): string => {
  */
 export const signParamsKey = (
   data: string | number,
-  appid = KG_APPID,
-  clientver = KG_CLIENTVER,
+  appid = getKgAppid(),
+  clientver = getKgClientver(),
 ): string => {
-  return cryptoMd5(`${appid}${ANDROID_SIGN_SALT}${clientver}${data}`);
+  return cryptoMd5(`${appid}${currentSalts().androidSign}${clientver}${data}`);
 };
 
 /**
@@ -159,9 +176,9 @@ export const signKey = (
   hash: string,
   mid = getDeviceMid(),
   userid: number | string = 0,
-  appid = KG_APPID,
+  appid = getKgAppid(),
 ): string => {
-  return cryptoMd5(`${hash}${SIGN_KEY_SALT}${appid}${mid}${userid}`);
+  return cryptoMd5(`${hash}${currentSalts().signKey}${appid}${mid}${userid}`);
 };
 
 /**

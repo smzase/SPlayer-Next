@@ -241,11 +241,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex items-center flex-1 h-full app-drag-region">
+  <div class="flex items-center justify-between flex-1 h-full min-w-0 app-drag-region">
     <!-- 左侧 -->
-    <div class="flex items-center gap-3 shrink-0">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
       <SButton
-        class="app-no-drag"
+        class="app-no-drag shrink-0"
         variant="tertiary"
         circle
         :size="40"
@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
         <template #icon><IconLucideChevronLeft /></template>
       </SButton>
       <SButton
-        class="app-no-drag"
+        class="app-no-drag shrink-0"
         variant="tertiary"
         circle
         :size="40"
@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
       </SButton>
       <SButton
         v-if="update.hasUpdate"
-        class="app-no-drag"
+        class="app-no-drag shrink-0"
         variant="tertiary"
         circle
         :size="40"
@@ -292,9 +292,9 @@ onBeforeUnmount(() => {
       </SButton>
     </div>
     <!-- 中间 -->
-    <div class="flex-1 h-full" />
+    <div class="flex-1 h-full min-w-4" />
     <!-- 右侧 -->
-    <div class="flex items-center gap-3 shrink-0">
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <NavUser />
       <PopoverRoot v-if="user.isLoggedIn" v-model:open="messageOpen">
         <PopoverTrigger as-child>
@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
       </PopoverRoot>
       <SDropdownMenu :items="menuItems" @select="onMenuSelect">
         <template #trigger>
-          <SButton class="app-no-drag" variant="tertiary" circle :size="40">
+          <SButton class="app-no-drag shrink-0" variant="tertiary" circle :size="40">
             <template #icon><IconLucideSettings /></template>
           </SButton>
         </template>

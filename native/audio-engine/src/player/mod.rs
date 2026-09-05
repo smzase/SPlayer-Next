@@ -77,6 +77,8 @@ pub struct InnerPlayer {
     load_token: Arc<AtomicU64>,
     /// 当前输出流代次。错误回调仅允许上报与此值一致的输出，避免旧流销毁后的迟到事件重建新流。
     output_generation: Arc<AtomicU64>,
+    /// 当前音频源的原始采样率
+    original_sample_rate: u32,
     /// 正在打开的网络音源中断句柄，确保切歌和 stop 能取消元数据探测
     pending_load_handle: Option<HttpCancelHandle>,
 }
@@ -182,6 +184,7 @@ impl InnerPlayer {
             ))),
             load_token: Arc::new(AtomicU64::new(0)),
             output_generation: Arc::new(AtomicU64::new(0)),
+            original_sample_rate: decoder::DEFAULT_TARGET_SAMPLE_RATE,
             pending_load_handle: None,
         })
     }

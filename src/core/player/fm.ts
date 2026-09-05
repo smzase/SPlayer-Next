@@ -5,6 +5,7 @@
 import type { Track } from "@shared/types/player";
 import type { PersonalFmOptions } from "@/types/netease";
 import { fetchPersonalFm, submitFmTrash } from "@/apis/recommend/netease";
+import { useStatusStore } from "@/stores/status";
 
 /** 剩余曲目不足此数时后台续推，FM 单次返回约 3 首 */
 const FM_PREFETCH_AHEAD = 1;
@@ -12,8 +13,6 @@ const FM_PREFETCH_AHEAD = 1;
 let pool: Track[] = [];
 /** 续推在途 promise，并发复用 */
 let fetchingPromise: Promise<void> | null = null;
-/** 当前生效的 FM 模式选项 */
-let currentOptions: PersonalFmOptions | undefined = undefined;
 
 /** 当前 FM 曲目；池空返回 null */
 export const current = (): Track | null => pool[0] ?? null;
@@ -21,18 +20,12 @@ export const current = (): Track | null => pool[0] ?? null;
 /** 池是否非空 */
 export const hasTracks = (): boolean => pool.length > 0;
 
-/**
- * 获取当前生效的 FM 模式选项
- * @returns 当前 FM 模式选项
- */
-export const getOptions = (): PersonalFmOptions | undefined => currentOptions;
-
 /** 拉一批新曲目追加到池末 */
 const fetchMore = (): Promise<void> => {
   if (fetchingPromise) return fetchingPromise;
   fetchingPromise = (async () => {
     try {
-      const more = await fetchPersonalFm(currentOptions);
+      const more = await fetchPersonalFm(useStatusStore().fmOptions);
       const seen = new Set(pool.map((track) => track.id));
       const fresh = more.filter((track) => !seen.has(track.id));
       if (fresh.length > 0) pool = [...pool, ...fresh];
@@ -67,11 +60,15 @@ const advance = async (): Promise<Track | null> => {
  * @returns 首曲 Track 实例，无可用曲目时返回 null
  */
 export const start = async (options?: PersonalFmOptions): Promise<Track | null> => {
-  const isDifferentMode =
-    options?.mode !== currentOptions?.mode || options?.submode !== currentOptions?.submode;
-  if (isDifferentMode) {
-    currentOptions = options ? { ...options } : undefined;
-    pool = [];
+  const status = useStatusStore();
+  const currentOptions = status.fmOptions ?? { mode: "DEFAULT" };
+  if (options) {
+    const isDifferentMode =
+      options.mode !== currentOptions.mode || options.submode !== currentOptions.submode;
+    if (isDifferentMode) {
+      status.fmOptions = { ...options };
+      pool = [];
+    }
   }
   if (pool.length === 0) await fetchMore();
   return current();

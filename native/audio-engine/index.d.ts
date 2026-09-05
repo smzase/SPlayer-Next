@@ -17,8 +17,11 @@ export declare class AudioPlayer {
   onEvent(callback: (event: JsPlayerEvent) => void): void
   /** 当前平台是否支持原生音频设备监听 */
   supportsDeviceWatcher(): boolean
-  /** 注册系统音频设备变化回调，不支持的平台由主进程轮询 */
-  onDeviceChange(callback: () => void): void
+  /**
+   * 注册系统音频设备变化回调，不支持的平台由主进程轮询
+   * 回调参数为 true 表示默认输出设备切换，false 表示设备列表变化
+   */
+  onDeviceChange(callback: (defaultChanged: boolean) => void): void
   /** 停止系统音频设备变化监听 */
   stopDeviceWatcher(): void
   /**
@@ -101,6 +104,8 @@ export declare class AudioPlayer {
   getOutputDevices(): Array<JsAudioDevice>
   /** 获取系统默认输出设备名称 */
   getDefaultDeviceName(): string | null
+  /** 获取系统默认输出设备稳定 ID */
+  getDefaultDeviceId(): string | null
   /** 切换输出设备（传设备 ID，None/undefined 使用系统默认） */
   setOutputDevice(deviceId?: string | undefined | null): Promise<void>
   /**

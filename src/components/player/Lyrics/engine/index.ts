@@ -129,8 +129,12 @@ export class LyricRenderer {
   private cachedTransforms: string[] = [];
   /** 每行是否已挂 will-change */
   private lineWillChange: boolean[] = [];
+  /** 每行是否已被视口裁剪 */
+  private lineCulled: boolean[] = [];
   /** bottom-line 是否已挂 will-change */
   private bottomWillChange = false;
+  /** bottom-line 是否已被视口裁剪 */
+  private bottomCulled = false;
   /** 透明度缓存 */
   private cachedAlphaKeys: string[] = [];
   /** 模糊缓存 */
@@ -345,6 +349,7 @@ export class LyricRenderer {
     this.lineHeights = new Float64Array(lineCount);
     this.cachedTransforms = new Array(lineCount).fill("");
     this.lineWillChange = new Array(lineCount).fill(false);
+    this.lineCulled = new Array(lineCount).fill(false);
     this.cachedAlphaKeys = new Array(lineCount).fill("");
     this.cachedBlurKeys = new Array(lineCount).fill("");
     this.blurValues = new Float64Array(lineCount);
@@ -829,6 +834,7 @@ export class LyricRenderer {
       scaleSpring.update(deltaTime);
 
       const yPos = posSpring.getCurrentPosition();
+      const scale = scaleSpring.getCurrentPosition() / 100;
       const inView = yPos >= -500 && yPos <= viewHeight + 500;
       // 合成层按需提升：仅视口附近的行挂 will-change
       if (this.lineWillChange[i] !== inView) {
@@ -836,8 +842,18 @@ export class LyricRenderer {
         this.lineElements[i].style.willChange = inView ? "transform, filter" : "";
       }
       // 视口裁剪：屏幕外行跳过 transform 写入
-      if (!isFullSync && !inView) continue;
-      const scale = scaleSpring.getCurrentPosition() / 100;
+      if (!isFullSync && !inView) {
+        // 弹簧一帧内飞出裁剪带时，DOM 可能残留在视口内（seek 伪影），
+        // 离带首帧按弹簧当前位置写一次终位，确保 DOM 同步移出视口
+        if (!this.lineCulled[i]) {
+          this.lineCulled[i] = true;
+          const culledTransform = `translateY(${yPos.toFixed(1)}px) scale(${scale.toFixed(4)})`;
+          this.cachedTransforms[i] = culledTransform;
+          this.lineElements[i].style.transform = culledTransform;
+        }
+        continue;
+      }
+      this.lineCulled[i] = false;
       const transformStr = `translateY(${yPos.toFixed(1)}px) scale(${scale.toFixed(4)})`;
       if (this.cachedTransforms[i] !== transformStr) {
         this.cachedTransforms[i] = transformStr;
@@ -854,7 +870,16 @@ export class LyricRenderer {
         this.bottomWillChange = bottomInView;
         this.bottomLineEl.style.willChange = bottomInView ? "transform, filter" : "";
       }
-      if (isFullSync || bottomInView) {
+      if (!isFullSync && !bottomInView) {
+        // 同歌词行：离带首帧写一次终位，防止 DOM 残留在视口内
+        if (!this.bottomCulled) {
+          this.bottomCulled = true;
+          const culledTransform = `translateY(${bottomY.toFixed(1)}px)`;
+          this.cachedBottomTransform = culledTransform;
+          this.bottomLineEl.style.transform = culledTransform;
+        }
+      } else {
+        this.bottomCulled = false;
         const bottomTransform = `translateY(${bottomY.toFixed(1)}px)`;
         if (this.cachedBottomTransform !== bottomTransform) {
           this.cachedBottomTransform = bottomTransform;

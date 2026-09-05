@@ -160,6 +160,10 @@ export const load = async (
       // 把引擎提取的 mediaInfo 与已有 Track 合并；身份字段保留
       media.enrichTrack(mediaInfo, detail);
       const enriched = media.track;
+      // 更新队列中的 Track 元数据
+      if (enriched) {
+        queue.updateQueueTracks([enriched]);
+      }
       // 避免重复请求
       if (!isOnline) {
         lyricLoader.loadForTrack(detail);
@@ -1037,6 +1041,50 @@ export const playNow = async (item: Track, context?: PlaybackContext): Promise<v
 };
 
 /**
+ * 将本地音频文件路径转为轻量 Track 对象
+ * @param filePath - 本地音频绝对路径
+ */
+export const createLocalTrack = (filePath: string): Track => {
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const title = fileName.replace(/\.[^/.]+$/, "");
+  return {
+    id: `local:${filePath}`,
+    title,
+    artists: [],
+    source: "local",
+    path: filePath,
+    duration: 0,
+  };
+};
+
+/**
+ * 直接播放一个本地音频文件
+ * @param filePath - 本地音频绝对路径
+ */
+export const playFile = async (filePath: string): Promise<void> => {
+  const item = createLocalTrack(filePath);
+  await playNow(item, {
+    originId: "local-file",
+    originType: "track",
+    originName: "本地文件",
+  });
+};
+
+/**
+ * 批量播放多个本地音频文件
+ * @param filePaths - 本地音频绝对路径列表
+ */
+export const playFiles = async (filePaths: string[]): Promise<void> => {
+  if (filePaths.length === 0) return;
+  const tracks = filePaths.map(createLocalTrack);
+  await playFrom(tracks, 0, {
+    originId: "local-files",
+    originType: "track",
+    originName: "本地文件",
+  });
+};
+
+/**
  * 移动队列中的歌曲位置，自动调整 playIndex
  * @param fromIndex - 原位置
  * @param toIndex - 目标位置
@@ -1196,34 +1244,41 @@ export const initPlayer = async (): Promise<void> => {
   } catch (error) {
     console.error("[player] requestSnapshot failed", error);
   }
+  // 下一首预载的监听器
+  installNextTrackPreloadWatchers();
+  scheduleNextTrackPreload();
+};
+
+/** 恢复上次播放状态 */
+export const restoreLastTrack = async (): Promise<void> => {
+  const status = useStatusStore();
+  const settings = useSettingsStore();
+  const media = useMediaStore();
   const lastTrack = status.currentTrack;
-  if (lastTrack) {
-    const lastPosition = status.position;
-    media.setTrack(lastTrack);
-    media.setPlaybackContext(status.currentPlaybackContext);
-    lyricLoader.beginLoad();
-    const loaded = await loadTrackSourceWithFallback(
-      lastTrack,
-      status.currentPlaybackContext,
-      settings.system.player.autoPlay,
-      () => true,
-    );
-    if (loaded.status === "loaded" && loaded.result.ok) {
-      if (settings.system.player.rememberLastTrack && lastPosition > 0) {
-        await seek(lastPosition);
-      }
-      if (loaded.resolved.cacheRequest) {
-        cacheScheduler.schedule(lastTrack.id, loaded.resolved.cacheRequest);
-      }
-    } else {
-      status.state = "idle";
+  if (!lastTrack) {
+    status.state = "idle";
+    return;
+  }
+  const lastPosition = status.position;
+  media.setTrack(lastTrack);
+  media.setPlaybackContext(status.currentPlaybackContext);
+  lyricLoader.beginLoad();
+  const loaded = await loadTrackSourceWithFallback(
+    lastTrack,
+    status.currentPlaybackContext,
+    settings.system.player.autoPlay,
+    () => true,
+  );
+  if (loaded.status === "loaded" && loaded.result.ok) {
+    if (settings.system.player.rememberLastTrack && lastPosition > 0) {
+      await seek(lastPosition);
+    }
+    if (loaded.resolved.cacheRequest) {
+      cacheScheduler.schedule(lastTrack.id, loaded.resolved.cacheRequest);
     }
   } else {
     status.state = "idle";
   }
-  // 下一首预载的监听器
-  installNextTrackPreloadWatchers();
-  scheduleNextTrackPreload();
 };
 
 /** 清理事件订阅 */

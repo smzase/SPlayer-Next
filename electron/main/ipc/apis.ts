@@ -10,8 +10,8 @@ import { ipcMain } from "electron";
 import { callNetease, clearNeteaseCookies, mergeNeteaseCookies } from "@main/apis/netease";
 import { NeteaseRequestError } from "@main/apis/netease/core/request";
 import { cookieToJson } from "@main/apis/netease/core/cookie";
-import { callQQMusic } from "@main/apis/qqmusic";
-import { callKugou } from "@main/apis/kugou";
+import { callQQMusic, clearQQMusicCookies } from "@main/apis/qqmusic";
+import { callKugou, clearKugouSession } from "@main/apis/kugou";
 import { openNeteaseLoginWindow } from "@main/window/login";
 import { openNeteasePodcastManager } from "@main/window/neteasePodcastManager";
 import { coreLog } from "@main/utils/logger";
@@ -65,6 +65,8 @@ export const registerApisIpc = (): void => {
 
   ipcMain.handle("apis:clearSession", (_evt, platform: ApiPlatform) => {
     if (platform === "netease") clearNeteaseCookies();
+    if (platform === "qqmusic") clearQQMusicCookies();
+    if (platform === "kugou") clearKugouSession();
   });
 
   // 打开 NCM 官方网页登录，成功后把 cookies 合并写入 session

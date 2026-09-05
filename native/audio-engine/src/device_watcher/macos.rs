@@ -23,7 +23,7 @@ use objc2_core_audio::{
 use super::{DeviceChangedCallback, PlatformBackend};
 
 enum WatchCommand {
-    Changed,
+    Changed(bool),
     Stop,
 }
 
@@ -47,8 +47,8 @@ fn remove_callback(context_id: usize) {
 
 unsafe extern "C-unwind" fn property_changed(
     _object_id: AudioObjectID,
-    _address_count: u32,
-    _addresses: NonNull<AudioObjectPropertyAddress>,
+    address_count: u32,
+    addresses: NonNull<AudioObjectPropertyAddress>,
     context: *mut c_void,
 ) -> i32 {
     let context_id = context as usize;
@@ -57,7 +57,13 @@ unsafe extern "C-unwind" fn property_changed(
         .ok()
         .and_then(|callbacks| callbacks.get(&context_id).cloned());
     if let Some(sender) = sender {
-        let _ = sender.try_send(WatchCommand::Changed);
+        let addresses = unsafe {
+            std::slice::from_raw_parts(addresses.as_ptr(), address_count as usize)
+        };
+        let default_changed = addresses
+            .iter()
+            .any(|address| address.mSelector == kAudioHardwarePropertyDefaultOutputDevice);
+        let _ = sender.try_send(WatchCommand::Changed(default_changed));
     }
     kAudioHardwareNoError
 }
@@ -288,9 +294,9 @@ impl PlatformBackend for Backend {
 
                 while let Ok(command) = command_rx.recv() {
                     match command {
-                        WatchCommand::Changed => {
+                        WatchCommand::Changed(default_changed) => {
                             refresh_device_properties(&mut device_registrations, context_id);
-                            callback();
+                            callback(default_changed);
                         }
                         WatchCommand::Stop => break,
                     }

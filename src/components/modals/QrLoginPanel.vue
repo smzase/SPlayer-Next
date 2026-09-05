@@ -30,14 +30,18 @@ const refresh = async (): Promise<void> => {
   try {
     const result = await props.adapter.create();
     key.value = result.key;
-    const svg = renderSVG(result.content, {
-      ecc: "H",
-      border: 0,
-      pixelSize: 8,
-      whiteColor: "#ffffff",
-      blackColor: "#000000",
-    });
-    qrUrl.value = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    if (result.content.startsWith("data:image/") || result.content.startsWith("blob:")) {
+      qrUrl.value = result.content;
+    } else {
+      const svg = renderSVG(result.content, {
+        ecc: "H",
+        border: 0,
+        pixelSize: 8,
+        whiteColor: "#ffffff",
+        blackColor: "#000000",
+      });
+      qrUrl.value = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
     state.value = "waiting";
     if (props.active) resume();
   } finally {

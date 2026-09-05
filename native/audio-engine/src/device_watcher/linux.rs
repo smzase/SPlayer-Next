@@ -79,10 +79,11 @@ fn is_relevant_sink_change(change_mask: NodeChangeMask) -> bool {
 fn notify_if_ready(
     state: &Rc<RefCell<WatchState>>,
     changed: bool,
-    notifications: &channel::Sender<()>,
+    default_changed: bool,
+    notifications: &channel::Sender<bool>,
 ) {
     if changed && state.borrow().initialized {
-        let _ = notifications.send(());
+        let _ = notifications.send(default_changed);
     }
 }
 
@@ -90,7 +91,7 @@ fn bind_metadata_listener(
     registry: &RegistryRc,
     global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
     state: &Rc<RefCell<WatchState>>,
-    notifications: &channel::Sender<()>,
+    notifications: &channel::Sender<bool>,
 ) -> Option<MetadataMonitor> {
     let Ok(metadata) = registry.bind::<Metadata, _>(global) else {
         return None;
@@ -103,6 +104,7 @@ fn bind_metadata_listener(
             notify_if_ready(
                 &state_for_event,
                 is_default_sink_property(key),
+                true,
                 &notifications,
             );
             0
@@ -118,7 +120,7 @@ fn bind_sink_listener(
     registry: &RegistryRc,
     global: &pipewire::registry::GlobalObject<&pipewire::spa::utils::dict::DictRef>,
     state: &Rc<RefCell<WatchState>>,
-    notifications: &channel::Sender<()>,
+    notifications: &channel::Sender<bool>,
 ) -> Option<SinkMonitor> {
     let Ok(node) = registry.bind::<Node, _>(global) else {
         return None;
@@ -135,6 +137,7 @@ fn bind_sink_listener(
             notify_if_ready(
                 &state_for_event,
                 is_relevant_sink_change(info.change_mask()),
+                false,
                 &notifications,
             );
         })
@@ -211,7 +214,9 @@ fn run_watcher(
         let mainloop = mainloop.clone();
         move |WatchCommand::Stop| mainloop.quit()
     });
-    let notification_source = notification_rx.attach(mainloop.loop_(), move |_| callback());
+    let notification_source = notification_rx.attach(mainloop.loop_(), move |default_changed| {
+        callback(default_changed)
+    });
 
     let state_for_global = Rc::clone(&state);
     let registry_for_global = registry.clone();
@@ -246,7 +251,7 @@ fn run_watcher(
                     state.sinks.insert(global.id, monitor);
                 }
                 drop(state);
-                notify_if_ready(&state_for_global, changed, &notifications_for_global);
+                notify_if_ready(&state_for_global, changed, false, &notifications_for_global);
             }
         })
         .global_remove({
@@ -257,7 +262,7 @@ fn run_watcher(
                 state_mut.sinks.remove(&id);
                 let changed = state_mut.sink_ids.remove(&id);
                 drop(state_mut);
-                notify_if_ready(&state, changed, &notifications);
+                notify_if_ready(&state, changed, false, &notifications);
             }
         })
         .register();

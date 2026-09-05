@@ -175,6 +175,12 @@ export interface TrackDetail {
 
 /** 播放器加载后从音频流提取出的可覆盖元数据 */
 export interface MediaInfo {
+  /** 标题 */
+  title?: string;
+  /** 歌手 */
+  artists?: Artist[];
+  /** 专辑 */
+  album?: Album;
   /** 时长（毫秒） */
   duration: number;
   /** 缩略封面（cache:// URL 或 base64） */

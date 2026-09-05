@@ -427,6 +427,10 @@
       "paste": "粘贴",
       "pasteSearch": "粘贴并搜索"
     },
+    "menu": {
+      "hideFromSidebar": "在侧边栏中隐藏",
+      "customizeSidebar": "自定义侧边栏"
+    },
     "link": {
       "song": "直接播放「{id}」",
       "album": "前往专辑「{id}」",
@@ -1037,6 +1041,7 @@
     },
     "section": {
       "platformLogin": "平台登录",
+      "platformConfig": "平台配置",
       "network": "网络代理",
       "aboutApp": "关于软件",
       "specialThanks": "特别致谢",
@@ -1044,7 +1049,6 @@
       "community": "社区与资讯",
       "update": "更新",
       "language": "语言",
-      "playback": "播放器",
       "playControl": "播放控制",
       "audioSource": "播放音源",
       "scrobble": "听歌打卡",
@@ -1063,6 +1067,8 @@
       "appearanceStyle": "外观风格",
       "layout": "布局",
       "font": "字体",
+      "playerBar": "播放栏",
+      "nowPlaying": "播放页",
       "media": "媒体控制",
       "device": "输出设备",
       "hotkeys": "快捷键",
@@ -1367,7 +1373,9 @@
       "restartRequiredTitle": "需要重启应用",
       "restartRequiredContent": "此设置需要重启应用后生效。确定保存并立即重启吗？",
       "testChannelTitle": "切换到测试通道",
-      "testChannelContent": "Beta 与 Alpha 通道会提前收到测试版本，其中 Alpha 版本可能非常不稳定。确定切换吗？"
+      "testChannelContent": "Beta 与 Alpha 通道会提前收到测试版本，其中 Alpha 版本可能非常不稳定。确定切换吗？",
+      "kugouLoginVersionTitle": "切换 KG 登录版本",
+      "kugouLoginVersionContent": "切换后当前登录凭据与新版本不匹配，需退出登录并重新扫码，否则会员权益与高音质解析会失效。确定切换吗？"
     },
     "useAMSpring": {
       "label": "弹簧动画调试开关",
@@ -1805,6 +1813,10 @@
       "default": "默认",
       "fullscreen": "全屏封面"
     },
+    "coverLyricRatio": {
+      "label": "封面/歌词占比",
+      "description": "播放页封面与歌词区域的宽度比例"
+    },
     "themeMode": {
       "label": "主题模式",
       "description": "应用的颜色主题",
@@ -1879,6 +1891,23 @@
     "sidebarPlaylistCover": {
       "label": "歌单显示封面",
       "description": "侧边栏的歌单项以歌单封面替代默认图标"
+    },
+    "sidebarCustomize": {
+      "label": "自定义侧边栏",
+      "description": "调整侧边栏导航项的分组、顺序与显示",
+      "hint": "拖动手柄调整顺序与分组，点击眼睛切换显示",
+      "nav": "导航项",
+      "groups": "歌单分组",
+      "group": "分组 {n}",
+      "addGroup": "新增分组",
+      "emptyGroup": "拖动导航项到此处",
+      "noPlaylists": "暂无歌单",
+      "keepEmptyDivider": "空分组保留分隔线",
+      "nameWithDivider": "分组名与分隔线叠加显示",
+      "showName": "在侧栏显示分组名",
+      "confirmResetTitle": "确认恢复默认？",
+      "confirmResetDesc": "分组、命名、排序与显隐都将重置为默认！",
+      "featureDisabled": "功能未开启"
     },
     "showStatsInSidebar": {
       "label": "显示播放统计入口",
@@ -1974,9 +2003,10 @@
     "platformLogin": {
       "title": "登录 {name} 账号",
       "desc": "登录后可获取对应平台播放地址",
-      "vipTag": " · VIP 会员",
       "loginWeb": "网页登录",
       "loginQr": "扫码登录",
+      "loginQrQQ": "QQ 扫码登录",
+      "loginQrWX": "微信扫码登录",
       "qrTitle": "扫码登录",
       "manualCookie": "Cookie 登录",
       "logout": "退出登录",
@@ -2053,6 +2083,12 @@
     "neteaseRealIp": {
       "label": "使用真实IP地址",
       "description": "在海外或部分地区可能会受到限制，可开启此处尝试解决"
+    },
+    "kugouLoginVersion": {
+      "label": "KG 登录版本",
+      "description": "切换后需重新扫码登录",
+      "standard": "标准版",
+      "concept": "概念版"
     },
     "neteaseScrobbleEnabled": {
       "label": "启用听歌打卡",

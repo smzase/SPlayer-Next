@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { KG_APPID, KG_CLIENTVER } from "./config";
+import { getKgAppid, getKgClientver } from "./config";
 import {
   decryptKugouDeviceData,
   encryptKugouDeviceData,
@@ -52,8 +52,8 @@ const registerDevice = async (): Promise<string> => {
     dfid: "-",
     mid: getDeviceMid(),
     uuid: "-",
-    appid: KG_APPID,
-    clientver: KG_CLIENTVER,
+    appid: getKgAppid(),
+    clientver: getKgClientver(),
     clienttime,
     part: 1,
     platid: 1,

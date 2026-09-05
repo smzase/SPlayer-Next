@@ -107,6 +107,7 @@ watch(
 );
 
 const fullscreenCover = computed(() => settings.player.coverLayout === "fullscreen");
+const coverWidth = computed(() => `${settings.player.coverLyricRatio * 100}%`);
 
 const coverCentered = computed(() => {
   if (fullscreenCover.value || status.fullQueueOpen) return false;
@@ -261,8 +262,11 @@ const showComments = (): void => {
           <!-- 左侧 -->
           <div
             v-if="!fullscreenCover"
-            class="absolute inset-y-0 left-0 w-[45%] flex items-center justify-center px-12 transition-transform duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
-            :style="coverCentered ? 'transform: translateX(calc(100% * 11 / 18))' : undefined"
+            class="absolute inset-y-0 left-0 flex items-center justify-center px-12 transition-transform duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            :style="{
+              width: coverWidth,
+              transform: coverCentered ? 'translateX(calc(50vw - 50%))' : undefined,
+            }"
           >
             <div class="relative w-[clamp(200px,85%,50vh)] -translate-y-[11vh]">
               <Transition name="scale-switch" mode="out-in">
@@ -278,12 +282,8 @@ const showComments = (): void => {
           <!-- 右侧 -->
           <div
             class="group absolute inset-y-0 right-0 pr-20 flex flex-col transition-opacity duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
-            :class="[
-              fullscreenCover ? 'w-1/2' : 'w-[55%]',
-              coverCentered || status.fullQueueOpen
-                ? 'opacity-0 pointer-events-none'
-                : 'opacity-100',
-            ]"
+            :class="coverCentered || status.fullQueueOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'"
+            :style="{ width: fullscreenCover ? '50%' : `calc(100% - ${coverWidth})` }"
           >
             <!-- 全屏封面 -->
             <div
@@ -384,10 +384,8 @@ const showComments = (): void => {
           <!-- 播放队列 -->
           <div
             class="absolute inset-y-0 right-0 pl-4 py-6 flex items-center"
-            :class="[
-              fullscreenCover ? 'w-1/2' : 'w-[55%]',
-              status.fullQueueOpen ? '' : 'pointer-events-none',
-            ]"
+            :class="status.fullQueueOpen ? '' : 'pointer-events-none'"
+            :style="{ width: fullscreenCover ? '50%' : `calc(100% - ${coverWidth})` }"
           >
             <Transition
               enter-active-class="transition-opacity duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"

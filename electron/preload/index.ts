@@ -1,5 +1,5 @@
 import os from "os";
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
 import type { TaskbarPlaybackSnapshot } from "@shared/types/taskbarLyric";
@@ -189,6 +189,14 @@ const api = {
     // 拉取冷启动暂存的 orpheus 唤起 URL
     consumePendingProtocolUrl: (): Promise<string | null> =>
       ipcRenderer.invoke("system:consumePendingProtocolUrl"),
+    // 订阅主进程下发的外部音频文件打开列表
+    onOpenFiles: (callback: (files: string[]) => void) =>
+      subscribe<string[]>("system:open-files", callback),
+    // 拉取冷启动暂存的外部音频文件列表
+    consumePendingAudioFiles: (): Promise<string[]> =>
+      ipcRenderer.invoke("system:consumePendingAudioFiles"),
+    // 获取 File 对象的本地绝对路径（用于拖拽播放）
+    getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   },
   library: {
     // 开始扫描（默认增量）

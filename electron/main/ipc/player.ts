@@ -340,6 +340,11 @@ export const registerPlayerIpc = (): void => {
           externalLyrics: meta.externalLyrics,
         },
         mediaInfo: {
+          title: meta.title || displayTitle,
+          artists: authoritative?.artists?.length
+            ? authoritative.artists
+            : parseArtists(meta.artist ?? ""),
+          album: authoritative?.album ?? parseAlbum(meta.album ?? ""),
           duration: durationMs,
           cover: isRemote ? undefined : toCacheUrl(meta.cover),
           quality,

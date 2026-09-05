@@ -216,7 +216,8 @@ impl AudioPlayer {
                 normalization_gain,
                 current_source,
                 was_playing,
-                output_sample_rate,
+                original_sample_rate,
+                output_sample_rate: _,
                 output_channels: _,
                 token,
                 equalizer,
@@ -226,10 +227,10 @@ impl AudioPlayer {
             let outcome: ReinitOutcome = tokio::task::spawn_blocking(move || {
                 let decoder_data = old_threads.join_aux().and_then(|h| h.join().ok());
 
-                // 优先沿用原输出采样率；设备回退到其它格式时在下方重建播放重采样器
+                // 优先按音源原始采样率协商新设备；设备不支持时回退到新设备默认格式
                 let output = match audio_output::AudioOutput::new(
                     device_id.as_deref(),
-                    Some(output_sample_rate),
+                    Some(original_sample_rate),
                     output_generation,
                     on_failure,
                 ) {
@@ -434,11 +435,12 @@ impl AudioPlayer {
     }
 
     /// 注册系统音频设备变化回调，不支持的平台由主进程轮询
-    #[napi(ts_args_type = "callback: () => void")]
-    pub fn on_device_change(&self, callback: Function<(), ()>) -> Result<()> {
+    /// 回调参数为 true 表示默认输出设备切换，false 表示设备列表变化
+    #[napi(ts_args_type = "callback: (defaultChanged: boolean) => void")]
+    pub fn on_device_change(&self, callback: Function<bool, ()>) -> Result<()> {
         let tsfn = callback.build_threadsafe_function().build()?;
-        let watcher = device_watcher::DeviceWatcher::new(Box::new(move || {
-            tsfn.call((), ThreadsafeFunctionCallMode::NonBlocking);
+        let watcher = device_watcher::DeviceWatcher::new(Box::new(move |default_changed| {
+            tsfn.call(default_changed, ThreadsafeFunctionCallMode::NonBlocking);
         }))
         .into_napi()?;
         *self.device_watcher.lock() = Some(watcher);
@@ -679,6 +681,7 @@ impl AudioPlayer {
             normalization_gain,
             current_source,
             was_playing,
+            original_sample_rate: _,
             output_sample_rate,
             output_channels,
             token,
@@ -926,6 +929,12 @@ impl AudioPlayer {
     #[napi]
     pub fn get_default_device_name(&self) -> Option<String> {
         audio_output::default_device_name()
+    }
+
+    /// 获取系统默认输出设备稳定 ID
+    #[napi]
+    pub fn get_default_device_id(&self) -> Option<String> {
+        audio_output::default_device_id()
     }
 
     /// 切换输出设备（传设备 ID，None/undefined 使用系统默认）

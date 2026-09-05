@@ -2,7 +2,8 @@ import type { Platform, PlatformProfile } from "@shared/types/platform";
 import {
   fetchQQMusicLoginStatus,
   logoutQQMusic,
-  openQQMusicLoginWeb,
+  qqmusicQrLoginAdapter,
+  qqmusicWxQrLoginAdapter,
   setQQMusicCookie,
 } from "./qqmusic";
 import { fetchKugouLoginStatus, kugouQrLoginAdapter, logoutKugou, setKugouCookie } from "./kugou";
@@ -18,6 +19,12 @@ export interface QrLoginAdapter {
   }>;
 }
 
+export interface QrLoginOption {
+  key: string;
+  labelKey: string;
+  adapter: QrLoginAdapter;
+}
+
 export interface PlatformAccountAdapter {
   displayName: string;
   userIdLabel: string;
@@ -26,6 +33,7 @@ export interface PlatformAccountAdapter {
   openWebLogin?: () => Promise<boolean>;
   setCookie?: (cookie: string) => Promise<boolean>;
   qrLogin?: QrLoginAdapter;
+  qrLoginOptions?: QrLoginOption[];
 }
 
 const adapters: Partial<Record<Platform, PlatformAccountAdapter>> = {
@@ -34,8 +42,20 @@ const adapters: Partial<Record<Platform, PlatformAccountAdapter>> = {
     userIdLabel: "UIN",
     fetchProfile: fetchQQMusicLoginStatus,
     logout: logoutQQMusic,
-    openWebLogin: openQQMusicLoginWeb,
     setCookie: setQQMusicCookie,
+    qrLogin: qqmusicQrLoginAdapter,
+    qrLoginOptions: [
+      {
+        key: "qq",
+        labelKey: "settings.platformLogin.loginQrQQ",
+        adapter: qqmusicQrLoginAdapter,
+      },
+      {
+        key: "wx",
+        labelKey: "settings.platformLogin.loginQrWX",
+        adapter: qqmusicWxQrLoginAdapter,
+      },
+    ],
   },
   kugou: {
     displayName: "KG",

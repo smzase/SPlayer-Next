@@ -443,8 +443,11 @@ export interface AppUpdateSettings {
   channel: UpdateChannel;
 }
 
-/** 网易云听歌打卡上报方式 */
+/** NCM 听歌打卡上报方式 */
 export type NeteaseScrobbleMode = "legacy" | "ncbl";
+
+/** KG 登录版本 */
+export type KugouLoginVersion = "standard" | "concept";
 
 /** 后端配置汇总 */
 export interface SystemConfig {
@@ -496,6 +499,8 @@ export interface SystemConfig {
     agreedAgreementVersion: number;
     /** NCM请求注入国内 IP（X-Real-IP/X-Forwarded-For） */
     neteaseRealIp: boolean;
+    /** KG 登录版本（standard 标准版 / concept 概念版） */
+    kugouLoginVersion: KugouLoginVersion;
     /** 网络代理配置 */
     networkProxy: NetworkProxySettings;
     /** 听歌打卡开关 */

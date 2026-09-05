@@ -104,6 +104,7 @@ impl InnerPlayer {
         };
         let seek_base = self.seek_base;
         let duration = self.duration();
+        let playback = self.playback.as_ref().map(Arc::clone);
 
         let handle = thread::spawn(move || {
             // 停滞检测：消费计数连续 STALL_THRESHOLD_TICKS 次未变 + 缓冲区非空 → sink 静默死亡
@@ -126,6 +127,10 @@ impl InnerPlayer {
                     cb(PlayerEvent::StateChanged {
                         state: PlayerState::Stopped,
                     });
+                    // 自然结束后立即停掉音频客户端：流保持运行会持续占用音频设备，阻止系统睡眠
+                    if let Some(playback) = &playback {
+                        playback.pause();
+                    }
                     break;
                 }
 

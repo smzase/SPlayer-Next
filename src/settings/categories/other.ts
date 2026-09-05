@@ -39,6 +39,27 @@ const otherCategory: SettingCategory = {
       ],
     },
     {
+      id: "platformConfig",
+      tag: { text: "Beta" },
+      items: [
+        {
+          key: "kugouLoginVersion",
+          type: "select",
+          binding: { store: "settings", path: "system.system.kugouLoginVersion" },
+          options: [
+            { value: "standard", labelKey: "settings.kugouLoginVersion.standard" },
+            { value: "concept", labelKey: "settings.kugouLoginVersion.concept" },
+          ],
+          defaultValue: "standard",
+          confirm: {
+            titleKey: "settings.confirm.kugouLoginVersionTitle",
+            contentKey: "settings.confirm.kugouLoginVersionContent",
+            type: "warning",
+          },
+        },
+      ],
+    },
+    {
       id: "preset",
       items: [
         {

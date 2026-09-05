@@ -1,5 +1,16 @@
 import type { Configuration } from "electron-builder";
 import { readFileSync } from "node:fs";
+import { SUPPORTED_AUDIO_EXTENSIONS } from "./shared/utils/audioFile";
+
+/** 音频后缀注册为文件关联 */
+const fileAssociations = [...SUPPORTED_AUDIO_EXTENSIONS].map((extension) => {
+  const ext = extension.slice(1);
+  return {
+    ext,
+    description: `${ext.toUpperCase()} Audio File`,
+    role: "Viewer" as const,
+  };
+});
 
 const packageVersion = JSON.parse(readFileSync("package.json", "utf8")).version as string;
 const prereleaseChannel = /-(alpha|beta)(?:\.|$)/.exec(packageVersion)?.[1];
@@ -29,6 +40,7 @@ const config: Configuration = {
   productName: "SPlayer-Next-Plus",
   copyright: "Copyright © imsyy 2025",
   directories: { buildResources: "public" },
+  fileAssociations,
   afterPack: "./scripts/after-pack.ts",
   compression: "maximum",
   generateUpdatesFilesForAllChannels: true,

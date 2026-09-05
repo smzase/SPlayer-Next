@@ -33,6 +33,17 @@ const userDetail: KGModule = async () => {
   const data = response.data ?? {};
   const nickname = data.nickname ?? data.username ?? data.user_name ?? session.nickname;
   const avatar = data.pic ?? data.userpic ?? data.user_pic ?? data.avatar ?? session.avatar;
+  // vip_type 只反映标准版会员；概念版（含签到领取的会员）查 union_vip
+  let isVip = Number(data.vip_type ?? 0) > 0;
+  if (!isVip) {
+    const unionResp = await kgGatewayRequest<{
+      data?: { busi_vip?: Array<{ is_vip?: number }> };
+    }>("/v1/get_union_vip", {
+      baseURL: "https://kugouvip.kugou.com",
+      params: { busi_type: "concept" },
+    }).catch(() => null);
+    isVip = unionResp?.data?.busi_vip?.[0]?.is_vip === 1;
+  }
   const nextSession: Record<string, string> = {
     ...session,
     ...(nickname ? { nickname: String(nickname) } : {}),
@@ -47,7 +58,7 @@ const userDetail: KGModule = async () => {
       userId: session.userid,
       nickname: nextSession.nickname || `KG ${session.userid}`,
       avatarUrl: nextSession.avatar || "",
-      isVip: Number(nextSession.vip_type || 0) > 0 || Boolean(nextSession.vip_token),
+      isVip,
       vipLevel: Number(nextSession.vip_type || 0),
     },
   };

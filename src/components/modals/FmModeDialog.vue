@@ -5,7 +5,7 @@
 
 import type { PersonalFmMode, PersonalFmSubMode } from "@/types/netease";
 import * as player from "@/core/player";
-import * as fm from "@/core/player/fm";
+import { useStatusStore } from "@/stores/status";
 import { toast } from "@/composables/useToast";
 
 const props = defineProps<{
@@ -19,6 +19,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const status = useStatusStore();
 
 /** 主模式定义 */
 interface ModeItem {
@@ -128,7 +129,7 @@ watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
-    const currentOpt = fm.getOptions();
+    const currentOpt = status.fmOptions;
     activeMode.value = currentOpt?.mode ?? "DEFAULT";
     if (currentOpt?.submode) {
       activeSubMode.value = currentOpt.submode;

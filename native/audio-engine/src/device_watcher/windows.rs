@@ -19,7 +19,8 @@ use windows::{
 use super::{DeviceChangedCallback, PlatformBackend};
 
 enum WatchCommand {
-    Changed,
+    /// true 表示默认输出设备切换，false 表示设备列表变化
+    Changed(bool),
     Stop,
 }
 
@@ -29,8 +30,8 @@ struct DeviceNotificationClient {
 }
 
 impl DeviceNotificationClient {
-    fn notify(&self) {
-        let _ = self.commands.try_send(WatchCommand::Changed);
+    fn notify(&self, default_changed: bool) {
+        let _ = self.commands.try_send(WatchCommand::Changed(default_changed));
     }
 }
 
@@ -44,17 +45,17 @@ impl IMMNotificationClient_Impl for DeviceNotificationClient_Impl {
         _device_id: &PCWSTR,
         _new_state: windows::Win32::Media::Audio::DEVICE_STATE,
     ) -> WindowsResult<()> {
-        self.notify();
+        self.notify(false);
         Ok(())
     }
 
     fn OnDeviceAdded(&self, _device_id: &PCWSTR) -> WindowsResult<()> {
-        self.notify();
+        self.notify(false);
         Ok(())
     }
 
     fn OnDeviceRemoved(&self, _device_id: &PCWSTR) -> WindowsResult<()> {
-        self.notify();
+        self.notify(false);
         Ok(())
     }
 
@@ -65,7 +66,7 @@ impl IMMNotificationClient_Impl for DeviceNotificationClient_Impl {
         _default_device_id: &PCWSTR,
     ) -> WindowsResult<()> {
         if is_output_default_change(flow, role) {
-            self.notify();
+            self.notify(true);
         }
         Ok(())
     }
@@ -143,7 +144,7 @@ impl PlatformBackend for Backend {
 
                 while let Ok(command) = command_rx.recv() {
                     match command {
-                        WatchCommand::Changed => callback(),
+                        WatchCommand::Changed(default_changed) => callback(default_changed),
                         WatchCommand::Stop => break,
                     }
                 }
@@ -201,17 +202,17 @@ mod tests {
                 .OnDeviceStateChanged(PCWSTR::null(), DEVICE_STATE_ACTIVE)
                 .unwrap();
         }
-        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed)));
+        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed(false))));
 
         unsafe {
             client.OnDeviceAdded(PCWSTR::null()).unwrap();
         }
-        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed)));
+        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed(false))));
 
         unsafe {
             client.OnDeviceRemoved(PCWSTR::null()).unwrap();
         }
-        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed)));
+        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed(false))));
 
         unsafe {
             client
@@ -238,6 +239,6 @@ mod tests {
                 .OnDefaultDeviceChanged(eRender, eConsole, PCWSTR::null())
                 .unwrap();
         }
-        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed)));
+        assert!(matches!(receiver.try_recv(), Ok(WatchCommand::Changed(true))));
     }
 }

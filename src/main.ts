@@ -9,7 +9,8 @@ import i18n from "./i18n";
 import { useThemeStore } from "./stores/theme";
 import { useSettingsStore } from "./stores/settings";
 import { useHotkeyStore } from "./stores/hotkey";
-import { initPlayer } from "./core/player";
+import { initPlayer, playFiles, restoreLastTrack } from "./core/player";
+import { handleOrpheus } from "./services/orpheus";
 import { installHotkeyManager } from "./core/hotkey/manager";
 import { vRipple } from "./directives/ripple";
 
@@ -55,6 +56,24 @@ const onSplashTimerDone = (): void => {
   removeSplash();
 };
 
+/**
+ * 启动播放服务并分发冷启动任务
+ */
+const bootstrapPlayback = async (): Promise<void> => {
+  await initPlayer();
+
+  const pendingAudioFiles = await window.api.system.consumePendingAudioFiles();
+  const pendingOrpheusUrl = await window.api.system.consumePendingProtocolUrl();
+
+  if (pendingAudioFiles && pendingAudioFiles.length > 0) {
+    await playFiles(pendingAudioFiles);
+  } else if (pendingOrpheusUrl) {
+    await handleOrpheus(pendingOrpheusUrl);
+  } else {
+    await restoreLastTrack();
+  }
+};
+
 // 初始化程序
 router.isReady().then(() => {
   // 挂载应用
@@ -66,8 +85,8 @@ router.isReady().then(() => {
   if (!splashTimerFired) {
     setTimeout(removeSplash, SPLASH_ANIM_MS + 100);
   }
-  // 初始化播放器
-  initPlayer().catch(console.error);
+  // 初始化播放器与冷启动分发
+  bootstrapPlayback().catch(console.error);
   // 初始化快捷键
   useHotkeyStore()
     .init()

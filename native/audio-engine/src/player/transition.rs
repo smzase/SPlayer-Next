@@ -51,6 +51,8 @@ pub struct SeekTake {
     pub current_source: Option<String>,
     /// seek 前是否在播放（fallback 到 load 时保留状态）
     pub was_playing: bool,
+    /// 当前音频源原始采样率
+    pub original_sample_rate: u32,
     /// 当前输出设备采样率（新 Shared 沿用，与复用的重采样器目标一致）
     pub output_sample_rate: u32,
     /// 当前输出设备声道数
@@ -196,6 +198,7 @@ impl InnerPlayer {
             normalization_gain: norm_gain,
             current_source: self.current_source.clone(),
             was_playing: self.state == PlayerState::Playing,
+            original_sample_rate: self.original_sample_rate,
             output_sample_rate: self.output_sample_rate(),
             output_channels: self.output_channels(),
             token,
@@ -306,6 +309,7 @@ impl InnerPlayer {
         self.current_source = Some(source.to_string());
 
         self.audio_duration = metadata.duration_secs;
+        self.original_sample_rate = metadata.original_sample_rate;
         self.cover_raw = metadata.cover_raw.take();
 
         if auto_play {

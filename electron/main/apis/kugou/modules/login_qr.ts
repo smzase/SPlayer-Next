@@ -1,4 +1,4 @@
-import { KG_CLIENTVER } from "../core/config";
+import { getKgAppid, getKgClientver } from "../core/config";
 import { getDeviceMid, signatureWebParams } from "../core/crypto";
 import type { KGModule, KGParams } from "../core/types";
 import { getSessionCookies, saveSessionCookies } from "@main/database/sessions";
@@ -12,7 +12,7 @@ const request = async (path: string, input: Record<string, unknown>): Promise<an
     mid: getDeviceMid(),
     uuid: "-",
     appid: 1001,
-    clientver: KG_CLIENTVER,
+    clientver: getKgClientver(),
     clienttime: Math.floor(Date.now() / 1000),
     ...input,
   };
@@ -28,10 +28,11 @@ const request = async (path: string, input: Record<string, unknown>): Promise<an
 };
 
 export const loginQrKey: KGModule = async () => {
+  const appid = getKgAppid();
   const body = await request("/v2/qrcode", {
     type: 1,
     plat: 4,
-    qrcode_txt: "https://h5.kugou.com/apps/loginQRCode/html/index.html?appid=1005&",
+    qrcode_txt: `https://h5.kugou.com/apps/loginQRCode/html/index.html?appid=${appid}&`,
     srcappid: SRC_APPID,
   });
   const key = body?.data?.qrcode;
@@ -48,7 +49,7 @@ export const loginQrCheck: KGModule = async (params: KGParams) => {
   if (!key) throw new Error("KG QR key missing");
   const body = await request("/v2/get_userinfo_qrcode", {
     plat: 4,
-    appid: 1005,
+    appid: getKgAppid(),
     srcappid: SRC_APPID,
     qrcode: key,
   });
